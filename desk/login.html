@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login · Pivot SACCO Desk</title>
+  <link rel="stylesheet" href="assets/app.css" />
+</head>
+<body>
+  <div class="banner-mock">LIVE auth — Fineract /authentication via local proxy</div>
+  <div class="login-page">
+    <section class="login-hero">
+      <div>
+        <div class="brand-mark" style="width:48px;height:48px;font-size:18px">P</div>
+        <h1>Pivot SACCO Desk</h1>
+        <p>Front-office and portfolio workspace for Ugandan SACCOs. Built to sit on Apache Fineract — replacing the stock Mifos X Web App experience.</p>
+        <ul class="login-features">
+          <li>✓ Teller sessions, float &amp; EOD</li>
+          <li>✓ Members, loans, savings in UGX</li>
+          <li>✓ Accounting mapped to Fineract GL APIs</li>
+          <li>✓ Kampala-first branch operations</li>
+        </ul>
+      </div>
+      <div style="font-size:12px;color:#7FA8AD">© Pivot SACCO · Mock pack for Osbert review</div>
+    </section>
+    <section class="login-panel">
+      <div class="login-card">
+        <h2>Sign in</h2>
+        <p class="hint">Sign in with Fineract credentials (default mifos / password).</p>
+        <form id="login-form">
+          <div class="form-row" style="margin-bottom:12px">
+            <label>Tenant</label>
+            <select name="tenant" required>
+              <option value="default" selected>default (Pivot SACCO)</option>
+              <option value="demo">demo</option>
+            </select>
+          </div>
+          <div class="form-row" style="margin-bottom:12px">
+            <label>Username</label>
+            <input type="text" name="username" value="mifos" autocomplete="username" />
+          </div>
+          <div class="form-row" style="margin-bottom:16px">
+            <label>Password</label>
+            <input type="password" name="password" value="password" autocomplete="current-password" />
+          </div>
+          <button type="submit" class="btn btn-amber" style="width:100%">Continue to desk</button>
+        </form>
+        <p class="text-muted" style="margin-top:14px;font-size:12px">POST <code>/fineract-provider/api/v1/authentication</code></p>
+        <p style="margin-top:10px;font-size:12px"><a href="dashboard.html">Skip login → Dashboard</a></p>
+      </div>
+    </section>
+  </div>
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/pages.js"></script>
+  <script src="assets/actions.js"></script>
+</body>
+</html>

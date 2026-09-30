@@ -35,3 +35,6 @@ gradleExp/
 .java-version
 
 .windsurf/
+
+# Local Compose override (see docker-compose.override.yml.example). Drops host port 5000.
+docker-compose.override.yml

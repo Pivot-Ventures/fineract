@@ -1,3 +1,63 @@
+# Pivot SACCO
+
+Apache Fineract backend and Pivot SACCO Desk frontend, in one repository.
+
+| Part | Where | What it is |
+|------|--------|------------|
+| Backend | repository root | Apache Fineract (Java). Sources stay here; they are not moved into a subfolder. |
+| Frontend | [`desk/`](desk/README.md) | Pivot SACCO Desk. Static HTML, CSS, and JS, plus a local reverse proxy. |
+
+**Mifos X web-app is not part of this product.** Use Pivot SACCO Desk. Do not start `docker-compose-web-app.yml` or `docker-compose-community-app.yml` for day-to-day work. The [Pivot-Ventures/web-app](https://github.com/Pivot-Ventures/web-app) fork is deprecated.
+
+## Run Pivot SACCO locally
+
+### Backend — Fineract on port 8443
+
+From the repository root:
+
+```bash
+docker compose up -d
+```
+
+The API is at `https://localhost:8443/fineract-provider/`. Wait until this returns `"status":"UP"`:
+
+```bash
+curl -sk https://localhost:8443/fineract-provider/actuator/health
+```
+
+`docker-compose.yml` also publishes host port **5000**. On macOS, AirPlay Receiver often already binds that port and Compose fails to start. Copy the example override so only **8443** is published:
+
+```bash
+cp docker-compose.override.yml.example docker-compose.override.yml
+docker compose up -d
+```
+
+`docker-compose.override.yml` is gitignored. The example is the file to keep in git.
+
+Building a local image (instead of pulling `apache/fineract`) is described under [How to run using Docker or Podman](#how-to-run-using-docker-or-podman) below. Compose expects an image tagged `fineract`.
+
+### Frontend — Desk on port 5173
+
+```bash
+cd desk && ./start-desk.sh
+```
+
+Open **http://127.0.0.1:5173**. The Desk process serves the UI and proxies `/fineract-provider` to `https://localhost:8443`, so the browser does not hit CORS. Prefer `./start-desk.sh` over `python3 -m http.server`.
+
+### Login
+
+| Field | Value |
+|-------|--------|
+| Username | `mifos` |
+| Password | `password` |
+| Tenant | `default` |
+
+These are the Fineract demo credentials for a fresh database. A new database has Head Office only. Optional starter data (chart of accounts, products, staff, teller, UGX): `desk/scripts/seed-fineract.sh`.
+
+Wiring details and which screens call the live API: [desk/README-WIRE.md](desk/README-WIRE.md).
+
+---
+
 # Apache Fineract
 
 <!-- TODO Reactivate when there is a working CI-CD instance: [![Swagger Validation](https://validator.swagger.io/validator?url=https://sandbox.mifos.community/fineract-provider/swagger-ui/fineract.yaml)](https://validator.swagger.io/validator/debug?url=https://sandbox.mifos.community/fineract-provider/swagger-ui/fineract.yaml) -->
@@ -317,7 +377,9 @@ Wait for all pods to be ready:
 kubectl get pods -w
 ```
 
-Once all pods are running, access the Mifos web application:
+Pivot SACCO does not use the Mifos X web application. The product UI is [Pivot SACCO Desk](desk/README.md) (`cd desk && ./start-desk.sh`). The `mifos-community` service below is upstream Apache Fineract documentation for the separate Mifos X community app, which is not part of this product. The [Pivot-Ventures/web-app](https://github.com/Pivot-Ventures/web-app) fork is deprecated.
+
+Once all pods are running, upstream docs access the Mifos web application with:
 ```bash
 minikube service mifos-community
 ```
@@ -490,6 +552,8 @@ complies with the [Apache Software Foundation third-party license policy](https:
 PLATFORM API
 ============
 
-Fineract does not provide a UI, but provides an API. Running Fineract locally, the Swagger documentation can be accessed under `https://localhost:8443/fineract-provider/swagger-ui/index.html`. A live version can be accessed via [this Sandbox](https://sandbox.mifos.community/fineract-provider/swagger-ui/index.html) (not hosted by us).
+Upstream Apache Fineract does not ship a product UI; it provides an API. This repository adds Pivot SACCO Desk in `desk/`. Mifos X web-app is not the UI for Pivot SACCO.
+
+Running Fineract locally, the Swagger documentation can be accessed under `https://localhost:8443/fineract-provider/swagger-ui/index.html`. A live version can be accessed via [this Sandbox](https://sandbox.mifos.community/fineract-provider/swagger-ui/index.html) (not hosted by us).
 
 Apache Fineract supports client code generation using [Swagger Codegen](https://github.com/swagger-api/swagger-codegen) based on the [OpenAPI Specification](https://swagger.io/specification/). For more instructions on how to generate client code, check [this section](https://fineract.apache.org/docs/develop/#_generate_api_client) of the Fineract documentation. [This video](https://www.youtube.com/watch?v=FlVd-0YAo6c) documents the use of the Swagger-UI.
