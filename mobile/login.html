@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1633" />
+  <title>Sign in · Pivosacc Mobile</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/app.css" />
+</head>
+<body class="login-body">
+  <div class="login-shell">
+    <div class="login-brand">
+      <div class="mark">PIVOSACC</div>
+      <h1>Member banking</h1>
+      <p>Balances, deposits, statements and loans — same ledger as the branch desk.</p>
+    </div>
+    <div class="login-card">
+      <h2>Sign in</h2>
+      <p class="hint">Enter your member number and PIN. Demo binds to a Fineract client via staff session.</p>
+      <div id="err" class="err-banner"></div>
+      <form id="login-form">
+        <div class="field">
+          <label>Member number</label>
+          <input class="input mono" name="member" value="000000001" autocomplete="username" required />
+        </div>
+        <div class="field">
+          <label>PIN</label>
+          <input class="input mono" name="pin" type="password" value="1234" inputmode="numeric" maxlength="6" autocomplete="current-password" required />
+        </div>
+        <div class="field">
+          <label>Tenant</label>
+          <select class="input" name="tenant" style="font-weight:500">
+            <option value="default" selected>default</option>
+          </select>
+        </div>
+        <button type="submit" class="cta" id="btn">Continue</button>
+      </form>
+      <p class="note" style="margin-top:14px">
+        <strong>Demo auth:</strong> Fineract has no member self-service login locally.
+        This app authenticates as staff (<code>mifos</code>) and selects the matching client.
+        Demo PIN <code>1234</code>.
+      </p>
+    </div>
+    <div class="login-foot">LIVE · Fineract proxy · Apache Fineract</div>
+  </div>
+  <script src="assets/api.js"></script>
+  <script>
+    if (MobileAPI.isLoggedIn()) location.href = "app.html";
+    var form = document.getElementById("login-form");
+    var err = document.getElementById("err");
+    var btn = document.getElementById("btn");
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      err.classList.remove("show");
+      btn.disabled = true;
+      btn.textContent = "Signing in…";
+      var fd = new FormData(form);
+      try {
+        await MobileAPI.memberLogin({
+          memberRef: fd.get("member"),
+          pin: fd.get("pin"),
+          tenantId: fd.get("tenant"),
+          staffUser: "mifos",
+          staffPass: "password",
+        });
+        location.href = "app.html";
+      } catch (ex) {
+        err.textContent = ex.message || String(ex);
+        err.classList.add("show");
+        btn.disabled = false;
+        btn.textContent = "Continue";
+      }
+    });
+  </script>
+</body>
+</html>
