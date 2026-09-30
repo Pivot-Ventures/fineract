@@ -40,7 +40,7 @@ class _LoansScreenState extends State<LoansScreen> {
       return;
     }
     if (_momo) {
-      showToast(context, 'Loan repay via MoMo is Phase 1 — UI ready.', warn: true);
+      showToast(context, 'Mobile money repayment coming soon.', warn: true);
       return;
     }
     setState(() => _busy = true);
@@ -65,9 +65,9 @@ class _LoansScreenState extends State<LoansScreen> {
     final loans = context.watch<AppState>().bundle?.loans ?? [];
     if (_repayLoan != null) return _repayView(_repayLoan!);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 140),
       children: [
-        const PageHeader('Loans', subtitle: 'Your loan accounts from the SACCO ledger.'),
+        const PageHeader('Loans', subtitle: 'Outstanding balances and repayments.'),
         if (loans.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 40),
@@ -152,9 +152,9 @@ class _LoansScreenState extends State<LoansScreen> {
 
   Widget _repayView(LoanAccount loan) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 140),
       children: [
-        const PageHeader('Loan repayment', subtitle: 'Repay from the ledger (active loans) or stage MoMo for Phase 1.'),
+        const PageHeader('Loan repayment', subtitle: 'Pay towards your outstanding balance.'),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(14),
@@ -176,15 +176,8 @@ class _LoansScreenState extends State<LoansScreen> {
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         ),
         const SizedBox(height: 12),
-        SegmentedButton<bool>(
-          segments: const [
-            ButtonSegment(value: false, label: Text('Ledger'), icon: Icon(Icons.account_balance, size: 16)),
-            ButtonSegment(value: true, label: Text('MoMo UI'), icon: Icon(Icons.phone_android, size: 16)),
-          ],
-          selected: {_momo},
-          onSelectionChanged: (s) => setState(() => _momo = s.first),
-        ),
         const SizedBox(height: 16),
+
         FilledButton(
           onPressed: _busy ? null : _submitRepay,
           child: _busy

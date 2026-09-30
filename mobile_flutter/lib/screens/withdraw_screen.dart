@@ -18,7 +18,6 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
   final _phoneCtrl = TextEditingController();
   int? _savingsId;
   bool _busy = false;
-  bool _ledger = true;
 
   @override
   void initState() {
@@ -55,18 +54,14 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
     setState(() => _busy = true);
     HapticFeedback.mediumImpact();
     try {
-      if (_ledger) {
-        await state.api.savingsWithdrawal(
-          savingsId: sid,
-          amount: amt,
-          note: 'Pivosacc withdraw to ${_rail == 'mtn' ? 'MTN MoMo' : 'Airtel Money'} ${_phoneCtrl.text.trim()}',
-          receiptNumber: _phoneCtrl.text.trim(),
-        );
-        await state.refreshBundle();
-        if (mounted) showToast(context, 'Withdrawal posted: UGX ${amt.round()}');
-      } else {
-        if (mounted) showToast(context, 'Phase 1: ${_rail.toUpperCase()} payout UI ready', warn: true);
-      }
+      await state.api.savingsWithdrawal(
+        savingsId: sid,
+        amount: amt,
+        note: 'Pivosacc withdraw to ${_rail == 'mtn' ? 'MTN MoMo' : 'Airtel Money'} ${_phoneCtrl.text.trim()}',
+        receiptNumber: _phoneCtrl.text.trim(),
+      );
+      await state.refreshBundle();
+      if (mounted) showToast(context, 'Withdrawal posted: UGX ${amt.round()}');
     } catch (e) {
       if (mounted) showToast(context, e.toString(), error: true);
     } finally {
@@ -81,29 +76,17 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
     return Theme(
       data: withdrawTheme(Theme.of(context)),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 140),
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: PivoColors.withdrawSoft,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: PivoColors.withdraw.withValues(alpha: 0.3)),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.north_east, color: PivoColors.withdraw),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text('Withdraw · RED',
-                      style: TextStyle(fontWeight: FontWeight.w700, color: PivoColors.withdraw)),
-                ),
-              ],
-            ),
+          const SoftBanner(
+            icon: Icons.north_east_rounded,
+            label: 'Withdraw to mobile money',
+            color: PivoColors.withdraw,
+            soft: PivoColors.withdrawSoft,
           ),
-          const SizedBox(height: 12),
-          const PageHeader('Withdraw to MoMo', subtitle: 'Cash out savings. Live ledger withdrawal or Phase-1 payout UI.'),
-          const SectionTitle('Choose rail'),
+          const SizedBox(height: 16),
+          const PageHeader('Cash out', subtitle: 'Send money from savings to your MoMo wallet.'),
+          const SectionTitle('Payout method'),
           RailTile(
             asset: 'assets/billers/mtn.svg',
             title: 'MTN MoMo',
@@ -121,25 +104,26 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
             onTap: () => setState(() => _rail = 'airtel'),
           ),
           if (savings.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SectionTitle('From account'),
             DropdownButtonFormField<int>(
               value: _savingsId ?? savings.first.id,
-              decoration: const InputDecoration(labelText: 'From savings'),
+              decoration: const InputDecoration(labelText: 'Savings account'),
               items: savings
                   .map((s) => DropdownMenuItem(value: s.id, child: Text(s.label, overflow: TextOverflow.ellipsis)))
                   .toList(),
               onChanged: (v) => setState(() => _savingsId = v),
             ),
           ],
-          const SizedBox(height: 12),
+          const SectionTitle('Amount'),
           TextField(
             controller: _amountCtrl,
-            decoration: const InputDecoration(labelText: 'Amount (UGX)'),
+            decoration: const InputDecoration(labelText: 'Amount (UGX)', prefixText: 'UGX '),
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
             onChanged: (v) => setState(() => _amount = int.tryParse(v) ?? 0),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           AmountChips(
             amounts: const [10000, 20000, 50000, 100000],
             selected: _amount,
@@ -151,27 +135,18 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
               });
             },
           ),
-          const SizedBox(height: 12),
+          const SectionTitle('Phone'),
           TextField(
             controller: _phoneCtrl,
-            decoration: const InputDecoration(labelText: 'Phone number', hintText: '+256 7XX XXX XXX'),
+            decoration: const InputDecoration(labelText: 'Mobile money number', hintText: '+256 7XX XXX XXX'),
             keyboardType: TextInputType.phone,
           ),
-          const SizedBox(height: 12),
-          SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(value: true, label: Text('Ledger withdrawal'), icon: Icon(Icons.account_balance, size: 16)),
-              ButtonSegment(value: false, label: Text('MoMo UI'), icon: Icon(Icons.phone_android, size: 16)),
-            ],
-            selected: {_ledger},
-            onSelectionChanged: (s) => setState(() => _ledger = s.first),
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           FilledButton(
             onPressed: _busy ? null : _confirm,
             child: _busy
                 ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : Text(_ledger ? 'Confirm ledger withdrawal' : 'Confirm withdrawal (UI)'),
+                : const Text('Confirm withdrawal'),
           ),
         ],
       ),

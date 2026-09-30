@@ -12,11 +12,11 @@ void showToast(BuildContext context, String msg, {bool error = false, bool warn 
   ScaffoldMessenger.of(context).hideCurrentSnackBar();
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      content: Text(msg),
+      content: Text(msg, style: const TextStyle(fontWeight: FontWeight.w600)),
       backgroundColor: color,
       behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.all(12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 88),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       duration: const Duration(seconds: 3),
     ),
   );
@@ -24,20 +24,28 @@ void showToast(BuildContext context, String msg, {bool error = false, bool warn 
 }
 
 class SectionTitle extends StatelessWidget {
-  const SectionTitle(this.text, {super.key});
+  const SectionTitle(this.text, {super.key, this.trailing});
   final String text;
+  final Widget? trailing;
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 8),
-      child: Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: PivoColors.muted,
-          letterSpacing: 0.6,
-        ),
+      padding: const EdgeInsets.only(top: 18, bottom: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              text.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: PivoColors.muted,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+          if (trailing != null) trailing!,
+        ],
       ),
     );
   }
@@ -50,21 +58,22 @@ class PageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
             style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
               color: PivoColors.accent900,
+              letterSpacing: -0.5,
             ),
           ),
           if (subtitle != null) ...[
-            const SizedBox(height: 4),
-            Text(subtitle!, style: const TextStyle(fontSize: 13, color: PivoColors.muted, height: 1.35)),
+            const SizedBox(height: 6),
+            Text(subtitle!, style: const TextStyle(fontSize: 13.5, color: PivoColors.muted, height: 1.4)),
           ],
         ],
       ),
@@ -100,12 +109,12 @@ class AmountChips extends StatelessWidget {
             HapticFeedback.selectionClick();
             onSelect(amt);
           },
-          selectedColor: a.withValues(alpha: 0.15),
+          selectedColor: a.withValues(alpha: 0.14),
           side: BorderSide(color: sel ? a : Colors.black12, width: sel ? 1.5 : 1),
           labelStyle: TextStyle(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
             color: sel ? a : PivoColors.accent900,
-            fontSize: 12,
+            fontSize: 12.5,
           ),
         );
       }).toList(),
@@ -143,34 +152,44 @@ class RailTile extends StatelessWidget {
         HapticFeedback.selectionClick();
         onTap();
       },
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: selected ? border.withValues(alpha: 0.06) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          color: selected ? border.withValues(alpha: 0.07) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? border : Colors.black.withValues(alpha: 0.12),
-            width: selected ? 1.5 : 1,
+            color: selected ? border : Colors.black.withValues(alpha: 0.08),
+            width: selected ? 1.8 : 1,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: selected ? 0.06 : 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            SvgPicture.asset(asset, width: 44, height: 44),
-            const SizedBox(width: 12),
+            SvgPicture.asset(asset, width: 46, height: 46),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  Text(subtitle, style: const TextStyle(fontSize: 12, color: PivoColors.muted)),
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: const TextStyle(fontSize: 12.5, color: PivoColors.muted)),
                 ],
               ),
             ),
             Icon(
-              selected ? Icons.check_circle : Icons.circle_outlined,
+              selected ? Icons.check_circle_rounded : Icons.circle_outlined,
               color: selected ? border : Colors.black26,
+              size: 24,
             ),
           ],
         ),
@@ -203,32 +222,33 @@ class BillerTile extends StatelessWidget {
         HapticFeedback.selectionClick();
         onTap();
       },
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.all(12),
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: selected ? accent.withValues(alpha: 0.08) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? accent : Colors.black.withValues(alpha: 0.12),
+            color: selected ? accent : Colors.black.withValues(alpha: 0.08),
             width: selected ? 1.8 : 1,
           ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SvgPicture.asset(asset, width: 40, height: 40),
-            const SizedBox(height: 10),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            SvgPicture.asset(asset, width: 42, height: 42),
+            const SizedBox(height: 12),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
             const SizedBox(height: 2),
-            Text(subtitle, style: const TextStyle(fontSize: 11, color: PivoColors.muted)),
+            Text(subtitle, style: const TextStyle(fontSize: 11.5, color: PivoColors.muted)),
           ],
         ),
       ),
@@ -249,9 +269,9 @@ class LiveChip extends StatelessWidget {
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.circle, size: 8, color: PivoColors.good),
-          SizedBox(width: 4),
-          Text('LIVE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: PivoColors.good)),
+          Icon(Icons.circle, size: 7, color: PivoColors.good),
+          SizedBox(width: 5),
+          Text('LIVE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: PivoColors.good, letterSpacing: 0.4)),
         ],
       ),
     );
@@ -267,9 +287,9 @@ class LoadingPane extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CircularProgressIndicator(),
+          const CircularProgressIndicator(color: PivoColors.accent),
           const SizedBox(height: 16),
-          Text(label, style: const TextStyle(color: PivoColors.muted)),
+          Text(label, style: const TextStyle(color: PivoColors.muted, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -288,19 +308,71 @@ class AvatarCircle extends StatelessWidget {
       child: Container(
         width: size,
         height: size,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             colors: [PivoColors.accent, PivoColors.accent900],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: PivoColors.accent.withValues(alpha: 0.35),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         alignment: Alignment.center,
         child: Text(
           initials,
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: size * 0.35),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: size * 0.34),
         ),
+      ),
+    );
+  }
+}
+
+/// Signed money colour: deposits green, withdrawals/outflows red.
+Color amountColor(bool isCredit) => isCredit ? PivoColors.deposit : PivoColors.withdraw;
+
+class SoftBanner extends StatelessWidget {
+  const SoftBanner({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.soft,
+  });
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color soft;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: soft,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.75),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: color, fontSize: 14.5)),
+          ),
+        ],
       ),
     );
   }

@@ -80,7 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             const Text('Sign in', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
                             const SizedBox(height: 6),
                             const Text(
-                              'Enter your member number and PIN. Demo binds to a Fineract client via staff session.',
+                              'Enter your member number and PIN to continue.',
                               style: TextStyle(fontSize: 12.5, color: PivoColors.muted),
                             ),
                             const SizedBox(height: 18),
@@ -112,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 14),
                             Text(
-                              'Demo auth: staff mifos + client bind. PIN 1234.',
+                              'Demo: member 000000001 · PIN 1234',
                               style: TextStyle(fontSize: 11, color: Colors.black.withValues(alpha: 0.45)),
                             ),
                           ],

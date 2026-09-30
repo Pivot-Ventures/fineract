@@ -16,48 +16,139 @@ class StatementScreen extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: () => state.refreshBundle(),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 140),
         children: [
-          const PageHeader('E-statement', subtitle: 'Movements from your Fineract savings accounts.'),
+          const PageHeader('E-statement', subtitle: 'Your savings movements.'),
+          if (b != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 3)),
+                ],
+              ),
+              child: Row(
+                children: [
+                  AvatarCircle(state.session?.initials ?? '?', size: 48),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(b.clientName, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${b.officeName} · ${b.savings.isNotEmpty ? b.savings.first.accountNo : ''}',
+                          style: const TextStyle(fontSize: 12, color: PivoColors.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Text('Balance', style: TextStyle(fontSize: 11, color: PivoColors.muted)),
+                      Text(
+                        fmtMoney(b.totalAvailable, b.currency),
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SectionTitle('Transactions'),
           if (txns.isEmpty)
             const Padding(
               padding: EdgeInsets.only(top: 40),
               child: Center(child: Text('No transactions yet', style: TextStyle(color: PivoColors.muted))),
             )
           else
-            ...txns.map((t) => _row(t)),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+              ),
+              child: Column(
+                children: [
+                  for (var i = 0; i < txns.length; i++) ...[
+                    if (i > 0) const Divider(indent: 68),
+                    _StmtRow(txns[i]),
+                  ],
+                ],
+              ),
+            ),
         ],
       ),
     );
   }
+}
 
-  Widget _row(Txn t) {
-    final in_ = t.isDeposit;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 6),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: in_ ? PivoColors.goodSoft : PivoColors.accent50,
-          child: Icon(in_ ? Icons.south_west : Icons.north_east,
-              size: 18, color: in_ ? PivoColors.good : PivoColors.accent),
-        ),
-        title: Text(t.typeLabel, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-        subtitle: Text('${t.dateLabel}${t.accountNo.isNotEmpty ? ' · ${t.accountNo}' : ''}'),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              fmtAmt(in_ ? t.amount : -t.amount),
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: in_ ? PivoColors.good : PivoColors.accent900,
-              ),
+class _StmtRow extends StatelessWidget {
+  const _StmtRow(this.t);
+  final Txn t;
+
+  @override
+  Widget build(BuildContext context) {
+    final credit = t.isDeposit;
+    final color = amountColor(credit);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: credit ? PivoColors.depositSoft : PivoColors.withdrawSoft,
+              borderRadius: BorderRadius.circular(12),
             ),
-            if (t.runningBalance != null)
-              Text(fmtMoney(t.runningBalance!), style: const TextStyle(fontSize: 10, color: PivoColors.muted)),
-          ],
-        ),
+            child: Icon(
+              credit ? Icons.south_west_rounded : Icons.north_east_rounded,
+              size: 18,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(t.typeLabel, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                const SizedBox(height: 2),
+                Text(
+                  '${t.dateLabel}${t.accountNo.isNotEmpty ? ' · ${t.accountNo}' : ''}',
+                  style: const TextStyle(fontSize: 11.5, color: PivoColors.muted),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                fmtAmt(credit ? t.amount : -t.amount),
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14.5,
+                  color: color,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              if (t.runningBalance != null)
+                Text(
+                  fmtMoney(t.runningBalance!),
+                  style: const TextStyle(fontSize: 10.5, color: PivoColors.muted),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

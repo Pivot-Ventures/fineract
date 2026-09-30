@@ -1,7 +1,7 @@
 name: pivosacc
 description: "Pivosacc member banking — native Flutter (Material 3)"
 publish_to: "none"
-version: 1.0.1+2
+version: 1.0.4+5
 
 environment:
   sdk: ^3.13.4

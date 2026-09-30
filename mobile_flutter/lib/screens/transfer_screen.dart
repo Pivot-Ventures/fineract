@@ -104,10 +104,10 @@ class _TransferScreenState extends State<TransferScreen> {
   Widget build(BuildContext context) {
     final savings = context.watch<AppState>().bundle?.savings ?? [];
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 140),
       children: [
         const PageHeader('Transfer',
-            subtitle: 'Move money between your savings or to another member. Live via Fineract account transfers.'),
+            subtitle: 'Send money to another member from your savings.'),
         if (savings.isNotEmpty)
           DropdownButtonFormField<int>(
             value: _fromId ?? savings.first.id,
@@ -179,11 +179,7 @@ class _TransferScreenState extends State<TransferScreen> {
               ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
               : const Text('Send transfer'),
         ),
-        const SizedBox(height: 8),
-        const Text(
-          'Uses Fineract POST /accounttransfers. Demo peer: 000000002 (Okello James).',
-          style: TextStyle(fontSize: 11, color: Colors.black54),
-        ),
+
       ],
     );
   }

@@ -18,7 +18,6 @@ class _DepositScreenState extends State<DepositScreen> {
   final _phoneCtrl = TextEditingController();
   int? _savingsId;
   bool _busy = false;
-  bool _ledger = true; // live Fineract deposit by default
 
   @override
   void initState() {
@@ -57,19 +56,13 @@ class _DepositScreenState extends State<DepositScreen> {
     setState(() => _busy = true);
     HapticFeedback.mediumImpact();
     try {
-      if (_ledger) {
-        await state.api.savingsDeposit(
-          savingsId: sid,
-          amount: amt,
-          note: 'Pivosacc deposit via ${_rail == 'mtn' ? 'MTN MoMo' : 'Airtel Money'} ${_phoneCtrl.text.trim()}',
-        );
-        await state.refreshBundle();
-        if (mounted) showToast(context, 'Deposit posted: UGX ${amt.round()}');
-      } else {
-        if (mounted) {
-          showToast(context, 'Phase 1: ${_rail.toUpperCase()} deposit UI ready (not settled)');
-        }
-      }
+      await state.api.savingsDeposit(
+        savingsId: sid,
+        amount: amt,
+        note: 'Pivosacc deposit via ${_rail == 'mtn' ? 'MTN MoMo' : 'Airtel Money'} ${_phoneCtrl.text.trim()}',
+      );
+      await state.refreshBundle();
+      if (mounted) showToast(context, 'Deposit posted: UGX ${amt.round()}');
     } catch (e) {
       if (mounted) showToast(context, e.toString(), error: true);
     } finally {
@@ -84,33 +77,21 @@ class _DepositScreenState extends State<DepositScreen> {
     return Theme(
       data: depositTheme(Theme.of(context)),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 140),
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: PivoColors.depositSoft,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: PivoColors.deposit.withValues(alpha: 0.3)),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.south_west, color: PivoColors.deposit),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text('Deposit · GREEN',
-                      style: TextStyle(fontWeight: FontWeight.w700, color: PivoColors.deposit)),
-                ),
-              ],
-            ),
+          const SoftBanner(
+            icon: Icons.south_west_rounded,
+            label: 'Deposit to savings',
+            color: PivoColors.deposit,
+            soft: PivoColors.depositSoft,
           ),
-          const SizedBox(height: 12),
-          const PageHeader('Deposit', subtitle: 'Fund your savings. Live ledger deposit or Phase-1 MoMo UI.'),
-          const SectionTitle('Choose rail'),
+          const SizedBox(height: 16),
+          const PageHeader('Fund your account', subtitle: 'Pay in via mobile money — credited to your savings.'),
+          const SectionTitle('Payment method'),
           RailTile(
             asset: 'assets/billers/mtn.svg',
             title: 'MTN MoMo',
-            subtitle: 'Uganda · instant push',
+            subtitle: 'Uganda · instant',
             selected: _rail == 'mtn',
             selectedBorder: PivoColors.deposit,
             onTap: () => setState(() => _rail = 'mtn'),
@@ -118,31 +99,32 @@ class _DepositScreenState extends State<DepositScreen> {
           RailTile(
             asset: 'assets/billers/airtel.svg',
             title: 'Airtel Money',
-            subtitle: 'Uganda · instant push',
+            subtitle: 'Uganda · instant',
             selected: _rail == 'airtel',
             selectedBorder: PivoColors.deposit,
             onTap: () => setState(() => _rail = 'airtel'),
           ),
           if (savings.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SectionTitle('To account'),
             DropdownButtonFormField<int>(
               value: _savingsId ?? savings.first.id,
-              decoration: const InputDecoration(labelText: 'To savings'),
+              decoration: const InputDecoration(labelText: 'Savings account'),
               items: savings
                   .map((s) => DropdownMenuItem(value: s.id, child: Text(s.label, overflow: TextOverflow.ellipsis)))
                   .toList(),
               onChanged: (v) => setState(() => _savingsId = v),
             ),
           ],
-          const SizedBox(height: 12),
+          const SectionTitle('Amount'),
           TextField(
             controller: _amountCtrl,
-            decoration: const InputDecoration(labelText: 'Amount (UGX)'),
+            decoration: const InputDecoration(labelText: 'Amount (UGX)', prefixText: 'UGX '),
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
             onChanged: (v) => setState(() => _amount = int.tryParse(v) ?? 0),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           AmountChips(
             amounts: const [10000, 50000, 100000, 250000],
             selected: _amount,
@@ -154,27 +136,18 @@ class _DepositScreenState extends State<DepositScreen> {
               });
             },
           ),
-          const SizedBox(height: 12),
+          const SectionTitle('Phone'),
           TextField(
             controller: _phoneCtrl,
-            decoration: const InputDecoration(labelText: 'Phone number', hintText: '+256 7XX XXX XXX'),
+            decoration: const InputDecoration(labelText: 'Mobile money number', hintText: '+256 7XX XXX XXX'),
             keyboardType: TextInputType.phone,
           ),
-          const SizedBox(height: 12),
-          SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(value: true, label: Text('Ledger deposit'), icon: Icon(Icons.account_balance, size: 16)),
-              ButtonSegment(value: false, label: Text('MoMo UI'), icon: Icon(Icons.phone_android, size: 16)),
-            ],
-            selected: {_ledger},
-            onSelectionChanged: (s) => setState(() => _ledger = s.first),
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           FilledButton(
             onPressed: _busy ? null : _confirm,
             child: _busy
                 ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : Text(_ledger ? 'Confirm ledger deposit' : 'Confirm deposit (UI)'),
+                : const Text('Confirm deposit'),
           ),
         ],
       ),

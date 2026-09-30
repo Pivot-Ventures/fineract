@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../state/app_state.dart';
@@ -13,13 +14,13 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final b = state.bundle;
-    if (state.loading && b == null) return const LoadingPane(label: 'Loading member ledger…');
+    if (state.loading && b == null) return const LoadingPane(label: 'Loading your accounts…');
     if (b == null) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(state.error ?? 'No data'),
+            Text(state.error ?? 'No data', textAlign: TextAlign.center),
             const SizedBox(height: 12),
             FilledButton(onPressed: () => state.refreshBundle(), child: const Text('Retry')),
           ],
@@ -32,63 +33,111 @@ class HomeScreen extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: () => state.refreshBundle(),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 140),
         children: [
-          Text('$greet, ', style: const TextStyle(color: PivoColors.muted, fontSize: 13)),
-          Text(b.clientName, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              gradient: const LinearGradient(
-                colors: [PivoColors.accent900, Color(0xFF16307A), PivoColors.accent],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          Text('$greet,', style: const TextStyle(color: PivoColors.muted, fontSize: 13.5)),
+          Text(b.clientName, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20, letterSpacing: -0.3)),
+          const SizedBox(height: 16),
+          _BalanceCard(bundle: b),
+          const SectionTitle('Quick actions'),
+          _ActionGrid(onNavigate: onNavigate),
+          const SectionTitle('Your accounts'),
+          ...b.savings.map((s) => _AccountCard(s)),
+          SectionTitle(
+            'Recent activity',
+            trailing: TextButton(
+              onPressed: () => onNavigate('statement'),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('See all', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
+            ),
+          ),
+          if (b.allTransactions.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: Text('No recent transactions', style: TextStyle(color: PivoColors.muted))),
+            )
+          else
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 3)),
+                ],
+              ),
+              child: Column(
+                children: [
+                  for (var i = 0; i < b.allTransactions.take(5).length; i++) ...[
+                    if (i > 0) const Divider(indent: 68),
+                    _TxnRow(b.allTransactions[i]),
+                  ],
+                ],
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Total available', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
-                const SizedBox(height: 4),
-                Text(fmtMoney(b.totalAvailable, b.currency),
-                    style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 6),
-                Text(
-                  '${b.savings.length} account${b.savings.length == 1 ? '' : 's'} · ${b.officeName}',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12),
-                ),
-              ],
-            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BalanceCard extends StatelessWidget {
+  const _BalanceCard({required this.bundle});
+  final MemberBundle bundle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0B1633), Color(0xFF16307A), Color(0xFF21409A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: PivoColors.accent.withValues(alpha: 0.35),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
           ),
-          const SectionTitle('Your accounts'),
-          ...b.savings.map((s) => Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  title: Text(s.productName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text('${s.accountNo} · ${s.status}', style: const TextStyle(fontSize: 12)),
-                  trailing: Text(fmtMoney(s.available, s.currency),
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontFeatures: [FontFeature.tabularFigures()])),
-                ),
-              )),
-          const SizedBox(height: 4),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Row(
             children: [
-              _Q(Icons.swap_horiz, 'Transfer', () => onNavigate('transfer')),
-              _Q(Icons.receipt_long, 'Pay bills', () => onNavigate('bills')),
-              _Q(Icons.arrow_upward, 'Withdraw', () => onNavigate('withdraw'), color: PivoColors.withdraw),
-              _Q(Icons.description_outlined, 'Statement', () => onNavigate('statement')),
-            ].map((w) => Expanded(child: w)).toList(),
+              Text('Available balance', style: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 13)),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  bundle.officeName,
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 10.5, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ),
-          const SectionTitle('Recent activity'),
-          if (b.allTransactions.isEmpty)
-            const Text('No recent transactions', style: TextStyle(color: PivoColors.muted))
-          else
-            ...b.allTransactions.take(6).map((t) => _TxnTile(t)),
-          TextButton(
-            onPressed: () => onNavigate('statement'),
-            child: const Text('Mini-statement →'),
+          const SizedBox(height: 8),
+          Text(
+            fmtMoney(bundle.totalAvailable, bundle.currency),
+            style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: -0.8),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '${bundle.savings.length} savings · ${bundle.loans.where((l) => l.active).length} active loan${bundle.loans.where((l) => l.active).length == 1 ? '' : 's'}',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12.5),
           ),
         ],
       ),
@@ -96,69 +145,164 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _Q extends StatelessWidget {
-  const _Q(this.icon, this.label, this.onTap, {this.color});
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final Color? color;
+class _ActionGrid extends StatelessWidget {
+  const _ActionGrid({required this.onNavigate});
+  final void Function(String route) onNavigate;
+
   @override
   Widget build(BuildContext context) {
-    final c = color ?? PivoColors.accent;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+    final actions = [
+      _Act(Icons.south_west_rounded, 'Deposit', PivoColors.deposit, () => onNavigate('deposit')),
+      _Act(Icons.north_east_rounded, 'Withdraw', PivoColors.withdraw, () => onNavigate('withdraw')),
+      _Act(Icons.description_outlined, 'Statement', PivoColors.accent, () => onNavigate('statement')),
+      _Act(Icons.percent_rounded, 'Loans', PivoColors.navLoans, () => onNavigate('loans')),
+    ];
+    return Row(
+      children: actions
+          .map((a) => Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: a,
+                ),
+              ))
+          .toList(),
+    );
+  }
+}
+
+class _Act extends StatelessWidget {
+  const _Act(this.icon, this.label, this.color, this.onTap);
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(18),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: color.withValues(alpha: 0.18)),
+            ),
+            child: Icon(icon, color: color, size: 26),
           ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                child: Icon(icon, size: 20, color: c),
-              ),
-              const SizedBox(height: 6),
-              Text(label, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600)),
-            ],
-          ),
-        ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: PivoColors.accent900)),
+        ],
       ),
     );
   }
 }
 
-class _TxnTile extends StatelessWidget {
-  const _TxnTile(this.t);
-  final Txn t;
+class _AccountCard extends StatelessWidget {
+  const _AccountCard(this.s);
+  final SavingsAccount s;
+
   @override
   Widget build(BuildContext context) {
-    final in_ = t.isDeposit;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 6),
-      child: ListTile(
-        dense: true,
-        leading: CircleAvatar(
-          backgroundColor: in_ ? PivoColors.goodSoft : PivoColors.accent50,
-          child: Icon(in_ ? Icons.south_west : Icons.north_east, size: 18, color: in_ ? PivoColors.good : PivoColors.accent),
-        ),
-        title: Text(t.typeLabel, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-        subtitle: Text('${t.dateLabel}${t.accountNo.isNotEmpty ? ' · ${t.accountNo}' : ''}',
-            style: const TextStyle(fontSize: 11)),
-        trailing: Text(
-          fmtAmt(in_ ? t.amount : -t.amount),
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: in_ ? PivoColors.good : PivoColors.accent900,
-            fontFeatures: const [FontFeature.tabularFigures()],
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: PivoColors.accent50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.savings_outlined, color: PivoColors.accent, size: 22),
           ),
-        ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(s.productName, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                const SizedBox(height: 2),
+                Text('${s.accountNo} · ${s.status}', style: const TextStyle(fontSize: 12, color: PivoColors.muted)),
+              ],
+            ),
+          ),
+          Text(
+            fmtMoney(s.available, s.currency),
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 14.5,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TxnRow extends StatelessWidget {
+  const _TxnRow(this.t);
+  final Txn t;
+
+  @override
+  Widget build(BuildContext context) {
+    final credit = t.isDeposit;
+    final color = amountColor(credit);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: credit ? PivoColors.depositSoft : PivoColors.withdrawSoft,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(credit ? Icons.south_west_rounded : Icons.north_east_rounded, size: 18, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(t.typeLabel, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                const SizedBox(height: 2),
+                Text(
+                  '${t.dateLabel}${t.accountNo.isNotEmpty ? ' · ${t.accountNo}' : ''}',
+                  style: const TextStyle(fontSize: 11.5, color: PivoColors.muted),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            fmtAmt(credit ? t.amount : -t.amount),
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+              color: color,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
       ),
     );
   }

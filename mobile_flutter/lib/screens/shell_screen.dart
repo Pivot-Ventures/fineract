@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
+import '../theme.dart';
 import '../widgets/common.dart';
 import 'bills_screen.dart';
 import 'deposit_screen.dart';
@@ -21,20 +23,19 @@ class _ShellScreenState extends State<ShellScreen> {
   String _route = 'home';
   int _tab = 0;
 
-  static const _tabs = ['home', 'transfer', 'bills', 'more'];
+  /// Root tabs: Home | Transfer | Bills | Loans | More  (Deposit = center FAB)
+  static const _tabs = ['home', 'transfer', 'bills', 'loans', 'more'];
 
   void _navigate(String route) {
+    HapticFeedback.selectionClick();
     setState(() {
       _route = route;
       if (_tabs.contains(route)) {
         _tab = _tabs.indexOf(route);
-      } else if (route == 'deposit' ||
-          route == 'withdraw' ||
-          route == 'statement' ||
-          route == 'loans' ||
-          route == 'profile') {
-        _tab = 3;
+      } else if (route == 'withdraw' || route == 'statement' || route == 'profile') {
+        _tab = 4; // More
       }
+      // deposit keeps current tab highlight under FAB
     });
   }
 
@@ -118,18 +119,22 @@ class _ShellScreenState extends State<ShellScreen> {
     }
   }
 
+  bool get _isRootTab => _tabs.contains(_route);
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final initials = state.session?.initials ?? '?';
-    final showBack = !['home', 'transfer', 'bills', 'more'].contains(_route);
+    final showBack = !_isRootTab;
+    final depositActive = _route == 'deposit';
 
     return Scaffold(
+      extendBody: true,
       appBar: AppBar(
         leading: showBack
             ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => _navigate(_tab == 3 ? 'more' : _tabs[_tab]),
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                onPressed: () => _navigate(_tabs[_tab.clamp(0, _tabs.length - 1)]),
               )
             : null,
         title: GestureDetector(
@@ -137,40 +142,201 @@ class _ShellScreenState extends State<ShellScreen> {
           child: Row(
             children: [
               Text(_title),
-              const SizedBox(width: 8),
-              const LiveChip(),
+              if (_route == 'home') ...[
+                const SizedBox(width: 8),
+                const LiveChip(),
+              ],
             ],
           ),
         ),
         actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: () => state.refreshBundle(),
-            icon: state.loading
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.refresh),
-          ),
+          if (_route == 'home' || _route == 'statement')
+            IconButton(
+              tooltip: 'Refresh',
+              onPressed: () => state.refreshBundle(),
+              icon: state.loading
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.refresh_rounded),
+            ),
           Padding(
-            padding: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.only(right: 14),
             child: AvatarCircle(initials, onTap: () => _navigate('profile')),
           ),
         ],
       ),
       body: _body(),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        onDestinationSelected: (i) {
+      // Option B: center-docked Deposit FAB + notched bottom bar
+      floatingActionButton: _DepositFab(
+        selected: depositActive,
+        onTap: () => _navigate('deposit'),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: _CenterNotchDock(
+        selectedIndex: depositActive ? -1 : _tab,
+        onSelect: (i) {
+          HapticFeedback.selectionClick();
           setState(() {
             _tab = i;
             _route = _tabs[i];
           });
         },
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.swap_horiz), label: 'Transfer'),
-          NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: 'Bills'),
-          NavigationDestination(icon: Icon(Icons.more_horiz), label: 'More'),
-        ],
+      ),
+    );
+  }
+}
+
+/// Option B — full-width white bar with CircularNotchedRectangle for Deposit FAB.
+class _CenterNotchDock extends StatelessWidget {
+  const _CenterNotchDock({required this.selectedIndex, required this.onSelect});
+  final int selectedIndex;
+  final ValueChanged<int> onSelect;
+
+  // Home, Transfer | FAB | Bills, Loans, More
+  static const _left = [
+    _NavSpec('Home', Icons.home_outlined, Icons.home_rounded, PivoColors.navHome, PivoColors.navHomeMuted),
+    _NavSpec('Transfer', Icons.swap_horiz_rounded, Icons.swap_horiz_rounded, PivoColors.navTransfer, PivoColors.navTransferMuted),
+  ];
+  static const _right = [
+    _NavSpec('Bills', Icons.receipt_long_outlined, Icons.receipt_long_rounded, PivoColors.navBills, PivoColors.navBillsMuted),
+    _NavSpec('Loans', Icons.percent_rounded, Icons.percent_rounded, PivoColors.navLoans, PivoColors.navLoansMuted),
+    _NavSpec('More', Icons.grid_view_outlined, Icons.grid_view_rounded, PivoColors.navMore, PivoColors.navMoreMuted),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    return BottomAppBar(
+      color: Colors.white,
+      elevation: 12,
+      shadowColor: Colors.black26,
+      surfaceTintColor: Colors.white,
+      padding: EdgeInsets.zero,
+      height: 64 + bottom,
+      shape: const CircularNotchedRectangle(),
+      notchMargin: 8,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottom),
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            children: [
+              for (var i = 0; i < _left.length; i++)
+                Expanded(
+                  child: _DockTab(
+                    spec: _left[i],
+                    selected: selectedIndex == i,
+                    onTap: () => onSelect(i),
+                  ),
+                ),
+              const SizedBox(width: 64), // FAB notch gap
+              for (var i = 0; i < _right.length; i++)
+                Expanded(
+                  child: _DockTab(
+                    spec: _right[i],
+                    selected: selectedIndex == (i + 2),
+                    onTap: () => onSelect(i + 2),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavSpec {
+  const _NavSpec(this.label, this.outlined, this.filled, this.color, this.muted);
+  final String label;
+  final IconData outlined;
+  final IconData filled;
+  final Color color;
+  final Color muted;
+}
+
+class _DockTab extends StatelessWidget {
+  const _DockTab({required this.spec, required this.selected, required this.onTap});
+  final _NavSpec spec;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? spec.color : spec.muted;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (selected)
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: spec.color.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(spec.filled, size: 22, color: color),
+              )
+            else
+              SizedBox(
+                width: 36,
+                height: 36,
+                child: Icon(spec.outlined, size: 22, color: color),
+              ),
+            const SizedBox(height: 2),
+            Text(
+              spec.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DepositFab extends StatelessWidget {
+  const _DepositFab({required this.onTap, required this.selected});
+  final VoidCallback onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 64,
+      height: 64,
+      child: FloatingActionButton(
+        onPressed: () {
+          HapticFeedback.mediumImpact();
+          onTap();
+        },
+        elevation: 6,
+        highlightElevation: 8,
+        backgroundColor: selected ? PivoColors.good : PivoColors.deposit,
+        foregroundColor: Colors.white,
+        shape: const CircleBorder(
+          side: BorderSide(color: Colors.white, width: 3),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_rounded, size: 26),
+            Text(
+              'Deposit',
+              style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, height: 1),
+            ),
+          ],
+        ),
       ),
     );
   }

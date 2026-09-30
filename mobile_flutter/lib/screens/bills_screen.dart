@@ -90,7 +90,7 @@ class _BillsScreenState extends State<BillsScreen> {
         if (mounted) showToast(context, 'Ledger withdrawal tagged: $note');
       } else {
         if (mounted) {
-          showToast(context, 'Phase 1: ${_biller.label} UGX ${amt.round()} — UI success (no MoMo)');
+          showToast(context, '${_biller.label} · UGX ${amt.round()} submitted');
         }
       }
     } catch (e) {
@@ -104,10 +104,10 @@ class _BillsScreenState extends State<BillsScreen> {
   Widget build(BuildContext context) {
     final savings = context.watch<AppState>().bundle?.savings ?? [];
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 140),
       children: [
         const PageHeader('Pay utilities',
-            subtitle: 'Water, electricity, TV and school fees. Optional ledger tag via savings withdrawal.'),
+            subtitle: 'Water, electricity, TV and school fees.'),
         const SectionTitle('Biller'),
         GridView.count(
           crossAxisCount: 2,
@@ -162,25 +162,12 @@ class _BillsScreenState extends State<BillsScreen> {
           },
         ),
         const SizedBox(height: 12),
-        SegmentedButton<bool>(
-          segments: const [
-            ButtonSegment(value: false, label: Text('UI / toast'), icon: Icon(Icons.phone_android, size: 16)),
-            ButtonSegment(value: true, label: Text('Ledger withdrawal'), icon: Icon(Icons.account_balance, size: 16)),
-          ],
-          selected: {_ledger},
-          onSelectionChanged: (s) => setState(() => _ledger = s.first),
-        ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
         FilledButton(
           onPressed: _busy ? null : _pay,
           child: _busy
               ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
               : const Text('Pay bill'),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Phase 1: toast only. Ledger withdrawal posts a tagged Fineract savings debit — not a live utility settlement.',
-          style: TextStyle(fontSize: 11, color: Colors.black54),
         ),
       ],
     );

@@ -1,32 +1,16 @@
-# Pivosacc member app (native Flutter)
+# Pivosacc — native Flutter member app
 
-Material 3 native member banking — **no WebView**. Talks to Apache Fineract through the LAN mobile proxy:
+Material 3 banking UI (no WebView). Talks to Fineract via LAN proxy:
 
-```
-http://192.168.1.123:5174/fineract-provider/api/v1
-```
+`http://192.168.1.123:5174/fineract-provider/api/v1`
 
-Keep `mobile/server.py` on `*:5174` while demoing.
+Demo login: member `000000001`, PIN `1234`.
 
-## Demo
+## UI notes (v1.0.2)
 
-- Member: `000000001` (Nakato Grace)
-- PIN: `1234`
-- Peer transfer: `000000002` (Okello James)
+- Statement amounts: **deposits green**, **withdrawals red** (no meta/dev labels)
+- Deposit screen green-themed; withdraw screen red-themed
+- Native bottom dock + home Deposit FAB
+- Approval gallery: `~/Projects/sacco/proposals/flutter-ui-approval/`
 
-## Screens
-
-Login · Home balances · Deposit (green) · Withdraw (red) · Transfer · Pay utilities (NWSC / UMEME / DStv / School logos) · Statement · Loans + repay · Profile / More
-
-## Build / install (S23)
-
-```bash
-export PATH="$HOME/development/flutter/bin:$HOME/Library/Android/sdk/platform-tools:$PATH"
-cd ~/Projects/sacco/fineract/mobile_flutter
-flutter pub get
-flutter build apk --release
-adb -s adb-R5CX51683ZA-eNPG4Z._adb-tls-connect._tcp install -r build/app/outputs/flutter-apk/app-release.apk
-adb -s adb-R5CX51683ZA-eNPG4Z._adb-tls-connect._tcp shell am start -n tech.pivotventures.pivosacc/.MainActivity
-```
-
-Long-press the app title to change API base URL.
+**Do not** ship APK to phone until Osbert approves the gallery PNGs.
