@@ -168,7 +168,7 @@ class _ShellScreenState extends State<ShellScreen> {
         selected: depositActive,
         onTap: () => _navigate('deposit'),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: const _LowerCenterDockedFabLocation(),
       bottomNavigationBar: _CenterNotchDock(
         selectedIndex: depositActive ? -1 : _tab,
         onSelect: (i) {
@@ -184,8 +184,7 @@ class _ShellScreenState extends State<ShellScreen> {
 }
 
 /// Option B — full-width notched bar.
-/// Equal Expanded panes L/R so the FAB notch is truly screen-centered
-/// (fixes Bills being covered when 2 vs 3 Expanded shared one Row).
+/// Equal Expanded panes L/R keep the FAB notch screen-centered.
 class _CenterNotchDock extends StatelessWidget {
   const _CenterNotchDock({required this.selectedIndex, required this.onSelect});
   final int selectedIndex;
@@ -201,31 +200,34 @@ class _CenterNotchDock extends StatelessWidget {
     _NavSpec('More', Icons.grid_view_outlined, Icons.grid_view_rounded, PivoColors.navMore, PivoColors.navMoreMuted),
   ];
 
-  /// Must match FAB diameter + breathing room so labels never sit under the FAB.
   static const double _notchGap = 72;
+  static const double _barContentH = 52;
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.paddingOf(context).bottom;
+    // System 3-button / gesture bar is usually OUTSIDE the app window.
+    // Only keep a few px so labels sit low — avoid a tall empty white slab.
+    final inset = MediaQuery.paddingOf(context).bottom;
+    final foot = inset > 0 ? (inset * 0.12).clamp(2.0, 6.0) : 4.0;
     return BottomAppBar(
       color: Colors.white,
       elevation: 10,
       shadowColor: Colors.black26,
       surfaceTintColor: Colors.white,
       padding: EdgeInsets.zero,
-      height: 58 + bottom,
+      height: _barContentH + foot,
       shape: const CircularNotchedRectangle(),
-      notchMargin: 6,
-      child: SafeArea(
-        top: false,
-        minimum: EdgeInsets.zero,
+      notchMargin: 5,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: foot),
         child: SizedBox(
-          height: 58,
+          height: _barContentH,
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              // Left half — Home, Transfer (equal share of left pane)
               Expanded(
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     for (var i = 0; i < _left.length; i++)
                       Expanded(
@@ -238,11 +240,10 @@ class _CenterNotchDock extends StatelessWidget {
                   ],
                 ),
               ),
-              // Center gap aligned with center-docked FAB
               const SizedBox(width: _notchGap),
-              // Right half — Bills, Loans, More (equal share of right pane)
               Expanded(
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     for (var i = 0; i < _right.length; i++)
                       Expanded(
@@ -272,11 +273,22 @@ class _NavSpec {
   final Color muted;
 }
 
+/// Fixed icon + label slots so every tab shares the same baselines.
 class _DockTab extends StatelessWidget {
   const _DockTab({required this.spec, required this.selected, required this.onTap});
   final _NavSpec spec;
   final bool selected;
   final VoidCallback onTap;
+
+  static const double _iconSlot = 28;
+  static const double _labelSlot = 14;
+  static const TextStyle _labelStyle = TextStyle(
+    fontSize: 9,
+    height: 1.0,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0,
+    leadingDistribution: TextLeadingDistribution.even,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -285,41 +297,66 @@ class _DockTab extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (selected)
-              Container(
-                width: 30,
-                height: 30,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: spec.color.withValues(alpha: 0.14),
-                  shape: BoxShape.circle,
+        child: SizedBox(
+          height: _iconSlot + 2 + _labelSlot + 6,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                SizedBox(
+                  width: _iconSlot,
+                  height: _iconSlot,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: selected ? spec.color.withValues(alpha: 0.14) : Colors.transparent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      selected ? spec.filled : spec.outlined,
+                      size: 18,
+                      color: color,
+                    ),
+                  ),
                 ),
-                child: Icon(spec.filled, size: 18, color: color),
-              )
-            else
-              SizedBox(
-                width: 30,
-                height: 30,
-                child: Icon(spec.outlined, size: 18, color: color),
-              ),
-            const SizedBox(height: 1),
-            Text(
-              spec.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                color: color,
-              ),
+                const SizedBox(height: 2),
+                SizedBox(
+                  height: _labelSlot,
+                  width: double.infinity,
+                  child: Text(
+                    spec.label,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: _labelStyle.copyWith(color: color),
+                    strutStyle: const StrutStyle(
+                      fontSize: 9,
+                      height: 1.0,
+                      forceStrutHeight: true,
+                      leadingDistribution: TextLeadingDistribution.even,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
+  }
+}
+
+/// Slightly lower than default centerDocked so FAB sits deeper in the notch.
+class _LowerCenterDockedFabLocation extends FloatingActionButtonLocation {
+  const _LowerCenterDockedFabLocation();
+
+  static const double _sink = 14;
+
+  @override
+  Offset getOffset(ScaffoldPrelayoutGeometry geometry) {
+    final base = FloatingActionButtonLocation.centerDocked.getOffset(geometry);
+    return Offset(base.dx, base.dy + _sink);
   }
 }
 
@@ -331,8 +368,8 @@ class _DepositFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 56,
-      height: 56,
+      width: 54,
+      height: 54,
       child: FloatingActionButton(
         onPressed: () {
           HapticFeedback.mediumImpact();
@@ -348,10 +385,10 @@ class _DepositFab extends StatelessWidget {
         child: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add_rounded, size: 22),
+            Icon(Icons.add_rounded, size: 20),
             Text(
               'Deposit',
-              style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, height: 1),
+              style: TextStyle(fontSize: 7.5, fontWeight: FontWeight.w800, height: 1),
             ),
           ],
         ),
