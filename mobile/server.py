@@ -99,11 +99,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         hop_by_hop = {
             "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
             "te", "trailers", "transfer-encoding", "upgrade", "host", "content-length",
+            "accept-encoding",
         }
         headers = {}
         for k, v in self.headers.items():
             if k.lower() not in hop_by_hop:
                 headers[k] = v
+        # Avoid gzip/br from Fineract — we strip Content-Encoding below, so force identity.
+        headers["Accept-Encoding"] = "identity"
         try:
             conn.request(self.command, target_path, body=body, headers=headers)
             resp = conn.getresponse()

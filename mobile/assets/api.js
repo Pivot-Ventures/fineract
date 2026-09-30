@@ -210,15 +210,26 @@
     if (!sess || !sess.clientId) throw new Error("Not logged in");
     var clientId = sess.clientId;
     var client = await get("/clients/" + clientId);
-    var accounts = await get("/clients/" + clientId + "/accounts");
+    var accounts = {};
+    try { accounts = await get("/clients/" + clientId + "/accounts"); } catch (e) { accounts = {}; }
     var savingsList = accounts.savingsAccounts || [];
     var loanList = accounts.loanAccounts || [];
 
-    var primarySavings = null;
+    // Fallback: list savings accounts and filter by client
+    if (!savingsList.length) {
+      try {
+        var savPage = await get("/savingsaccounts?limit=200");
+        var savItems = (savPage && savPage.pageItems) || (Array.isArray(savPage) ? savPage : []);
+        savingsList = savItems.filter(function (s) {
+          return String(s.clientId) === String(clientId);
+        });
+      } catch (e) { /* ignore */ }
+    }
+
+    var primarySavings = savingsList.length ? savingsList[0] : null;
     var savingsDetail = null;
     var transactions = [];
-    if (savingsList.length) {
-      primarySavings = savingsList[0];
+    if (primarySavings) {
       try {
         savingsDetail = await get("/savingsaccounts/" + primarySavings.id + "?associations=transactions");
         transactions = savingsDetail.transactions || [];
@@ -227,48 +238,47 @@
       }
     }
 
-    // Enrich loans if thin on /accounts
+    function sameClient(obj) {
+      return obj && String(obj.clientId) === String(clientId);
+    }
+
     var loans = [];
     for (var i = 0; i < loanList.length; i++) {
       var la = loanList[i];
-      try {
-        var full = await get("/loans/" + la.id + "?associations=all");
-        loans.push(full);
-      } catch (e) {
-        loans.push(la);
-      }
+      try { loans.push(await get("/loans/" + la.id + "?associations=all")); }
+      catch (e) { loans.push(la); }
     }
-    // Also list loans filtered by client if accounts empty
     if (!loans.length) {
       try {
-        var page = await get("/loans?limit=50");
+        var page = await get("/loans?limit=200");
         var items = (page && page.pageItems) || [];
         for (var j = 0; j < items.length; j++) {
-          if (items[j].clientId === clientId || String(items[j].clientId) === String(clientId)) {
-            try {
-              loans.push(await get("/loans/" + items[j].id + "?associations=all"));
-            } catch (e2) {
-              loans.push(items[j]);
-            }
-          }
+          if (!sameClient(items[j])) continue;
+          try { loans.push(await get("/loans/" + items[j].id + "?associations=all")); }
+          catch (e2) { loans.push(items[j]); }
         }
       } catch (e3) { /* ignore */ }
     }
+
+    var bal = 0, avail = 0, currency = "UGX";
+    if (savingsDetail && savingsDetail.summary) {
+      if (savingsDetail.summary.accountBalance != null) bal = savingsDetail.summary.accountBalance;
+      if (savingsDetail.summary.availableBalance != null) avail = savingsDetail.summary.availableBalance;
+    } else if (primarySavings) {
+      if (primarySavings.accountBalance != null) bal = primarySavings.accountBalance;
+      if (primarySavings.availableBalance != null) avail = primarySavings.availableBalance;
+    }
+    if (savingsDetail && savingsDetail.currency && savingsDetail.currency.code) currency = savingsDetail.currency.code;
+    else if (primarySavings && primarySavings.currency && primarySavings.currency.code) currency = primarySavings.currency.code;
 
     return {
       client: client,
       savingsAccounts: savingsList,
       primarySavings: primarySavings,
       savingsDetail: savingsDetail,
-      balance: (savingsDetail && savingsDetail.summary && savingsDetail.summary.accountBalance != null)
-        ? savingsDetail.summary.accountBalance
-        : (primarySavings && primarySavings.accountBalance != null ? primarySavings.accountBalance : 0),
-      available: (savingsDetail && savingsDetail.summary && savingsDetail.summary.availableBalance != null)
-        ? savingsDetail.summary.availableBalance
-        : (primarySavings && primarySavings.availableBalance != null ? primarySavings.availableBalance : 0),
-      currency: (savingsDetail && savingsDetail.currency && savingsDetail.currency.code)
-        || (primarySavings && primarySavings.currency && primarySavings.currency.code)
-        || "UGX",
+      balance: bal,
+      available: avail,
+      currency: currency,
       transactions: transactions,
       loans: loans,
       sess: sess,
