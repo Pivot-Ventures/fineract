@@ -68,10 +68,10 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('$greet,', style: const TextStyle(color: PivoColors.muted, fontSize: 13)),
+                Text('$greet,', style: const TextStyle(color: PivoColors.muted, fontSize: 11.5)),
                 Text(
                   b.clientName,
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 22, letterSpacing: -0.3),
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: -0.3),
                 ),
                 const SizedBox(height: 14),
                 // Slim all-accounts total
@@ -82,13 +82,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('All accounts', style: TextStyle(color: PivoColors.muted, fontSize: 12)),
+                          const Text('All accounts', style: TextStyle(color: PivoColors.muted, fontSize: 11)),
                           const SizedBox(height: 2),
                           Text(
                             fmtMoney(b.totalAvailable, b.currency),
                             style: const TextStyle(
                               fontWeight: FontWeight.w800,
-                              fontSize: 16,
+                              fontSize: 14,
                               fontFeatures: [FontFeature.tabularFigures()],
                             ),
                           ),
@@ -96,17 +96,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: PivoColors.accent.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
                         '${savings.length} savings',
                         style: const TextStyle(
                           color: PivoColors.accent,
                           fontWeight: FontWeight.w700,
-                          fontSize: 11,
+                          fontSize: 10,
                         ),
                       ),
                     ),
@@ -115,7 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           // Swipeable per-account balance cards
           if (savings.isEmpty)
             const Padding(
@@ -124,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
             )
           else ...[
             SizedBox(
-              height: 178,
+              height: 152,
               child: PageView.builder(
                 controller: _pageCtrl,
                 itemCount: savings.length,
@@ -143,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(savings.length, (i) {
@@ -161,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
               }),
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
@@ -179,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text('See all', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
+                    child: const Text('See all', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5)),
                   ),
                 ),
                 if (b.allTransactions.isEmpty)
@@ -270,7 +270,7 @@ class _AccountBalanceCard extends StatelessWidget {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -284,13 +284,13 @@ class _AccountBalanceCard extends StatelessWidget {
                       ),
                       child: Text(
                         account.active ? 'Active' : account.status,
-                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
                       ),
                     ),
                     const Spacer(),
                     Container(
-                      width: 36,
-                      height: 36,
+                      width: 30,
+                      height: 30,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 2),
@@ -299,29 +299,29 @@ class _AccountBalanceCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 Text(
                   account.productName,
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.78), fontSize: 13),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.78), fontSize: 11.5),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   fmtMoney(account.available, account.currency),
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 28,
+                    fontSize: 24,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: -0.6,
+                    letterSpacing: -0.5,
                     fontFeatures: [FontFeature.tabularFigures()],
                   ),
                 ),
                 const Spacer(),
                 Text(
                   'A/C ${account.accountNo} · $office',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 12),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 11),
                 ),
                 const SizedBox(height: 4),
-                Text(hint, style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 11)),
+                Text(hint, style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 10)),
               ],
             ),
           ),
@@ -371,8 +371,8 @@ class _Act extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 68,
-            height: 68,
+            width: 58,
+            height: 58,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(20),
@@ -383,13 +383,13 @@ class _Act extends StatelessWidget {
             ),
             child: Center(
               child: Container(
-                width: 40,
-                height: 40,
+                width: 34,
+                height: 34,
                 decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    Icon(icon, color: color, size: badge == null ? 22 : 20),
+                    Icon(icon, color: color, size: badge == null ? 18 : 16),
                     if (badge != null)
                       Positioned(
                         right: 2,
@@ -409,7 +409,7 @@ class _Act extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: PivoColors.accent900),
+            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: PivoColors.accent900),
           ),
         ],
       ),
@@ -431,7 +431,7 @@ class _TxnRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Row(
             children: [
               Container(
@@ -452,11 +452,11 @@ class _TxnRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(t.typeLabel, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                    Text(t.typeLabel, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11.5)),
                     const SizedBox(height: 2),
                     Text(
                       '${t.dateLabel}${t.accountNo.isNotEmpty ? ' · ${t.accountNo}' : ''}',
-                      style: const TextStyle(fontSize: 11.5, color: PivoColors.muted),
+                      style: const TextStyle(fontSize: 10.5, color: PivoColors.muted),
                     ),
                   ],
                 ),
@@ -465,7 +465,7 @@ class _TxnRow extends StatelessWidget {
                 fmtAmt(credit ? t.amount : -t.amount),
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  fontSize: 14,
+                  fontSize: 13,
                   color: color,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
@@ -539,27 +539,27 @@ class _ReceiptSheet extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Container(
-                width: 72,
-                height: 72,
+                width: 60,
+                height: 60,
                 decoration: BoxDecoration(color: soft, shape: BoxShape.circle),
                 child: Icon(
                   credit ? Icons.check_rounded : Icons.receipt_long_rounded,
                   color: color,
-                  size: 36,
+                  size: 30,
                 ),
               ),
               const SizedBox(height: 14),
-              Text(_title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+              Text(_title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
               const SizedBox(height: 4),
-              Text(txn.typeLabel, style: const TextStyle(color: PivoColors.muted, fontSize: 13.5)),
+              Text(txn.typeLabel, style: const TextStyle(color: PivoColors.muted, fontSize: 12)),
               const SizedBox(height: 12),
               Text(
                 '${credit ? '+' : '−'} ${fmtMoney(txn.amount, bundle.currency)}',
                 style: TextStyle(
                   color: color,
                   fontWeight: FontWeight.w800,
-                  fontSize: 30,
-                  letterSpacing: -0.6,
+                  fontSize: 24,
+                  letterSpacing: -0.5,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -611,7 +611,7 @@ class _ReceiptRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: Text(label, style: const TextStyle(color: PivoColors.muted, fontSize: 12.5))),
+          Expanded(child: Text(label, style: const TextStyle(color: PivoColors.muted, fontSize: 11.5))),
           const SizedBox(width: 12),
           Flexible(
             child: Text(
@@ -619,7 +619,7 @@ class _ReceiptRow extends StatelessWidget {
               textAlign: TextAlign.right,
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                fontSize: 12.5,
+                fontSize: 11.5,
                 color: valueColor ?? PivoColors.accent900,
               ),
             ),

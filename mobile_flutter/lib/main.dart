@@ -32,6 +32,16 @@ class PivosaccApp extends StatelessWidget {
         title: 'Pivosacc',
         debugShowCheckedModeBanner: false,
         theme: buildPivosaccTheme(),
+        // Keep UI dense — ignore oversized system font scale.
+        builder: (context, child) {
+          final mq = MediaQuery.of(context);
+          return MediaQuery(
+            data: mq.copyWith(
+              textScaler: mq.textScaler.clamp(minScaleFactor: 0.90, maxScaleFactor: 1.0),
+            ),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
         home: Consumer<AppState>(
           builder: (context, s, _) {
             if (s.booting) {

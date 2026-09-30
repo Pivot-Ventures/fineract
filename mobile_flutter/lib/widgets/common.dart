@@ -30,17 +30,17 @@ class SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 18, bottom: 10),
+      padding: const EdgeInsets.only(top: 12, bottom: 6),
       child: Row(
         children: [
           Expanded(
             child: Text(
               text.toUpperCase(),
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.w700,
                 color: PivoColors.muted,
-                letterSpacing: 0.8,
+                letterSpacing: 0.7,
               ),
             ),
           ),
@@ -65,15 +65,15 @@ class PageHeader extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              fontSize: 26,
+              fontSize: 20,
               fontWeight: FontWeight.w800,
               color: PivoColors.accent900,
-              letterSpacing: -0.5,
+              letterSpacing: -0.4,
             ),
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 6),
-            Text(subtitle!, style: const TextStyle(fontSize: 13.5, color: PivoColors.muted, height: 1.4)),
+            Text(subtitle!, style: const TextStyle(fontSize: 12, color: PivoColors.muted, height: 1.35)),
           ],
         ],
       ),

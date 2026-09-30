@@ -59,7 +59,7 @@ ThemeData buildPivosaccTheme() {
       scrolledUnderElevation: 0,
       centerTitle: false,
       titleTextStyle: const TextStyle(
-        fontSize: 20,
+        fontSize: 17,
         fontWeight: FontWeight.w700,
         color: PivoColors.accent900,
         letterSpacing: -0.3,
@@ -88,15 +88,15 @@ ThemeData buildPivosaccTheme() {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(52),
+        minimumSize: const Size.fromHeight(48),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.10)),
@@ -141,9 +141,9 @@ ThemeData depositTheme(ThemeData base) => base.copyWith(
         style: FilledButton.styleFrom(
           backgroundColor: PivoColors.deposit,
           foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size.fromHeight(48),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
         ),
       ),
     );
@@ -154,9 +154,9 @@ ThemeData withdrawTheme(ThemeData base) => base.copyWith(
         style: FilledButton.styleFrom(
           backgroundColor: PivoColors.withdraw,
           foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size.fromHeight(48),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
         ),
       ),
     );

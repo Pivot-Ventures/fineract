@@ -33,9 +33,8 @@ class _ShellScreenState extends State<ShellScreen> {
       if (_tabs.contains(route)) {
         _tab = _tabs.indexOf(route);
       } else if (route == 'withdraw' || route == 'statement' || route == 'profile') {
-        _tab = 4; // More
+        _tab = 4;
       }
-      // deposit keeps current tab highlight under FAB
     });
   }
 
@@ -133,7 +132,7 @@ class _ShellScreenState extends State<ShellScreen> {
       appBar: AppBar(
         leading: showBack
             ? IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
                 onPressed: () => _navigate(_tabs[_tab.clamp(0, _tabs.length - 1)]),
               )
             : null,
@@ -155,17 +154,16 @@ class _ShellScreenState extends State<ShellScreen> {
               tooltip: 'Refresh',
               onPressed: () => state.refreshBundle(),
               icon: state.loading
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.refresh_rounded),
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.refresh_rounded, size: 22),
             ),
           Padding(
-            padding: const EdgeInsets.only(right: 14),
-            child: AvatarCircle(initials, onTap: () => _navigate('profile')),
+            padding: const EdgeInsets.only(right: 12),
+            child: AvatarCircle(initials, onTap: () => _navigate('profile'), size: 32),
           ),
         ],
       ),
       body: _body(),
-      // Option B: center-docked Deposit FAB + notched bottom bar
       floatingActionButton: _DepositFab(
         selected: depositActive,
         onTap: () => _navigate('deposit'),
@@ -185,13 +183,14 @@ class _ShellScreenState extends State<ShellScreen> {
   }
 }
 
-/// Option B — full-width white bar with CircularNotchedRectangle for Deposit FAB.
+/// Option B — full-width notched bar.
+/// Equal Expanded panes L/R so the FAB notch is truly screen-centered
+/// (fixes Bills being covered when 2 vs 3 Expanded shared one Row).
 class _CenterNotchDock extends StatelessWidget {
   const _CenterNotchDock({required this.selectedIndex, required this.onSelect});
   final int selectedIndex;
   final ValueChanged<int> onSelect;
 
-  // Home, Transfer | FAB | Bills, Loans, More
   static const _left = [
     _NavSpec('Home', Icons.home_outlined, Icons.home_rounded, PivoColors.navHome, PivoColors.navHomeMuted),
     _NavSpec('Transfer', Icons.swap_horiz_rounded, Icons.swap_horiz_rounded, PivoColors.navTransfer, PivoColors.navTransferMuted),
@@ -202,41 +201,60 @@ class _CenterNotchDock extends StatelessWidget {
     _NavSpec('More', Icons.grid_view_outlined, Icons.grid_view_rounded, PivoColors.navMore, PivoColors.navMoreMuted),
   ];
 
+  /// Must match FAB diameter + breathing room so labels never sit under the FAB.
+  static const double _notchGap = 72;
+
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.paddingOf(context).bottom;
     return BottomAppBar(
       color: Colors.white,
-      elevation: 12,
+      elevation: 10,
       shadowColor: Colors.black26,
       surfaceTintColor: Colors.white,
       padding: EdgeInsets.zero,
-      height: 64 + bottom,
+      height: 58 + bottom,
       shape: const CircularNotchedRectangle(),
-      notchMargin: 8,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: bottom),
+      notchMargin: 6,
+      child: SafeArea(
+        top: false,
+        minimum: EdgeInsets.zero,
         child: SizedBox(
-          height: 64,
+          height: 58,
           child: Row(
             children: [
-              for (var i = 0; i < _left.length; i++)
-                Expanded(
-                  child: _DockTab(
-                    spec: _left[i],
-                    selected: selectedIndex == i,
-                    onTap: () => onSelect(i),
-                  ),
+              // Left half — Home, Transfer (equal share of left pane)
+              Expanded(
+                child: Row(
+                  children: [
+                    for (var i = 0; i < _left.length; i++)
+                      Expanded(
+                        child: _DockTab(
+                          spec: _left[i],
+                          selected: selectedIndex == i,
+                          onTap: () => onSelect(i),
+                        ),
+                      ),
+                  ],
                 ),
-              const SizedBox(width: 64), // FAB notch gap
-              for (var i = 0; i < _right.length; i++)
-                Expanded(
-                  child: _DockTab(
-                    spec: _right[i],
-                    selected: selectedIndex == (i + 2),
-                    onTap: () => onSelect(i + 2),
-                  ),
+              ),
+              // Center gap aligned with center-docked FAB
+              const SizedBox(width: _notchGap),
+              // Right half — Bills, Loans, More (equal share of right pane)
+              Expanded(
+                child: Row(
+                  children: [
+                    for (var i = 0; i < _right.length; i++)
+                      Expanded(
+                        child: _DockTab(
+                          spec: _right[i],
+                          selected: selectedIndex == (i + 2),
+                          onTap: () => onSelect(i + 2),
+                        ),
+                      ),
+                  ],
                 ),
+              ),
             ],
           ),
         ),
@@ -272,28 +290,28 @@ class _DockTab extends StatelessWidget {
           children: [
             if (selected)
               Container(
-                width: 36,
-                height: 36,
+                width: 30,
+                height: 30,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: spec.color.withValues(alpha: 0.14),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(spec.filled, size: 22, color: color),
+                child: Icon(spec.filled, size: 18, color: color),
               )
             else
               SizedBox(
-                width: 36,
-                height: 36,
-                child: Icon(spec.outlined, size: 22, color: color),
+                width: 30,
+                height: 30,
+                child: Icon(spec.outlined, size: 18, color: color),
               ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 1),
             Text(
               spec.label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                 color: color,
               ),
@@ -313,15 +331,15 @@ class _DepositFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 64,
-      height: 64,
+      width: 56,
+      height: 56,
       child: FloatingActionButton(
         onPressed: () {
           HapticFeedback.mediumImpact();
           onTap();
         },
-        elevation: 6,
-        highlightElevation: 8,
+        elevation: 5,
+        highlightElevation: 7,
         backgroundColor: selected ? PivoColors.good : PivoColors.deposit,
         foregroundColor: Colors.white,
         shape: const CircleBorder(
@@ -330,10 +348,10 @@ class _DepositFab extends StatelessWidget {
         child: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add_rounded, size: 26),
+            Icon(Icons.add_rounded, size: 22),
             Text(
               'Deposit',
-              style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, height: 1),
+              style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, height: 1),
             ),
           ],
         ),
