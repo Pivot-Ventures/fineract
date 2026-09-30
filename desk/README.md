@@ -4,18 +4,18 @@ Static HTML UI for Pivot SACCO on the **Apache Fineract** backend in this reposi
 
 **Mifos X web-app is not part of this product.** Do not use the Mifos community app or the [Pivot-Ventures/web-app](https://github.com/Pivot-Ventures/web-app) fork (deprecated).
 
-**Brand:** Pivot SACCO Desk · **UGX** · Kampala · **LIVE-capable** (see README-WIRE.md)
+**Brand:** Pivot SACCO Desk · **UGX** · Kampala
 
 
 ## Live Fineract wiring
 
-See **[README-WIRE.md](README-WIRE.md)** for Docker + proxy + LIVE screen status.
+See **[README-WIRE.md](README-WIRE.md)** for Docker, the development proxy and what is live.
 
 From this directory:
 
 ```bash
 ./start-desk.sh
-# http://127.0.0.1:5173/   login mifos / password   tenant default
+# http://127.0.0.1:5173/  — sign in with your Fineract user (tenant: default)
 ```
 
 From the repository root:
@@ -25,14 +25,8 @@ docker compose up -d          # Fineract on https://localhost:8443
 cd desk && ./start-desk.sh    # Desk on http://127.0.0.1:5173
 ```
 
-## Open (static only — prefer start-desk.sh)
-
-```bash
-cd desk
-python3 -m http.server 5173
-```
-
-**http://127.0.0.1:5173/**
+Do not serve `desk/` with `python3 -m http.server`: it has no API proxy. `server.py` is a
+development server only; production is served by Caddy.
 
 ## Screens
 
@@ -55,10 +49,10 @@ python3 -m http.server 5173
 ### Members
 | File | Screen | Fineract |
 |------|--------|----------|
-| clients.html | Table + KYC + photo thumbs | `/clients` |
-| client-onboard.html | Wizard: personal → KYC/photo → IDs → office → activate | `POST /clients`, `/images` |
-| client-detail.html | Photo, family, addresses, docs gallery, transfer/close | `/clients/{id}` |
-| member-statement.html | Date range + print | `/runreports/ClientStatement` |
+| clients.html | Paged member list, name search | `/clients` |
+| client-onboard.html | Wizard: personal → photo → ID → office → review | `POST /clients`, `/images`, `/identifiers` |
+| client-detail.html | Profile, loans, savings, photo, transfer/close | `/clients/{id}` |
+| member-statement.html | Date range + print | savings `/transactions/search`, `/loans/{id}` |
 | groups.html | Groups | `/groups` |
 | centres.html | Centres | `/centers` |
 
@@ -66,10 +60,10 @@ python3 -m http.server 5173
 | File | Screen | Fineract |
 |------|--------|----------|
 | loans.html | Portfolio | `/loans` |
-| loan-detail.html | Schedule / txns | `/loans/{id}` |
-| loan-apply.html | Application wizard | `POST /loans` |
-| savings.html | List + shares stub | `/savingsaccounts` |
-| savings-detail.html | Account + txns | `/savingsaccounts/{id}` |
+| loan-detail.html | Schedule, txns, approve / reject / disburse / repay | `/loans/{id}` |
+| loan-apply.html | Application wizard (submit only) | `POST /loans` |
+| savings.html | Paged list, open account | `/savingsaccounts` |
+| savings-detail.html | Account, txns, deposit / withdraw | `/savingsaccounts/{id}` |
 
 ### Accounting park
 | File | Screen | Fineract |
@@ -80,19 +74,19 @@ python3 -m http.server 5173
 | closing-entries.html | Period closures | `/glclosures` |
 | financial-mappings.html | Activity → GL | `/financialactivityaccounts` |
 | accounting-rules.html | Rules + frequent postings | `/accountingrules` |
-| accruals.html | Accruals + provisioning | `/runaccruals`, `/provisioningentries` |
-| trial-balance.html | Trial balance | `/glaccounts/trialbalance` |
-| income-statement.html | P&L stub | reports |
-| balance-sheet.html | BS stub | reports |
+| accruals.html | Run accruals, list provisioning entries | `/runaccruals`, `/provisioningentries` |
+| trial-balance.html | Trial balance | `/runreports/Trial Balance Table` |
+| income-statement.html | Income statement | `/runreports/Income Statement Table` |
+| balance-sheet.html | Balance sheet | `/runreports/Balance Sheet Table` |
 
 ### Org / products / reports
 | File | Screen |
 |------|--------|
 | offices.html | Offices + staff |
 | products-loans.html | Products, charges, floating rates |
-| reports.html | Catalog + admin stubs |
+| reports.html | Report catalog + user list |
 
-Shared: `assets/app.css`, `assets/app.js`
+Shared: `assets/api.js` (API client, session, dialogs), `assets/app.js` (shell, auth guard), `assets/pages.js` (read views), `assets/actions.js` (writes), `assets/app.css`
 
 ## Design refs (URLs only — do not copy paid assets)
 - FintechWeb ThemeForest finance admin

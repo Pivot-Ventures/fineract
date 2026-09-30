@@ -3,56 +3,64 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Login · Pivot SACCO Desk</title>
+  <title>Sign in · Pivot SACCO Desk</title>
   <link rel="stylesheet" href="assets/app.css" />
 </head>
-<body>
-  <div class="banner-mock">LIVE auth — Fineract /authentication via local proxy</div>
+<body data-page="login">
+  <div class="status-bar" id="status-bar" role="alert" hidden></div>
   <div class="login-page">
     <section class="login-hero">
       <div>
-        <div class="brand-mark" style="width:48px;height:48px;font-size:18px">P</div>
+        <div class="brand-mark brand-mark-lg" aria-hidden="true">P</div>
         <h1>Pivot SACCO Desk</h1>
-        <p>Front-office and portfolio workspace for Ugandan SACCOs. Built to sit on Apache Fineract — replacing the stock Mifos X Web App experience.</p>
+        <p>Front-office and portfolio workspace for Ugandan SACCOs, built on Apache Fineract.</p>
         <ul class="login-features">
-          <li>✓ Teller sessions, float &amp; EOD</li>
-          <li>✓ Members, loans, savings in UGX</li>
-          <li>✓ Accounting mapped to Fineract GL APIs</li>
-          <li>✓ Kampala-first branch operations</li>
+          <li>Teller sessions, float &amp; end of day</li>
+          <li>Members, loans and savings in UGX</li>
+          <li>Accounting on the Fineract general ledger</li>
         </ul>
       </div>
-      <div style="font-size:12px;color:#7FA8AD">© Pivot SACCO · Mock pack for Osbert review</div>
+      <div class="login-foot">© Pivot SACCO</div>
     </section>
-    <section class="login-panel">
+    <main class="login-panel">
       <div class="login-card">
         <h2>Sign in</h2>
-        <p class="hint">Sign in with Fineract credentials (default mifos / password).</p>
-        <form id="login-form">
-          <div class="form-row" style="margin-bottom:12px">
-            <label>Tenant</label>
-            <select name="tenant" required>
-              <option value="default" selected>default (Pivot SACCO)</option>
-              <option value="demo">demo</option>
-            </select>
+        <p class="hint">Use your Fineract user account.</p>
+        <p class="login-notice" id="login-notice" role="status" hidden></p>
+        <form id="login-form" novalidate>
+          <div class="form-row mb-12">
+            <label for="login-tenant">Tenant</label>
+            <input id="login-tenant" type="text" name="tenant" autocomplete="organization" required />
           </div>
-          <div class="form-row" style="margin-bottom:12px">
-            <label>Username</label>
-            <input type="text" name="username" value="mifos" autocomplete="username" />
+          <div class="form-row mb-12">
+            <label for="login-username">Username</label>
+            <input id="login-username" type="text" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required />
           </div>
-          <div class="form-row" style="margin-bottom:16px">
-            <label>Password</label>
-            <input type="password" name="password" value="password" autocomplete="current-password" />
+          <div class="form-row mb-16">
+            <label for="login-password">Password</label>
+            <input id="login-password" type="password" name="password" autocomplete="current-password" required />
           </div>
-          <button type="submit" class="btn btn-amber" style="width:100%">Continue to desk</button>
+          <p class="dialog-error" id="login-error" role="alert" hidden></p>
+          <button type="submit" class="btn btn-amber btn-block">Sign in</button>
         </form>
-        <p class="text-muted" style="margin-top:14px;font-size:12px">POST <code>/fineract-provider/api/v1/authentication</code></p>
-        <p style="margin-top:10px;font-size:12px"><a href="dashboard.html">Skip login → Dashboard</a></p>
+        <form id="renew-form" novalidate hidden>
+          <p class="hint">Your password has expired. Choose a new password to continue.</p>
+          <div class="form-row mb-12">
+            <label for="renew-password">New password</label>
+            <input id="renew-password" type="password" autocomplete="new-password" required />
+          </div>
+          <div class="form-row mb-16">
+            <label for="renew-repeat">Repeat new password</label>
+            <input id="renew-repeat" type="password" autocomplete="new-password" required />
+          </div>
+          <p class="dialog-error" id="renew-error" role="alert" hidden></p>
+          <button type="submit" class="btn btn-amber btn-block">Change password and sign in</button>
+        </form>
       </div>
-    </section>
+    </main>
   </div>
   <script src="assets/api.js"></script>
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
-  <script src="assets/actions.js"></script>
 </body>
 </html>

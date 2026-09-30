@@ -7,138 +7,137 @@
   <link rel="stylesheet" href="assets/app.css" />
 </head>
 <body data-page="onboard">
-<div class="banner-mock">MOCK DATA ONLY — Pivot SACCO Desk UI mockup. Not connected to Apache Fineract.</div>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div class="status-bar" id="status-bar" role="alert" hidden></div>
 <div class="app-shell">
 
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
-    <div class="brand-mark">P</div>
+    <div class="brand-mark" aria-hidden="true">P</div>
     <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
   </div>
-  <nav class="sidebar-nav">
+  <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
-      <a class="nav-link" data-nav="dashboard" href="dashboard.html"><span class="nav-icon">▣</span> Dashboard</a>
+      <a class="nav-link" data-nav="dashboard" href="dashboard.html"><span class="nav-icon" aria-hidden="true">▣</span> Dashboard</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Front office</div>
-      <a class="nav-link" data-nav="teller" href="teller.html"><span class="nav-icon">💱</span> Teller day desk</a>
-      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon">🖥</span> Tellers &amp; cashiers</a>
-      <a class="nav-link" data-nav="cashier-eod" href="cashier-eod.html"><span class="nav-icon">⚖</span> Cashier EOD / settle</a>
-      <a class="nav-link" data-nav="collections" href="collections.html"><span class="nav-icon">📥</span> Collections / overdue</a>
+      <a class="nav-link" data-nav="teller" href="teller.html"><span class="nav-icon" aria-hidden="true">💱</span> Teller day desk</a>
+      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon" aria-hidden="true">🖥</span> Tellers &amp; cashiers</a>
+      <a class="nav-link" data-nav="cashier-eod" href="cashier-eod.html"><span class="nav-icon" aria-hidden="true">⚖</span> Cashier EOD / settle</a>
+      <a class="nav-link" data-nav="collections" href="collections.html"><span class="nav-icon" aria-hidden="true">📥</span> Collections / overdue</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Members</div>
-      <a class="nav-link" data-nav="clients" href="clients.html"><span class="nav-icon">👤</span> Clients</a>
-      <a class="nav-link" data-nav="onboard" href="client-onboard.html"><span class="nav-icon">＋</span> Onboard member</a>
-      <a class="nav-link" data-nav="groups" href="groups.html"><span class="nav-icon">👥</span> Groups</a>
-      <a class="nav-link" data-nav="centres" href="centres.html"><span class="nav-icon">⌖</span> Centres</a>
-      <a class="nav-link" data-nav="clients" href="clients.html#kyc"><span class="nav-icon">🪪</span> KYC queue</a>
+      <a class="nav-link" data-nav="clients" href="clients.html"><span class="nav-icon" aria-hidden="true">👤</span> Clients</a>
+      <a class="nav-link" data-nav="onboard" href="client-onboard.html"><span class="nav-icon" aria-hidden="true">＋</span> Onboard member</a>
+      <a class="nav-link" data-nav="groups" href="groups.html"><span class="nav-icon" aria-hidden="true">👥</span> Groups</a>
+      <a class="nav-link" data-nav="centres" href="centres.html"><span class="nav-icon" aria-hidden="true">⌖</span> Centres</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Portfolio</div>
-      <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon">📋</span> Loans</a>
-      <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon">✎</span> Loan application</a>
-      <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
+      <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
+      <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
-      <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon">🏷</span> Products &amp; charges</a>
+      <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Accounting</div>
-      <a class="nav-link" data-nav="accounting" href="accounting.html"><span class="nav-icon">📒</span> Chart of accounts</a>
-      <a class="nav-link" data-nav="journals" href="journals.html"><span class="nav-icon">☰</span> Journal entries</a>
-      <a class="nav-link" data-nav="journal" href="journal-entry.html"><span class="nav-icon">✎</span> Create journal</a>
-      <a class="nav-link" data-nav="closing" href="closing-entries.html"><span class="nav-icon">🔒</span> Closing entries</a>
-      <a class="nav-link" data-nav="mappings" href="financial-mappings.html"><span class="nav-icon">↔</span> Financial mappings</a>
-      <a class="nav-link" data-nav="rules" href="accounting-rules.html"><span class="nav-icon">⚙</span> Rules / frequent</a>
-      <a class="nav-link" data-nav="accruals" href="accruals.html"><span class="nav-icon">⏱</span> Accruals / provisioning</a>
-      <a class="nav-link" data-nav="trial" href="trial-balance.html"><span class="nav-icon">⚖</span> Trial balance</a>
-      <a class="nav-link" data-nav="is" href="income-statement.html"><span class="nav-icon">📈</span> Income statement</a>
-      <a class="nav-link" data-nav="bs" href="balance-sheet.html"><span class="nav-icon">📊</span> Balance sheet</a>
+      <a class="nav-link" data-nav="accounting" href="accounting.html"><span class="nav-icon" aria-hidden="true">📒</span> Chart of accounts</a>
+      <a class="nav-link" data-nav="journals" href="journals.html"><span class="nav-icon" aria-hidden="true">☰</span> Journal entries</a>
+      <a class="nav-link" data-nav="journal" href="journal-entry.html"><span class="nav-icon" aria-hidden="true">✎</span> Create journal</a>
+      <a class="nav-link" data-nav="closing" href="closing-entries.html"><span class="nav-icon" aria-hidden="true">🔒</span> Closing entries</a>
+      <a class="nav-link" data-nav="mappings" href="financial-mappings.html"><span class="nav-icon" aria-hidden="true">↔</span> Financial mappings</a>
+      <a class="nav-link" data-nav="rules" href="accounting-rules.html"><span class="nav-icon" aria-hidden="true">⚙</span> Rules / frequent</a>
+      <a class="nav-link" data-nav="accruals" href="accruals.html"><span class="nav-icon" aria-hidden="true">⏱</span> Accruals / provisioning</a>
+      <a class="nav-link" data-nav="trial" href="trial-balance.html"><span class="nav-icon" aria-hidden="true">⚖</span> Trial balance</a>
+      <a class="nav-link" data-nav="is" href="income-statement.html"><span class="nav-icon" aria-hidden="true">📈</span> Income statement</a>
+      <a class="nav-link" data-nav="bs" href="balance-sheet.html"><span class="nav-icon" aria-hidden="true">📊</span> Balance sheet</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Organization</div>
-      <a class="nav-link" data-nav="offices" href="offices.html"><span class="nav-icon">🏢</span> Offices / staff</a>
-      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon">🖥</span> Tellers setup</a>
+      <a class="nav-link" data-nav="offices" href="offices.html"><span class="nav-icon" aria-hidden="true">🏢</span> Offices / staff</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Reports</div>
-      <a class="nav-link" data-nav="reports" href="reports.html"><span class="nav-icon">📊</span> Report catalog</a>
-      <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon">📄</span> Member statement</a>
+      <a class="nav-link" data-nav="reports" href="reports.html"><span class="nav-icon" aria-hidden="true">📊</span> Report catalog</a>
+      <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon">⚙</span> Users &amp; settings</a>
+      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><span class="mock-badge">MOCK UI</span><div style="margin-top:6px">Tenant: default · env: local</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
 </aside>
 
   <div class="main">
 
 <header class="topbar">
-  <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Menu">☰</button>
-  <div class="topbar-search"><span class="search-ico">⌕</span>
-    <input type="search" placeholder="Search member by name, ID, phone…" /></div>
-  <span class="chip">Branch: Kampala Main</span>
-  <span class="chip green">Teller: Open</span>
-  <div class="topbar-right"><span class="chip amber">MOCK</span><div class="avatar">OM</div></div>
+  <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Open menu" aria-controls="sidebar">☰</button>
+  <div class="topbar-search" role="search"><span class="search-ico" aria-hidden="true">⌕</span>
+    <label for="global-search" class="sr-only">Search members, loans and savings</label>
+    <input id="global-search" type="search" placeholder="Search member, account no, phone…" /></div>
+  <span class="chip" id="office-chip" hidden></span>
+  <div class="topbar-right">
+    <span class="user-name" id="user-name"></span>
+    <div class="avatar" id="user-avatar" aria-hidden="true">?</div>
+    <button type="button" class="btn btn-sm btn-ghost" id="logout-btn">Log out</button>
+  </div>
 </header>
 
-    <div class="content">
+    <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Onboard member</h1><p class="page-sub">Ugandan SACCO operations · Currency UGX · Kampala Main</p></div>
-        <div class="api-chip"><span>Fineract</span> POST /clients · /clients/{id}/images · /datatables</div>
+        <div><h1>Onboard member</h1><p class="page-sub">Creates an active client in Fineract.</p></div>
       </div>
 
-      <div class="card"><div class="card-b" data-wizard data-step="0">
-        <ul class="wizard-steps">
+      <div class="card"><div class="card-b" data-wizard data-step="0" id="onboard-wizard">
+        <ol class="wizard-steps">
           <li><span class="n">1</span> Personal</li>
-          <li><span class="n">2</span> KYC &amp; photo</li>
+          <li><span class="n">2</span> Photo</li>
           <li><span class="n">3</span> Identifiers</li>
           <li><span class="n">4</span> Office &amp; staff</li>
-          <li><span class="n">5</span> Activate</li>
-        </ul>
+          <li><span class="n">5</span> Review</li>
+        </ol>
         <div class="wizard-panel active"><div class="form-grid">
-          <div class="form-row"><label>First name</label><input value="Achieng" /></div>
-          <div class="form-row"><label>Last name</label><input value="Faith" /></div>
-          <div class="form-row"><label>Gender</label><select><option>Female</option><option>Male</option></select></div>
-          <div class="form-row"><label>Date of birth</label><input type="date" value="1992-06-18" /></div>
-          <div class="form-row"><label>Mobile</label><input value="+256 774 220 981" /></div>
-          <div class="form-row"><label>Email</label><input placeholder="optional" /></div>
-          <div class="form-row full"><label>Address</label><input value="Ggaba Rd, Kampala" /></div>
+          <div class="form-row"><label for="ob-firstname">First name *</label><input id="ob-firstname" autocomplete="off" required /></div>
+          <div class="form-row"><label for="ob-lastname">Last name *</label><input id="ob-lastname" autocomplete="off" required /></div>
+          <div class="form-row"><label for="ob-gender">Gender</label><select id="ob-gender"><option value="">— Not set —</option></select></div>
+          <div class="form-row"><label for="ob-dob">Date of birth</label><input id="ob-dob" type="date" /></div>
+          <div class="form-row"><label for="ob-mobile">Mobile</label><input id="ob-mobile" type="tel" autocomplete="off" placeholder="+256…" /></div>
+          <div class="form-row"><label for="ob-email">Email</label><input id="ob-email" type="email" autocomplete="off" placeholder="optional" /></div>
         </div></div>
         <div class="wizard-panel"><div class="grid-2">
-          <div><label class="text-muted" style="font-size:12px;font-weight:650">Member photo</label>
-            <div class="photo-frame" style="margin-top:8px">📷<br/>Upload photo</div>
-            <button class="btn btn-sm btn-ghost" style="margin-top:8px" data-mock="Upload client image">Choose image</button></div>
-          <div class="doc-gallery">
-            <div class="doc-tile"><div class="doc-thumb nin">NIN scan</div><button class="btn btn-sm btn-ghost" data-mock="Upload NIN">Upload</button></div>
-            <div class="doc-tile"><div class="doc-thumb">Signed form</div><button class="btn btn-sm btn-ghost" data-mock="Upload form">Upload</button></div>
-          </div>
+          <div><label for="ob-photo" class="form-label">Member photo (optional)</label>
+            <input id="ob-photo" type="file" accept="image/*" class="file-input" />
+            <p class="text-muted small-note">Uploaded to Fineract after the member is created.</p></div>
+          <div class="empty-state">Document scans (ID, signed forms): not available yet.</div>
         </div></div>
         <div class="wizard-panel"><div class="form-grid">
-          <div class="form-row"><label>Document type</label><select><option>National ID (NIN)</option><option>Passport</option></select></div>
-          <div class="form-row"><label>Document key</label><input value="CF9206181XXXXX" /></div>
-          <div class="form-row"><label>External ID</label><input placeholder="SACCO-UG-…" /></div>
-          <div class="form-row"><label>Legal form</label><select><option>Person</option><option>Entity</option></select></div>
-        </div></div>
+          <div class="form-row"><label for="ob-doctype">Document type</label><select id="ob-doctype"><option value="">— None —</option></select></div>
+          <div class="form-row"><label for="ob-dockey">Document number</label><input id="ob-dockey" autocomplete="off" /></div>
+          <div class="form-row"><label for="ob-external">External ID</label><input id="ob-external" autocomplete="off" placeholder="optional" /></div>
+        </div>
+        <p class="text-muted small-note" id="ob-doctype-note"></p></div>
         <div class="wizard-panel"><div class="form-grid">
-          <div class="form-row"><label>Office</label><select><option>Kampala Main</option><option>Ntinda</option><option>Entebbe</option></select></div>
-          <div class="form-row"><label>Staff</label><select><option>Kato Musa</option><option>Okurut Isaac</option></select></div>
-          <div class="form-row"><label>Submitted on</label><input type="date" value="2026-09-30" /></div>
-          <div class="form-row"><label>Group</label><select><option>— None —</option><option>Nakawa Traders</option></select></div>
+          <div class="form-row"><label for="ob-office">Office *</label><select id="ob-office" required></select></div>
+          <div class="form-row"><label for="ob-staff">Staff</label><select id="ob-staff"><option value="">— None —</option></select></div>
+          <div class="form-row"><label for="ob-submitted">Submitted and activated on *</label><input id="ob-submitted" type="date" required /></div>
         </div></div>
         <div class="wizard-panel"><div class="recon-box ok">
-          <p class="strong" style="margin:0 0 8px">Ready to activate (mock)</p>
-          <p class="text-muted" style="margin:0;font-size:13px">POST /clients then activate + /images</p>
-          <div class="meta-list" style="margin-top:12px">
-            <div class="meta-item"><div class="k">Name</div><div class="v">Achieng Faith</div></div>
-            <div class="meta-item"><div class="k">Office</div><div class="v">Kampala Main</div></div>
-            <div class="meta-item"><div class="k">NIN</div><div class="v">CF9206181XXXXX</div></div>
+          <p class="strong">Review and create</p>
+          <p class="text-muted small-note">Creates the client (active), then uploads the photo and identifier if given.</p>
+          <div class="meta-list">
+            <div class="meta-item"><div class="k">Name</div><div class="v" id="ob-review-name">—</div></div>
+            <div class="meta-item"><div class="k">Mobile</div><div class="v" id="ob-review-mobile">—</div></div>
+            <div class="meta-item"><div class="k">Office</div><div class="v" id="ob-review-office">—</div></div>
+            <div class="meta-item"><div class="k">Identifier</div><div class="v" id="ob-review-id">—</div></div>
+            <div class="meta-item"><div class="k">Activation date</div><div class="v" id="ob-review-date">—</div></div>
           </div>
         </div></div>
+        <p class="dialog-error" id="ob-error" role="alert" hidden></p>
         <div class="form-actions">
           <button type="button" class="btn btn-ghost" data-wizard-prev>Back</button>
-          <button type="button" class="btn btn-amber" data-wizard-next>Continue</button>
+          <button type="button" class="btn btn-amber" data-wizard-next data-final-label="Create member">Continue</button>
           <a class="btn btn-ghost" href="clients.html">Cancel</a>
         </div>
       </div></div>
-
-    </div>
+    </main>
   </div>
 </div>
   <script src="assets/api.js"></script>

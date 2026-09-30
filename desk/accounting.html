@@ -7,119 +7,115 @@
   <link rel="stylesheet" href="assets/app.css" />
 </head>
 <body data-page="accounting">
-<div class="banner-mock">MOCK DATA ONLY — Pivot SACCO Desk UI mockup. Not connected to Apache Fineract.</div>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div class="status-bar" id="status-bar" role="alert" hidden></div>
 <div class="app-shell">
 
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
-    <div class="brand-mark">P</div>
+    <div class="brand-mark" aria-hidden="true">P</div>
     <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
   </div>
-  <nav class="sidebar-nav">
+  <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
-      <a class="nav-link" data-nav="dashboard" href="dashboard.html"><span class="nav-icon">▣</span> Dashboard</a>
+      <a class="nav-link" data-nav="dashboard" href="dashboard.html"><span class="nav-icon" aria-hidden="true">▣</span> Dashboard</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Front office</div>
-      <a class="nav-link" data-nav="teller" href="teller.html"><span class="nav-icon">💱</span> Teller day desk</a>
-      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon">🖥</span> Tellers &amp; cashiers</a>
-      <a class="nav-link" data-nav="cashier-eod" href="cashier-eod.html"><span class="nav-icon">⚖</span> Cashier EOD / settle</a>
-      <a class="nav-link" data-nav="collections" href="collections.html"><span class="nav-icon">📥</span> Collections / overdue</a>
+      <a class="nav-link" data-nav="teller" href="teller.html"><span class="nav-icon" aria-hidden="true">💱</span> Teller day desk</a>
+      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon" aria-hidden="true">🖥</span> Tellers &amp; cashiers</a>
+      <a class="nav-link" data-nav="cashier-eod" href="cashier-eod.html"><span class="nav-icon" aria-hidden="true">⚖</span> Cashier EOD / settle</a>
+      <a class="nav-link" data-nav="collections" href="collections.html"><span class="nav-icon" aria-hidden="true">📥</span> Collections / overdue</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Members</div>
-      <a class="nav-link" data-nav="clients" href="clients.html"><span class="nav-icon">👤</span> Clients</a>
-      <a class="nav-link" data-nav="onboard" href="client-onboard.html"><span class="nav-icon">＋</span> Onboard member</a>
-      <a class="nav-link" data-nav="groups" href="groups.html"><span class="nav-icon">👥</span> Groups</a>
-      <a class="nav-link" data-nav="centres" href="centres.html"><span class="nav-icon">⌖</span> Centres</a>
-      <a class="nav-link" data-nav="clients" href="clients.html#kyc"><span class="nav-icon">🪪</span> KYC queue</a>
+      <a class="nav-link" data-nav="clients" href="clients.html"><span class="nav-icon" aria-hidden="true">👤</span> Clients</a>
+      <a class="nav-link" data-nav="onboard" href="client-onboard.html"><span class="nav-icon" aria-hidden="true">＋</span> Onboard member</a>
+      <a class="nav-link" data-nav="groups" href="groups.html"><span class="nav-icon" aria-hidden="true">👥</span> Groups</a>
+      <a class="nav-link" data-nav="centres" href="centres.html"><span class="nav-icon" aria-hidden="true">⌖</span> Centres</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Portfolio</div>
-      <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon">📋</span> Loans</a>
-      <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon">✎</span> Loan application</a>
-      <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
+      <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
+      <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
-      <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon">🏷</span> Products &amp; charges</a>
+      <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Accounting</div>
-      <a class="nav-link" data-nav="accounting" href="accounting.html"><span class="nav-icon">📒</span> Chart of accounts</a>
-      <a class="nav-link" data-nav="journals" href="journals.html"><span class="nav-icon">☰</span> Journal entries</a>
-      <a class="nav-link" data-nav="journal" href="journal-entry.html"><span class="nav-icon">✎</span> Create journal</a>
-      <a class="nav-link" data-nav="closing" href="closing-entries.html"><span class="nav-icon">🔒</span> Closing entries</a>
-      <a class="nav-link" data-nav="mappings" href="financial-mappings.html"><span class="nav-icon">↔</span> Financial mappings</a>
-      <a class="nav-link" data-nav="rules" href="accounting-rules.html"><span class="nav-icon">⚙</span> Rules / frequent</a>
-      <a class="nav-link" data-nav="accruals" href="accruals.html"><span class="nav-icon">⏱</span> Accruals / provisioning</a>
-      <a class="nav-link" data-nav="trial" href="trial-balance.html"><span class="nav-icon">⚖</span> Trial balance</a>
-      <a class="nav-link" data-nav="is" href="income-statement.html"><span class="nav-icon">📈</span> Income statement</a>
-      <a class="nav-link" data-nav="bs" href="balance-sheet.html"><span class="nav-icon">📊</span> Balance sheet</a>
+      <a class="nav-link" data-nav="accounting" href="accounting.html"><span class="nav-icon" aria-hidden="true">📒</span> Chart of accounts</a>
+      <a class="nav-link" data-nav="journals" href="journals.html"><span class="nav-icon" aria-hidden="true">☰</span> Journal entries</a>
+      <a class="nav-link" data-nav="journal" href="journal-entry.html"><span class="nav-icon" aria-hidden="true">✎</span> Create journal</a>
+      <a class="nav-link" data-nav="closing" href="closing-entries.html"><span class="nav-icon" aria-hidden="true">🔒</span> Closing entries</a>
+      <a class="nav-link" data-nav="mappings" href="financial-mappings.html"><span class="nav-icon" aria-hidden="true">↔</span> Financial mappings</a>
+      <a class="nav-link" data-nav="rules" href="accounting-rules.html"><span class="nav-icon" aria-hidden="true">⚙</span> Rules / frequent</a>
+      <a class="nav-link" data-nav="accruals" href="accruals.html"><span class="nav-icon" aria-hidden="true">⏱</span> Accruals / provisioning</a>
+      <a class="nav-link" data-nav="trial" href="trial-balance.html"><span class="nav-icon" aria-hidden="true">⚖</span> Trial balance</a>
+      <a class="nav-link" data-nav="is" href="income-statement.html"><span class="nav-icon" aria-hidden="true">📈</span> Income statement</a>
+      <a class="nav-link" data-nav="bs" href="balance-sheet.html"><span class="nav-icon" aria-hidden="true">📊</span> Balance sheet</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Organization</div>
-      <a class="nav-link" data-nav="offices" href="offices.html"><span class="nav-icon">🏢</span> Offices / staff</a>
-      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon">🖥</span> Tellers setup</a>
+      <a class="nav-link" data-nav="offices" href="offices.html"><span class="nav-icon" aria-hidden="true">🏢</span> Offices / staff</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Reports</div>
-      <a class="nav-link" data-nav="reports" href="reports.html"><span class="nav-icon">📊</span> Report catalog</a>
-      <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon">📄</span> Member statement</a>
+      <a class="nav-link" data-nav="reports" href="reports.html"><span class="nav-icon" aria-hidden="true">📊</span> Report catalog</a>
+      <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon">⚙</span> Users &amp; settings</a>
+      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><span class="mock-badge">MOCK UI</span><div style="margin-top:6px">Tenant: default · env: local</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
 </aside>
 
   <div class="main">
 
 <header class="topbar">
-  <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Menu">☰</button>
-  <div class="topbar-search"><span class="search-ico">⌕</span>
-    <input type="search" placeholder="Search member by name, ID, phone…" /></div>
-  <span class="chip">Branch: Kampala Main</span>
-  <span class="chip green">Teller: Open</span>
-  <div class="topbar-right"><span class="chip amber">MOCK</span><div class="avatar">OM</div></div>
+  <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Open menu" aria-controls="sidebar">☰</button>
+  <div class="topbar-search" role="search"><span class="search-ico" aria-hidden="true">⌕</span>
+    <label for="global-search" class="sr-only">Search members, loans and savings</label>
+    <input id="global-search" type="search" placeholder="Search member, account no, phone…" /></div>
+  <span class="chip" id="office-chip" hidden></span>
+  <div class="topbar-right">
+    <span class="user-name" id="user-name"></span>
+    <div class="avatar" id="user-avatar" aria-hidden="true">?</div>
+    <button type="button" class="btn btn-sm btn-ghost" id="logout-btn">Log out</button>
+  </div>
 </header>
 
-    <div class="content">
+    <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Chart of accounts</h1><p class="page-sub">Ugandan SACCO operations · Currency UGX · Kampala Main</p></div>
-        <div class="api-chip"><span>Fineract</span> /glaccounts · POST /glaccounts</div>
+        <div><h1>Chart of accounts</h1><p class="page-sub">General ledger accounts in Fineract.</p></div>
       </div>
 
-      <div class="btn-group" style="margin-bottom:14px">
-        <button class="btn btn-amber" data-mock="Create GL">＋ Create GL account</button>
+      <div class="btn-group page-actions">
         <a class="btn btn-ghost" href="journals.html">Journals</a>
         <a class="btn btn-ghost" href="trial-balance.html">Trial balance</a>
       </div>
       <div class="grid-2">
-        <div class="card"><div class="card-h"><h2>Account tree</h2>
-          <input type="search" data-table-search="#coa-table" placeholder="Filter…" style="max-width:160px" /></div>
+        <div class="card"><div class="card-h"><h2>Accounts</h2>
+          <div class="filters inline">
+            <label for="coa-filter" class="sr-only">Filter accounts</label>
+            <input id="coa-filter" type="search" data-table-filter="#coa-table" placeholder="Filter code or name…" />
+          </div></div>
           <div class="card-b table-wrap"><table class="data" id="coa-table">
-            <thead><tr><th>Code</th><th>Name</th><th>Type</th><th class="text-right">Balance</th></tr></thead>
-            <tbody>
-              <tr><td class="mono">1000</td><td class="strong">Cash &amp; Bank</td><td>ASSET</td><td class="mono text-right">—</td></tr>
-              <tr><td class="mono">1100</td><td>Cash on hand</td><td>ASSET</td><td class="mono text-right">48,200,000</td></tr>
-              <tr><td class="mono">1200</td><td>Bank — Stanbic Kampala</td><td>ASSET</td><td class="mono text-right">1,240,500,000</td></tr>
-              <tr><td class="mono">1300</td><td>Loans receivable</td><td>ASSET</td><td class="mono text-right">4,820,000,000</td></tr>
-              <tr><td class="mono">2100</td><td>Compulsory savings</td><td>LIABILITY</td><td class="mono text-right">6,800,000,000</td></tr>
-              <tr><td class="mono">2200</td><td>Voluntary deposits</td><td>LIABILITY</td><td class="mono text-right">2,340,000,000</td></tr>
-              <tr><td class="mono">3000</td><td>Share capital</td><td>EQUITY</td><td class="mono text-right">890,000,000</td></tr>
-              <tr><td class="mono">4000</td><td>Interest income</td><td>INCOME</td><td class="mono text-right">412,000,000</td></tr>
-              <tr><td class="mono">5000</td><td>Operating expenses</td><td>EXPENSE</td><td class="mono text-right">186,000,000</td></tr>
-            </tbody>
+            <thead><tr><th>Code</th><th>Name</th><th>Type</th><th>Usage</th><th>Status</th><th>Entries</th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="6">Loading…</td></tr></tbody>
           </table></div></div>
-        <div class="card"><div class="card-h"><h2>Create GL (mock)</h2></div><div class="card-b">
-          <div class="form-grid">
-            <div class="form-row"><label>Name</label><input /></div>
-            <div class="form-row"><label>GL code</label><input class="mono" placeholder="1400" /></div>
-            <div class="form-row"><label>Type</label><select><option>ASSET</option><option>LIABILITY</option><option>EQUITY</option><option>INCOME</option><option>EXPENSE</option></select></div>
-            <div class="form-row"><label>Usage</label><select><option>DETAIL</option><option>HEADER</option></select></div>
-            <div class="form-row"><label>Parent</label><select><option>1000 Cash &amp; Bank</option><option>None</option></select></div>
-            <div class="form-row"><label>Manual entries</label><select><option>Allowed</option><option>Not allowed</option></select></div>
-          </div>
-          <div class="form-actions"><button class="btn btn-amber" data-mock="POST /glaccounts">Save</button></div>
+        <div class="card" data-perm="CREATE_GLACCOUNT"><div class="card-h"><h2>Create GL account</h2></div><div class="card-b">
+          <form id="gl-form" novalidate>
+            <div class="form-grid">
+              <div class="form-row"><label for="gl-name">Name *</label><input id="gl-name" required autocomplete="off" /></div>
+              <div class="form-row"><label for="gl-code">GL code *</label><input id="gl-code" class="mono" required autocomplete="off" /></div>
+              <div class="form-row"><label for="gl-type">Type *</label><select id="gl-type" required>
+                <option value="1">Asset</option><option value="2">Liability</option><option value="3">Equity</option><option value="4">Income</option><option value="5">Expense</option></select></div>
+              <div class="form-row"><label for="gl-usage">Usage *</label><select id="gl-usage" required><option value="1">Detail</option><option value="2">Header</option></select></div>
+              <div class="form-row"><label for="gl-parent">Parent (header account)</label><select id="gl-parent"><option value="">— None —</option></select></div>
+              <div class="form-row"><label for="gl-manual">Manual entries</label><select id="gl-manual"><option value="true">Allowed</option><option value="false">Not allowed</option></select></div>
+            </div>
+            <div class="form-actions"><button type="submit" class="btn btn-amber">Create account</button></div>
+          </form>
         </div></div>
       </div>
-
-    </div>
+    </main>
   </div>
 </div>
   <script src="assets/api.js"></script>

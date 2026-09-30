@@ -3,109 +3,104 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Accounting rules & frequent postings · Pivot SACCO Desk</title>
+  <title>Accounting rules &amp; frequent postings · Pivot SACCO Desk</title>
   <link rel="stylesheet" href="assets/app.css" />
 </head>
 <body data-page="rules">
-<div class="banner-mock">MOCK DATA ONLY — Pivot SACCO Desk UI mockup. Not connected to Apache Fineract.</div>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div class="status-bar" id="status-bar" role="alert" hidden></div>
 <div class="app-shell">
 
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
-    <div class="brand-mark">P</div>
+    <div class="brand-mark" aria-hidden="true">P</div>
     <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
   </div>
-  <nav class="sidebar-nav">
+  <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
-      <a class="nav-link" data-nav="dashboard" href="dashboard.html"><span class="nav-icon">▣</span> Dashboard</a>
+      <a class="nav-link" data-nav="dashboard" href="dashboard.html"><span class="nav-icon" aria-hidden="true">▣</span> Dashboard</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Front office</div>
-      <a class="nav-link" data-nav="teller" href="teller.html"><span class="nav-icon">💱</span> Teller day desk</a>
-      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon">🖥</span> Tellers &amp; cashiers</a>
-      <a class="nav-link" data-nav="cashier-eod" href="cashier-eod.html"><span class="nav-icon">⚖</span> Cashier EOD / settle</a>
-      <a class="nav-link" data-nav="collections" href="collections.html"><span class="nav-icon">📥</span> Collections / overdue</a>
+      <a class="nav-link" data-nav="teller" href="teller.html"><span class="nav-icon" aria-hidden="true">💱</span> Teller day desk</a>
+      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon" aria-hidden="true">🖥</span> Tellers &amp; cashiers</a>
+      <a class="nav-link" data-nav="cashier-eod" href="cashier-eod.html"><span class="nav-icon" aria-hidden="true">⚖</span> Cashier EOD / settle</a>
+      <a class="nav-link" data-nav="collections" href="collections.html"><span class="nav-icon" aria-hidden="true">📥</span> Collections / overdue</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Members</div>
-      <a class="nav-link" data-nav="clients" href="clients.html"><span class="nav-icon">👤</span> Clients</a>
-      <a class="nav-link" data-nav="onboard" href="client-onboard.html"><span class="nav-icon">＋</span> Onboard member</a>
-      <a class="nav-link" data-nav="groups" href="groups.html"><span class="nav-icon">👥</span> Groups</a>
-      <a class="nav-link" data-nav="centres" href="centres.html"><span class="nav-icon">⌖</span> Centres</a>
-      <a class="nav-link" data-nav="clients" href="clients.html#kyc"><span class="nav-icon">🪪</span> KYC queue</a>
+      <a class="nav-link" data-nav="clients" href="clients.html"><span class="nav-icon" aria-hidden="true">👤</span> Clients</a>
+      <a class="nav-link" data-nav="onboard" href="client-onboard.html"><span class="nav-icon" aria-hidden="true">＋</span> Onboard member</a>
+      <a class="nav-link" data-nav="groups" href="groups.html"><span class="nav-icon" aria-hidden="true">👥</span> Groups</a>
+      <a class="nav-link" data-nav="centres" href="centres.html"><span class="nav-icon" aria-hidden="true">⌖</span> Centres</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Portfolio</div>
-      <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon">📋</span> Loans</a>
-      <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon">✎</span> Loan application</a>
-      <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
+      <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
+      <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
-      <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon">🏷</span> Products &amp; charges</a>
+      <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Accounting</div>
-      <a class="nav-link" data-nav="accounting" href="accounting.html"><span class="nav-icon">📒</span> Chart of accounts</a>
-      <a class="nav-link" data-nav="journals" href="journals.html"><span class="nav-icon">☰</span> Journal entries</a>
-      <a class="nav-link" data-nav="journal" href="journal-entry.html"><span class="nav-icon">✎</span> Create journal</a>
-      <a class="nav-link" data-nav="closing" href="closing-entries.html"><span class="nav-icon">🔒</span> Closing entries</a>
-      <a class="nav-link" data-nav="mappings" href="financial-mappings.html"><span class="nav-icon">↔</span> Financial mappings</a>
-      <a class="nav-link" data-nav="rules" href="accounting-rules.html"><span class="nav-icon">⚙</span> Rules / frequent</a>
-      <a class="nav-link" data-nav="accruals" href="accruals.html"><span class="nav-icon">⏱</span> Accruals / provisioning</a>
-      <a class="nav-link" data-nav="trial" href="trial-balance.html"><span class="nav-icon">⚖</span> Trial balance</a>
-      <a class="nav-link" data-nav="is" href="income-statement.html"><span class="nav-icon">📈</span> Income statement</a>
-      <a class="nav-link" data-nav="bs" href="balance-sheet.html"><span class="nav-icon">📊</span> Balance sheet</a>
+      <a class="nav-link" data-nav="accounting" href="accounting.html"><span class="nav-icon" aria-hidden="true">📒</span> Chart of accounts</a>
+      <a class="nav-link" data-nav="journals" href="journals.html"><span class="nav-icon" aria-hidden="true">☰</span> Journal entries</a>
+      <a class="nav-link" data-nav="journal" href="journal-entry.html"><span class="nav-icon" aria-hidden="true">✎</span> Create journal</a>
+      <a class="nav-link" data-nav="closing" href="closing-entries.html"><span class="nav-icon" aria-hidden="true">🔒</span> Closing entries</a>
+      <a class="nav-link" data-nav="mappings" href="financial-mappings.html"><span class="nav-icon" aria-hidden="true">↔</span> Financial mappings</a>
+      <a class="nav-link" data-nav="rules" href="accounting-rules.html"><span class="nav-icon" aria-hidden="true">⚙</span> Rules / frequent</a>
+      <a class="nav-link" data-nav="accruals" href="accruals.html"><span class="nav-icon" aria-hidden="true">⏱</span> Accruals / provisioning</a>
+      <a class="nav-link" data-nav="trial" href="trial-balance.html"><span class="nav-icon" aria-hidden="true">⚖</span> Trial balance</a>
+      <a class="nav-link" data-nav="is" href="income-statement.html"><span class="nav-icon" aria-hidden="true">📈</span> Income statement</a>
+      <a class="nav-link" data-nav="bs" href="balance-sheet.html"><span class="nav-icon" aria-hidden="true">📊</span> Balance sheet</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Organization</div>
-      <a class="nav-link" data-nav="offices" href="offices.html"><span class="nav-icon">🏢</span> Offices / staff</a>
-      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon">🖥</span> Tellers setup</a>
+      <a class="nav-link" data-nav="offices" href="offices.html"><span class="nav-icon" aria-hidden="true">🏢</span> Offices / staff</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Reports</div>
-      <a class="nav-link" data-nav="reports" href="reports.html"><span class="nav-icon">📊</span> Report catalog</a>
-      <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon">📄</span> Member statement</a>
+      <a class="nav-link" data-nav="reports" href="reports.html"><span class="nav-icon" aria-hidden="true">📊</span> Report catalog</a>
+      <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon">⚙</span> Users &amp; settings</a>
+      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><span class="mock-badge">MOCK UI</span><div style="margin-top:6px">Tenant: default · env: local</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
 </aside>
 
   <div class="main">
 
 <header class="topbar">
-  <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Menu">☰</button>
-  <div class="topbar-search"><span class="search-ico">⌕</span>
-    <input type="search" placeholder="Search member by name, ID, phone…" /></div>
-  <span class="chip">Branch: Kampala Main</span>
-  <span class="chip green">Teller: Open</span>
-  <div class="topbar-right"><span class="chip amber">MOCK</span><div class="avatar">OM</div></div>
+  <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Open menu" aria-controls="sidebar">☰</button>
+  <div class="topbar-search" role="search"><span class="search-ico" aria-hidden="true">⌕</span>
+    <label for="global-search" class="sr-only">Search members, loans and savings</label>
+    <input id="global-search" type="search" placeholder="Search member, account no, phone…" /></div>
+  <span class="chip" id="office-chip" hidden></span>
+  <div class="topbar-right">
+    <span class="user-name" id="user-name"></span>
+    <div class="avatar" id="user-avatar" aria-hidden="true">?</div>
+    <button type="button" class="btn btn-sm btn-ghost" id="logout-btn">Log out</button>
+  </div>
 </header>
 
-    <div class="content">
+    <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Accounting rules & frequent postings</h1><p class="page-sub">Ugandan SACCO operations · Currency UGX · Kampala Main</p></div>
-        <div class="api-chip"><span>Fineract</span> /accountingrules · /journalentries</div>
+        <div><h1>Accounting rules &amp; frequent postings</h1><p class="page-sub">Predefined debit/credit pairs for common journals.</p></div>
       </div>
 
       <div class="grid-2">
-        <div class="card"><div class="card-h"><h2>Rules</h2><button class="btn btn-sm btn-amber" data-mock="Create rule">＋ Rule</button></div>
-          <div class="card-b table-wrap"><table class="data">
-            <thead><tr><th>Name</th><th>Debit</th><th>Credit</th></tr></thead>
-            <tbody>
-              <tr><td>Rent payment</td><td>5000 OpEx</td><td>1200 Bank</td></tr>
-              <tr><td>Vault transfer</td><td>1100 Cash</td><td>1200 Bank</td></tr>
-              <tr><td>Share intake</td><td>1100 Cash</td><td>3000 Shares</td></tr>
-            </tbody>
+        <div class="card"><div class="card-h"><h2>Rules</h2><button type="button" class="btn btn-sm btn-amber" data-action="create-rule" data-perm="CREATE_ACCOUNTINGRULE">＋ Rule</button></div>
+          <div class="card-b table-wrap"><table class="data" id="rules-table">
+            <thead><tr><th>Name</th><th>Debit</th><th>Credit</th><th>Office</th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
           </table></div></div>
-        <div class="card"><div class="card-h"><h2>Frequent posting</h2></div><div class="card-b">
-          <div class="form-grid">
-            <div class="form-row"><label>Rule</label><select><option>Rent payment</option><option>Vault transfer</option></select></div>
-            <div class="form-row"><label>Amount</label><input class="mono" value="3,500,000" /></div>
-            <div class="form-row"><label>Date</label><input type="date" value="2026-09-30" /></div>
-            <div class="form-row full"><label>Comments</label><input value="Sep rent" /></div>
-          </div>
-          <div class="form-actions"><button class="btn btn-amber" data-mock="Post via rule">Post</button></div>
+        <div class="card" data-perm="CREATE_JOURNALENTRY"><div class="card-h"><h2>Frequent posting</h2></div><div class="card-b">
+          <form id="rule-post-form">
+            <div class="form-row"><label for="rule-post-select">Rule</label><select id="rule-post-select"><option value="">— Select rule —</option></select></div>
+            <p class="text-muted small-note">Opens a journal entry with this rule selected. Enter the amount, date and narration there.</p>
+            <div class="form-actions"><button type="submit" class="btn btn-amber">Continue to journal entry</button></div>
+          </form>
         </div></div>
       </div>
-
-    </div>
+    </main>
   </div>
 </div>
   <script src="assets/api.js"></script>

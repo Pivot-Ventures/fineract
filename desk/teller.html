@@ -7,133 +7,128 @@
   <link rel="stylesheet" href="assets/app.css" />
 </head>
 <body data-page="teller">
-<div class="banner-mock">MOCK DATA ONLY — Pivot SACCO Desk UI mockup. Not connected to Apache Fineract.</div>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div class="status-bar" id="status-bar" role="alert" hidden></div>
 <div class="app-shell">
 
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
-    <div class="brand-mark">P</div>
+    <div class="brand-mark" aria-hidden="true">P</div>
     <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
   </div>
-  <nav class="sidebar-nav">
+  <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
-      <a class="nav-link" data-nav="dashboard" href="dashboard.html"><span class="nav-icon">▣</span> Dashboard</a>
+      <a class="nav-link" data-nav="dashboard" href="dashboard.html"><span class="nav-icon" aria-hidden="true">▣</span> Dashboard</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Front office</div>
-      <a class="nav-link" data-nav="teller" href="teller.html"><span class="nav-icon">💱</span> Teller day desk</a>
-      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon">🖥</span> Tellers &amp; cashiers</a>
-      <a class="nav-link" data-nav="cashier-eod" href="cashier-eod.html"><span class="nav-icon">⚖</span> Cashier EOD / settle</a>
-      <a class="nav-link" data-nav="collections" href="collections.html"><span class="nav-icon">📥</span> Collections / overdue</a>
+      <a class="nav-link" data-nav="teller" href="teller.html"><span class="nav-icon" aria-hidden="true">💱</span> Teller day desk</a>
+      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon" aria-hidden="true">🖥</span> Tellers &amp; cashiers</a>
+      <a class="nav-link" data-nav="cashier-eod" href="cashier-eod.html"><span class="nav-icon" aria-hidden="true">⚖</span> Cashier EOD / settle</a>
+      <a class="nav-link" data-nav="collections" href="collections.html"><span class="nav-icon" aria-hidden="true">📥</span> Collections / overdue</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Members</div>
-      <a class="nav-link" data-nav="clients" href="clients.html"><span class="nav-icon">👤</span> Clients</a>
-      <a class="nav-link" data-nav="onboard" href="client-onboard.html"><span class="nav-icon">＋</span> Onboard member</a>
-      <a class="nav-link" data-nav="groups" href="groups.html"><span class="nav-icon">👥</span> Groups</a>
-      <a class="nav-link" data-nav="centres" href="centres.html"><span class="nav-icon">⌖</span> Centres</a>
-      <a class="nav-link" data-nav="clients" href="clients.html#kyc"><span class="nav-icon">🪪</span> KYC queue</a>
+      <a class="nav-link" data-nav="clients" href="clients.html"><span class="nav-icon" aria-hidden="true">👤</span> Clients</a>
+      <a class="nav-link" data-nav="onboard" href="client-onboard.html"><span class="nav-icon" aria-hidden="true">＋</span> Onboard member</a>
+      <a class="nav-link" data-nav="groups" href="groups.html"><span class="nav-icon" aria-hidden="true">👥</span> Groups</a>
+      <a class="nav-link" data-nav="centres" href="centres.html"><span class="nav-icon" aria-hidden="true">⌖</span> Centres</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Portfolio</div>
-      <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon">📋</span> Loans</a>
-      <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon">✎</span> Loan application</a>
-      <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
+      <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
+      <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
-      <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon">🏷</span> Products &amp; charges</a>
+      <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Accounting</div>
-      <a class="nav-link" data-nav="accounting" href="accounting.html"><span class="nav-icon">📒</span> Chart of accounts</a>
-      <a class="nav-link" data-nav="journals" href="journals.html"><span class="nav-icon">☰</span> Journal entries</a>
-      <a class="nav-link" data-nav="journal" href="journal-entry.html"><span class="nav-icon">✎</span> Create journal</a>
-      <a class="nav-link" data-nav="closing" href="closing-entries.html"><span class="nav-icon">🔒</span> Closing entries</a>
-      <a class="nav-link" data-nav="mappings" href="financial-mappings.html"><span class="nav-icon">↔</span> Financial mappings</a>
-      <a class="nav-link" data-nav="rules" href="accounting-rules.html"><span class="nav-icon">⚙</span> Rules / frequent</a>
-      <a class="nav-link" data-nav="accruals" href="accruals.html"><span class="nav-icon">⏱</span> Accruals / provisioning</a>
-      <a class="nav-link" data-nav="trial" href="trial-balance.html"><span class="nav-icon">⚖</span> Trial balance</a>
-      <a class="nav-link" data-nav="is" href="income-statement.html"><span class="nav-icon">📈</span> Income statement</a>
-      <a class="nav-link" data-nav="bs" href="balance-sheet.html"><span class="nav-icon">📊</span> Balance sheet</a>
+      <a class="nav-link" data-nav="accounting" href="accounting.html"><span class="nav-icon" aria-hidden="true">📒</span> Chart of accounts</a>
+      <a class="nav-link" data-nav="journals" href="journals.html"><span class="nav-icon" aria-hidden="true">☰</span> Journal entries</a>
+      <a class="nav-link" data-nav="journal" href="journal-entry.html"><span class="nav-icon" aria-hidden="true">✎</span> Create journal</a>
+      <a class="nav-link" data-nav="closing" href="closing-entries.html"><span class="nav-icon" aria-hidden="true">🔒</span> Closing entries</a>
+      <a class="nav-link" data-nav="mappings" href="financial-mappings.html"><span class="nav-icon" aria-hidden="true">↔</span> Financial mappings</a>
+      <a class="nav-link" data-nav="rules" href="accounting-rules.html"><span class="nav-icon" aria-hidden="true">⚙</span> Rules / frequent</a>
+      <a class="nav-link" data-nav="accruals" href="accruals.html"><span class="nav-icon" aria-hidden="true">⏱</span> Accruals / provisioning</a>
+      <a class="nav-link" data-nav="trial" href="trial-balance.html"><span class="nav-icon" aria-hidden="true">⚖</span> Trial balance</a>
+      <a class="nav-link" data-nav="is" href="income-statement.html"><span class="nav-icon" aria-hidden="true">📈</span> Income statement</a>
+      <a class="nav-link" data-nav="bs" href="balance-sheet.html"><span class="nav-icon" aria-hidden="true">📊</span> Balance sheet</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Organization</div>
-      <a class="nav-link" data-nav="offices" href="offices.html"><span class="nav-icon">🏢</span> Offices / staff</a>
-      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon">🖥</span> Tellers setup</a>
+      <a class="nav-link" data-nav="offices" href="offices.html"><span class="nav-icon" aria-hidden="true">🏢</span> Offices / staff</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Reports</div>
-      <a class="nav-link" data-nav="reports" href="reports.html"><span class="nav-icon">📊</span> Report catalog</a>
-      <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon">📄</span> Member statement</a>
+      <a class="nav-link" data-nav="reports" href="reports.html"><span class="nav-icon" aria-hidden="true">📊</span> Report catalog</a>
+      <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon">⚙</span> Users &amp; settings</a>
+      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><span class="mock-badge">MOCK UI</span><div style="margin-top:6px">Tenant: default · env: local</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
 </aside>
 
   <div class="main">
 
 <header class="topbar">
-  <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Menu">☰</button>
-  <div class="topbar-search"><span class="search-ico">⌕</span>
-    <input type="search" placeholder="Search member by name, ID, phone…" /></div>
-  <span class="chip">Branch: Kampala Main</span>
-  <span class="chip green">Teller: Open</span>
-  <div class="topbar-right"><span class="chip amber">MOCK</span><div class="avatar">OM</div></div>
+  <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Open menu" aria-controls="sidebar">☰</button>
+  <div class="topbar-search" role="search"><span class="search-ico" aria-hidden="true">⌕</span>
+    <label for="global-search" class="sr-only">Search members, loans and savings</label>
+    <input id="global-search" type="search" placeholder="Search member, account no, phone…" /></div>
+  <span class="chip" id="office-chip" hidden></span>
+  <div class="topbar-right">
+    <span class="user-name" id="user-name"></span>
+    <div class="avatar" id="user-avatar" aria-hidden="true">?</div>
+    <button type="button" class="btn btn-sm btn-ghost" id="logout-btn">Log out</button>
+  </div>
 </header>
 
-    <div class="content">
+    <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Teller day desk</h1><p class="page-sub">Ugandan SACCO operations · Currency UGX · Kampala Main</p></div>
-        <div class="api-chip"><span>Fineract</span> /tellers/{id}/cashiers/{id}/transactions · /allocate · /settle</div>
+        <div><h1>Teller day desk</h1><p class="page-sub" id="page-sub">Select a teller and cashier to begin.</p></div>
       </div>
 
-      <div class="btn-group" style="margin-bottom:14px">
-        <button class="btn btn-amber" data-mock="Open teller session">Open session</button>
-        <button class="btn btn-ghost" data-mock="Allocate cash">Allocate cash</button>
+      <div class="btn-group page-actions">
+        <button type="button" class="btn btn-amber" data-action="open-session">Choose teller / cashier</button>
+        <button type="button" class="btn btn-ghost" data-action="allocate" data-perm="ALLOCATECASHTOCASHIER_TELLER">Allocate cash</button>
         <a class="btn btn-ghost" href="cashier-eod.html">Settle / EOD</a>
         <a class="btn btn-ghost" href="tellers.html">Manage tellers</a>
       </div>
       <div class="kpi-grid">
-        <div class="kpi-card teal"><div class="kpi-label">Opening float</div><div class="kpi-value">UGX 5.00M</div></div>
-        <div class="kpi-card"><div class="kpi-label">Allocated in</div><div class="kpi-value">UGX 2.00M</div></div>
-        <div class="kpi-card"><div class="kpi-label">Cash in</div><div class="kpi-value">UGX 12.6M</div></div>
-        <div class="kpi-card"><div class="kpi-label">Cash out</div><div class="kpi-value">UGX 7.75M</div></div>
-        <div class="kpi-card accent"><div class="kpi-label">Running drawer</div><div class="kpi-value">UGX 11.85M</div><div class="kpi-meta">Amina Nalubega · Desk A</div></div>
+        <div class="kpi-card teal"><div class="kpi-label">Allocated to drawer</div><div class="kpi-value" id="kpi-allocated">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Cash in</div><div class="kpi-value" id="kpi-cash-in">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Cash out</div><div class="kpi-value" id="kpi-cash-out">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Settled to vault</div><div class="kpi-value" id="kpi-settled">—</div></div>
+        <div class="kpi-card accent"><div class="kpi-label">Running drawer</div><div class="kpi-value" id="kpi-net">—</div><div class="kpi-meta" id="kpi-net-meta"></div></div>
       </div>
       <div class="grid-2">
         <div class="card"><div class="card-h"><h2>Find member</h2></div><div class="card-b">
-          <div class="filters"><input type="search" style="flex:1" data-table-search="#teller-members" placeholder="Name, client #…" />
-            <button class="btn" data-mock="Search">Search</button></div>
+          <form class="filters" id="teller-search-form" role="search">
+            <label for="teller-search" class="sr-only">Member name, account number or phone</label>
+            <input id="teller-search" type="search" class="grow" placeholder="Name, account no or phone (case-sensitive)" />
+            <button type="submit" class="btn">Search</button>
+          </form>
           <div class="table-wrap"><table class="data" id="teller-members">
-            <thead><tr><th>Client #</th><th>Name</th><th>Branch</th><th></th></tr></thead>
-            <tbody>
-              <tr><td class="mono">0001284</td><td>Nakato Grace</td><td>Kampala Main</td><td><a class="btn btn-sm" href="client-detail.html">Select</a></td></tr>
-              <tr><td class="mono">0001301</td><td>Okello Daniel</td><td>Kampala Main</td><td><a class="btn btn-sm" href="client-detail.html">Select</a></td></tr>
-              <tr><td class="mono">0001412</td><td>Namukasa Ruth</td><td>Ntinda</td><td><a class="btn btn-sm" href="client-detail.html">Select</a></td></tr>
-            </tbody>
+            <thead><tr><th>Client #</th><th>Name</th><th>Office</th><th></th></tr></thead>
+            <tbody><tr class="empty-row"><td colspan="4">Search for a member by name, account number or phone.</td></tr></tbody>
           </table></div>
         </div></div>
         <div class="card"><div class="card-h"><h2>Quick actions</h2></div><div class="card-b">
           <div class="action-grid">
-            <button class="action-tile" data-mock="Allocate"><div class="ico">↓↓</div><div class="lbl">Allocate</div></button>
-            <button class="action-tile" data-mock="Settle"><div class="ico">↑↑</div><div class="lbl">Settle</div></button>
-            <button class="action-tile" data-mock="Cash in"><div class="ico">↓</div><div class="lbl">Cash in</div></button>
-            <button class="action-tile" data-mock="Cash out"><div class="ico">↑</div><div class="lbl">Cash out</div></button>
-            <button class="action-tile" data-mock="Repay"><div class="ico">↩</div><div class="lbl">Repay loan</div></button>
-            <button class="action-tile" data-mock="Deposit"><div class="ico">＋</div><div class="lbl">Deposit</div></button>
-            <button class="action-tile" data-mock="Withdraw"><div class="ico">−</div><div class="lbl">Withdraw</div></button>
-            <button class="action-tile" data-mock="Shares"><div class="ico">◎</div><div class="lbl">Buy shares</div></button>
+            <button type="button" class="action-tile" data-action="allocate" data-perm="ALLOCATECASHTOCASHIER_TELLER"><span class="ico" aria-hidden="true">↓↓</span><span class="lbl">Allocate</span></button>
+            <button type="button" class="action-tile" data-action="settle" data-perm="SETTLECASHFROMCASHIER_TELLER"><span class="ico" aria-hidden="true">↑↑</span><span class="lbl">Settle</span></button>
+            <button type="button" class="action-tile" data-action="deposit" data-perm="DEPOSIT_SAVINGSACCOUNT"><span class="ico" aria-hidden="true">↓</span><span class="lbl">Cash in (deposit)</span></button>
+            <button type="button" class="action-tile" data-action="withdrawal" data-perm="WITHDRAWAL_SAVINGSACCOUNT"><span class="ico" aria-hidden="true">↑</span><span class="lbl">Cash out (withdraw)</span></button>
+            <button type="button" class="action-tile" data-action="repay" data-perm="REPAYMENT_LOAN"><span class="ico" aria-hidden="true">↩</span><span class="lbl">Repay loan</span></button>
+            <button type="button" class="action-tile" data-unavailable="Share accounts are not available yet"><span class="ico" aria-hidden="true">◎</span><span class="lbl">Buy shares</span><span class="tile-note">Not available yet</span></button>
           </div>
+          <p class="text-muted small-note">Cash in / out post savings deposits and withdrawals. They appear on the cashier drawer whose staff member is the signed-in user.</p>
         </div></div>
       </div>
-      <div class="card"><div class="card-h"><h2>Session transactions</h2><span class="chip gray">/summaryandtransactions</span></div>
-        <div class="card-b table-wrap"><table class="data">
+      <div class="card"><div class="card-h"><h2>Session transactions</h2></div>
+        <div class="card-b table-wrap"><table class="data" id="teller-txns">
           <thead><tr><th>Time</th><th>Type</th><th>Note</th><th class="text-right">In</th><th class="text-right">Out</th></tr></thead>
-          <tbody>
-            <tr><td class="mono">08:05</td><td>Allocate</td><td>Vault → Desk A</td><td class="mono text-right">2,000,000</td><td class="mono text-right">—</td></tr>
-            <tr><td class="mono">09:14</td><td>Repayment</td><td>Nakato Grace</td><td class="mono text-right">250,000</td><td class="mono text-right">—</td></tr>
-            <tr><td class="mono">10:02</td><td>Withdraw</td><td>Namukasa Ruth</td><td class="mono text-right">—</td><td class="mono text-right">80,000</td></tr>
-          </tbody>
+          <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
         </table></div></div>
-
-    </div>
+    </main>
   </div>
 </div>
   <script src="assets/api.js"></script>
