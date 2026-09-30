@@ -1,0 +1,53 @@
+# Pivot SACCO — edge proxy.
+#   https://{$DESK_DOMAIN}/                      → Desk static UI (allowlisted files only)
+#   https://{$DESK_DOMAIN}/fineract-provider/api → Fineract (private network, plain HTTP)
+# Everything else (actuator, Swagger, API docs, stray files) → 404.
+#
+# CADDY_TLS: "internal" for a LAN-only install (Caddy's own CA; install its root on staff PCs),
+#            or an e-mail address to obtain a public Let's Encrypt certificate for DESK_DOMAIN.
+
+{$DESK_DOMAIN} {
+	tls {$CADDY_TLS}
+
+	encode zstd gzip
+
+	request_body {
+		max_size 20MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(self), microphone=(), geolocation=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		-Server
+	}
+
+	# Fineract REST API only.
+	handle /fineract-provider/api/* {
+		reverse_proxy fineract:8080 {
+			header_down -Server
+		}
+	}
+
+	# Desk: HTML pages and assets only — never server.py, scripts/, READMEs or dotfiles.
+	@desk {
+		path / /*.html /assets/*
+		not path /.* /assets/.*
+	}
+	handle @desk {
+		root * /srv/desk
+		file_server
+	}
+
+	handle {
+		respond 404
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

@@ -1,0 +1,155 @@
+# Pivot SACCO — production stack (Fineract + PostgreSQL + Caddy serving Desk).
+#
+# Unlike the repository-root docker-compose.yml (testing only), this stack:
+#   - publishes only Caddy (80/443); Fineract and PostgreSQL stay on a private network
+#   - reads every secret from ./.env (generate it with scripts/gen-secrets.sh; never commit it)
+#   - runs without the test profile, remote debugging or the insecure HTTP client
+#   - keeps data on named volumes, restarts on failure and rotates logs
+#   - creates the tenant in the Africa/Kampala timezone
+#
+# Usage: see deploy/production/README.md
+
+name: pivot-sacco
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
+
+services:
+
+  db:
+    image: postgres:18.3
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:?set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?set in .env}
+      POSTGRES_DB: postgres
+      FINERACT_DB_USER: ${FINERACT_DB_USER:?set in .env}
+      FINERACT_DB_PASSWORD: ${FINERACT_DB_PASSWORD:?set in .env}
+      FINERACT_TENANTS_DB_NAME: fineract_tenants
+      FINERACT_TENANT_DB_NAME: ${FINERACT_TENANT_DB_NAME:-fineract_default}
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./postgres/initdb.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+    networks: [backend]
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -q -d postgres -U \"$$POSTGRES_USER\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+
+  # Named volumes are created root-owned; Fineract runs as 1000:1000.
+  content-perms:
+    image: busybox:1.37
+    command: ["sh", "-c", "chown -R 1000:1000 /data/content"]
+    volumes:
+      - content:/data/content
+    network_mode: none
+    restart: "no"
+
+  fineract:
+    image: ${FINERACT_IMAGE:-fineract:latest}
+    restart: unless-stopped
+    user: "1000:1000"
+    depends_on:
+      db:
+        condition: service_healthy
+      content-perms:
+        condition: service_completed_successfully
+    environment:
+      FINERACT_NODE_ID: "1"
+      # Plain HTTP inside the private network; Caddy terminates TLS.
+      FINERACT_SERVER_PORT: "8080"
+      FINERACT_SERVER_SSL_ENABLED: "false"
+      FINERACT_INSECURE_HTTP_CLIENT: "false"
+      # Tenant-store connection (fineract_tenants)
+      FINERACT_HIKARI_DRIVER_SOURCE_CLASS_NAME: org.postgresql.Driver
+      FINERACT_HIKARI_JDBC_URL: jdbc:postgresql://db:5432/fineract_tenants
+      FINERACT_HIKARI_USERNAME: ${FINERACT_DB_USER}
+      FINERACT_HIKARI_PASSWORD: ${FINERACT_DB_PASSWORD}
+      FINERACT_HIKARI_MINIMUM_IDLE: "3"
+      FINERACT_HIKARI_MAXIMUM_POOL_SIZE: "20"
+      FINERACT_HIKARI_TEST_QUERY: SELECT 1
+      FINERACT_HIKARI_AUTO_COMMIT: "true"
+      # The tenant created on first boot
+      FINERACT_DEFAULT_TENANTDB_HOSTNAME: db
+      FINERACT_DEFAULT_TENANTDB_PORT: "5432"
+      FINERACT_DEFAULT_TENANTDB_UID: ${FINERACT_DB_USER}
+      FINERACT_DEFAULT_TENANTDB_PWD: ${FINERACT_DB_PASSWORD}
+      FINERACT_DEFAULT_TENANTDB_CONN_PARAMS: ""
+      FINERACT_DEFAULT_TENANTDB_IDENTIFIER: ${FINERACT_TENANT_ID:-default}
+      FINERACT_DEFAULT_TENANTDB_NAME: ${FINERACT_TENANT_DB_NAME:-fineract_default}
+      FINERACT_DEFAULT_TENANTDB_DESCRIPTION: ${FINERACT_TENANT_NAME:-Pivot SACCO}
+      FINERACT_DEFAULT_TENANTDB_TIMEZONE: Africa/Kampala
+      # Both keys exist in application.properties; the upstream env file only set one of them.
+      FINERACT_DEFAULT_TENANTDB_MASTER_PASSWORD: ${FINERACT_MASTER_PASSWORD:?set in .env}
+      FINERACT_DEFAULT_MASTER_PASSWORD: ${FINERACT_MASTER_PASSWORD}
+      # Surface area: health only; no Swagger / API docs.
+      FINERACT_MANAGEMENT_ENDPOINT_WEB_EXPOSURE_INCLUDE: health
+      FINERACT_MANAGEMENT_PROMETHEUS_ENABLED: "false"
+      SPRINGDOC_API_DOCS_ENABLED: "false"
+      SPRINGDOC_SWAGGER_UI_ENABLED: "false"
+      FINERACT_SECURITY_CORS_ALLOWED_ORIGIN_PATTERNS: https://${DESK_DOMAIN:?set in .env}
+      # Client photos and documents must survive restarts (upstream default was /tmp).
+      FINERACT_CONTENT_FILESYSTEM_ROOT_FOLDER: /data/content
+      JAVA_TOOL_OPTIONS: >-
+        -Xmx${FINERACT_HEAP:-2g}
+        -XX:+UseContainerSupport
+        -XX:+UseStringDeduplication
+        -XX:ReservedCodeCacheSize=256m
+        --add-exports=java.naming/com.sun.jndi.ldap=ALL-UNNAMED
+        --add-opens=java.base/java.lang=ALL-UNNAMED
+        --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+        --add-opens=java.base/java.io=ALL-UNNAMED
+        --add-opens=java.base/java.security=ALL-UNNAMED
+        --add-opens=java.base/java.util=ALL-UNNAMED
+        --add-opens=java.management/javax.management=ALL-UNNAMED
+        --add-opens=java.naming/javax.naming=ALL-UNNAMED
+    volumes:
+      - content:/data/content
+    tmpfs:
+      - /tmp:rw,nosuid,size=256m
+    networks: [backend]
+    mem_limit: ${FINERACT_MEM_LIMIT:-3g}
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8080"]
+      interval: 15s
+      timeout: 5s
+      start_period: 240s
+      retries: 10
+    logging: *logging
+
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    depends_on:
+      fineract:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    environment:
+      DESK_DOMAIN: ${DESK_DOMAIN}
+      CADDY_TLS: ${CADDY_TLS:-internal}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../../desk:/srv/desk:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [backend, edge]
+    logging: *logging
+
+networks:
+  backend:
+    internal: true
+  edge: {}
+
+volumes:
+  pgdata:
+  content:
+  caddy_data:
+  caddy_config:
