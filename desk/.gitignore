@@ -1,0 +1,10 @@
+# Local Python
+__pycache__/
+*.py[cod]
+
+# Seed script writes this next to itself on each run
+scripts/seed-fineract-last-run.json
+
+# macOS / editor
+.DS_Store
+*.log

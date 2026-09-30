@@ -1,0 +1,36 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements. See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership. The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+# macOS AirPlay Receiver binds host port 5000. docker-compose.yml also
+# publishes Fineract's container port 5000, so `docker compose up` fails
+# while AirPlay is on. Copy this file to docker-compose.override.yml
+# (gitignored) to publish only the API port:
+#
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+#   docker compose up -d
+#
+# Fineract is then at https://localhost:8443/fineract-provider/
+# Pivot SACCO Desk (cd desk && ./start-desk.sh) proxies that URL.
+#
+# Requires Docker Compose v2, which honors the !override tag and replaces
+# the ports list instead of appending 5000 back.
+
+services:
+  fineract:
+    ports: !override
+      - "8443:8443"
