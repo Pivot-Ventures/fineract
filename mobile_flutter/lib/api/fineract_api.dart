@@ -343,12 +343,16 @@ class FineractApi {
         outstanding;
     final periods = (loan['repaymentSchedule'] as Map?)?['periods'] as List? ?? [];
     final rows = <Map<String, String>>[];
-    for (final p in periods.take(6)) {
+    for (final p in periods) {
       final m = p as Map;
       if (m['period'] == null) continue;
+      final dueAmt = (m['totalOutstandingForPeriod'] as num?) ??
+          (m['totalDueForPeriod'] as num?) ??
+          0;
       rows.add({
         'due': fmtDateArr(m['dueDate']),
-        'total': fmtMoney((m['totalDueForPeriod'] as num?) ?? 0),
+        'total': fmtMoney(dueAmt),
+        'amount': '${dueAmt}',
         'paid': m['complete'] == true ? 'Paid' : 'Due',
       });
     }

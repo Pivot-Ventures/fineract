@@ -7,6 +7,7 @@ class PivoColors {
   static const accent100 = Color(0xFFE9EDF8);
   static const accent50 = Color(0xFFF3F5FB);
   static const ochre = Color(0xFF9E661F);
+  static const ochreSoft = Color(0xFFFBF1DF);
   static const good = Color(0xFF2E6B4F);
   static const goodSoft = Color(0xFFE8F3ED);
   static const deposit = Color(0xFF1B7A4A);
