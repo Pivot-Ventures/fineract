@@ -410,3 +410,101 @@ input, select { font-family: inherit; }
 .loading {
   text-align: center; padding: 40px 16px; color: var(--muted); font-size: 13px;
 }
+
+/* —— Expanded banking screens —— */
+.acct-card {
+  background: #fff; border: 1px solid var(--divider); border-radius: 14px;
+  padding: 12px 14px; margin-bottom: 8px; box-shadow: var(--shadow-card);
+}
+.acct-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.acct-top strong { font-size: 13.5px; font-weight: 600; color: var(--accent-900); }
+.acct-status {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--good); background: var(--good-soft); padding: 3px 7px; border-radius: 6px;
+}
+.acct-no { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 4px; }
+.acct-bal {
+  font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px;
+  letter-spacing: -.02em; margin: 6px 0 2px; color: var(--text);
+}
+.acct-meta { font-size: 10.5px; color: var(--muted); }
+.acct-total {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 10px 4px 14px; font-size: 12.5px; color: var(--muted);
+}
+.acct-total strong {
+  font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--accent-900); font-weight: 600;
+}
+
+.mode-tabs {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  margin: 0 0 14px; background: #fff; border: 1px solid var(--divider);
+  border-radius: 12px; padding: 4px;
+}
+.mode-tab {
+  border: none; background: transparent; border-radius: 9px;
+  padding: 9px 8px; font-size: 12px; font-weight: 600; color: var(--muted);
+}
+.mode-tab.active { background: var(--accent-50); color: var(--accent); }
+
+.biller-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px;
+}
+.biller {
+  background: #fff; border: 1.5px solid var(--divider-strong); border-radius: 14px;
+  padding: 12px 10px; text-align: left; box-shadow: var(--shadow-card);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.biller.selected {
+  border-color: var(--accent); background: var(--accent-50);
+  box-shadow: 0 0 0 1px var(--accent), var(--shadow-card);
+}
+.biller strong { font-size: 13px; font-weight: 600; color: var(--text); }
+.biller > span:last-child { font-size: 10.5px; color: var(--muted); }
+.biller-ico {
+  width: 32px; height: 32px; border-radius: 9px; margin-bottom: 6px;
+  display: grid; place-items: center; font-size: 11px; font-weight: 800;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.biller-ico.water { background: #e3f2fd; color: #1565c0; }
+.biller-ico.power { background: #fff8e1; color: #f9a825; }
+.biller-ico.tv { background: #f3e5f5; color: #7b1fa2; }
+.biller-ico.school { background: var(--accent-50); color: var(--accent); }
+
+.xfer-hits { margin: 8px 0; display: flex; flex-direction: column; gap: 6px; }
+.xfer-hits .hit {
+  background: #fff; border: 1.5px solid var(--divider-strong); border-radius: 12px;
+  padding: 11px 12px; text-align: left; box-shadow: var(--shadow-card);
+}
+.xfer-hits .hit.selected { border-color: var(--accent); background: var(--accent-50); }
+.xfer-hits .hit strong { display: block; font-size: 13px; }
+.xfer-hits .hit span { font-size: 11px; color: var(--muted); }
+
+.linkish {
+  background: none; border: none; color: var(--accent); font-size: 12.5px;
+  font-weight: 600; padding: 6px 0 12px; text-align: left;
+}
+
+.help-card {
+  background: #fff; border: 1px solid var(--divider); border-radius: 14px;
+  padding: 14px; margin-bottom: 12px; box-shadow: var(--shadow-card);
+}
+.help-card strong { display: block; font-size: 14px; color: var(--accent-900); margin-bottom: 4px; }
+.help-card .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.help-card .meta.mono { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text); }
+
+.notif-stub { margin-top: 10px; }
+.notif-row {
+  background: #fff; border: 1px solid var(--divider); border-radius: 12px;
+  padding: 12px 14px; margin-bottom: 7px;
+}
+.notif-row strong { display: block; font-size: 13px; }
+.notif-row span { font-size: 11px; color: var(--muted); }
+.muted-row { opacity: .72; }
+
+.field select.input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%217a7a7d' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
+  padding-right: 36px;
+}

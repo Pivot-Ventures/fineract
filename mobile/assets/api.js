@@ -4,6 +4,8 @@
 
   var BASE = "/fineract-provider/api/v1";
   var STORAGE_KEY = "pivosacc_mobile_session";
+  // Account type 2 = savings in Fineract accounttransfers
+  var ACCOUNT_TYPE_SAVINGS = 2;
 
   function toast(msg, kind) {
     var area = document.querySelector(".toast-area");
@@ -31,6 +33,12 @@
   function isLoggedIn() {
     var s = loadSession();
     return !!(s && s.base64EncodedAuthenticationKey && s.clientId);
+  }
+
+  function todayStr() {
+    var d = new Date();
+    var m = d.getMonth() + 1, day = d.getDate();
+    return d.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (day < 10 ? "0" : "") + day;
   }
 
   async function request(method, path, body, opts) {
@@ -122,13 +130,11 @@
     var memberRef = String(opts.memberRef || "1").trim();
     var pin = String(opts.pin || "").trim();
 
-    // Soft PIN gate for demo UX (not Fineract-backed). Accept 1234 or empty.
     if (pin && pin !== "1234" && pin !== "0000") {
       throw new Error("Incorrect PIN. Demo PIN is 1234.");
     }
 
     var sess = await staffLogin(username, password, tenantId);
-    // Temporarily store so get() works
     saveSession(sess);
 
     var clients = await get("/clients?limit=200&offset=0");
@@ -154,6 +160,7 @@
     sess.clientAccountNo = client.accountNo;
     sess.clientOffice = client.officeName;
     sess.clientMobile = client.mobileNo || "";
+    sess.officeId = client.officeId || sess.officeId || 1;
     sess.memberRef = memberRef;
     saveSession(sess);
     return sess;
@@ -205,17 +212,34 @@
     return ((parts[0] && parts[0][0]) || "") + ((parts[1] && parts[1][0]) || "").toUpperCase();
   }
 
+  function pickBalance(detail, listItem) {
+    var bal = 0, avail = 0;
+    if (detail && detail.summary) {
+      if (detail.summary.accountBalance != null) bal = detail.summary.accountBalance;
+      if (detail.summary.availableBalance != null) avail = detail.summary.availableBalance;
+      else avail = bal;
+    } else if (listItem) {
+      if (listItem.accountBalance != null) bal = listItem.accountBalance;
+      if (listItem.availableBalance != null) avail = listItem.availableBalance;
+      else avail = bal;
+    }
+    return { balance: Number(bal) || 0, available: Number(avail) || 0 };
+  }
+
   async function loadMemberBundle() {
     var sess = loadSession();
     if (!sess || !sess.clientId) throw new Error("Not logged in");
     var clientId = sess.clientId;
     var client = await get("/clients/" + clientId);
+    if (client.officeId) {
+      sess.officeId = client.officeId;
+      saveSession(sess);
+    }
     var accounts = {};
     try { accounts = await get("/clients/" + clientId + "/accounts"); } catch (e) { accounts = {}; }
     var savingsList = accounts.savingsAccounts || [];
     var loanList = accounts.loanAccounts || [];
 
-    // Fallback: list savings accounts and filter by client
     if (!savingsList.length) {
       try {
         var savPage = await get("/savingsaccounts?limit=200");
@@ -226,17 +250,64 @@
       } catch (e) { /* ignore */ }
     }
 
-    var primarySavings = savingsList.length ? savingsList[0] : null;
-    var savingsDetail = null;
-    var transactions = [];
-    if (primarySavings) {
+    // Enrich every savings account with detail + balances
+    var savingsDetails = [];
+    var totalBalance = 0, totalAvailable = 0, currency = "UGX";
+    var allTransactions = [];
+    for (var si = 0; si < savingsList.length; si++) {
+      var item = savingsList[si];
+      var detail = null;
       try {
-        savingsDetail = await get("/savingsaccounts/" + primarySavings.id + "?associations=transactions");
-        transactions = savingsDetail.transactions || [];
+        detail = await get("/savingsaccounts/" + item.id + "?associations=transactions");
       } catch (e) {
-        savingsDetail = primarySavings;
+        detail = item;
+      }
+      var bals = pickBalance(detail, item);
+      var cur = (detail && detail.currency && detail.currency.code) ||
+        (item.currency && item.currency.code) || currency;
+      currency = cur;
+      var statusVal = (detail && detail.status && detail.status.value) ||
+        (item.status && item.status.value) || "—";
+      var active = !!(detail && detail.status && detail.status.active) ||
+        !!(item.status && item.status.active);
+      savingsDetails.push({
+        id: item.id,
+        accountNo: (detail && detail.accountNo) || item.accountNo,
+        productName: (detail && (detail.savingsProductName || detail.productName)) ||
+          item.productName || item.savingsProductName || "Savings",
+        balance: bals.balance,
+        available: bals.available,
+        currency: cur,
+        status: statusVal,
+        active: active,
+        detail: detail,
+        transactions: (detail && detail.transactions) || [],
+      });
+      if (active || statusVal === "Active") {
+        totalBalance += bals.balance;
+        totalAvailable += bals.available;
+      }
+      var txns = (detail && detail.transactions) || [];
+      for (var ti = 0; ti < txns.length; ti++) {
+        var t = Object.assign({}, txns[ti]);
+        t._accountNo = (detail && detail.accountNo) || item.accountNo;
+        t._savingsId = item.id;
+        allTransactions.push(t);
       }
     }
+
+    // Sort txns newest first by date array then id
+    allTransactions.sort(function (a, b) {
+      var da = a.date || [], db = b.date || [];
+      for (var k = 0; k < 3; k++) {
+        var av = da[k] || 0, bv = db[k] || 0;
+        if (av !== bv) return bv - av;
+      }
+      return (b.id || 0) - (a.id || 0);
+    });
+
+    var primarySavings = savingsDetails.length ? savingsDetails[0] : null;
+    var transactions = primarySavings ? primarySavings.transactions : [];
 
     function sameClient(obj) {
       return obj && String(obj.clientId) === String(clientId);
@@ -260,29 +331,130 @@
       } catch (e3) { /* ignore */ }
     }
 
-    var bal = 0, avail = 0, currency = "UGX";
-    if (savingsDetail && savingsDetail.summary) {
-      if (savingsDetail.summary.accountBalance != null) bal = savingsDetail.summary.accountBalance;
-      if (savingsDetail.summary.availableBalance != null) avail = savingsDetail.summary.availableBalance;
-    } else if (primarySavings) {
-      if (primarySavings.accountBalance != null) bal = primarySavings.accountBalance;
-      if (primarySavings.availableBalance != null) avail = primarySavings.availableBalance;
-    }
-    if (savingsDetail && savingsDetail.currency && savingsDetail.currency.code) currency = savingsDetail.currency.code;
-    else if (primarySavings && primarySavings.currency && primarySavings.currency.code) currency = primarySavings.currency.code;
-
     return {
       client: client,
       savingsAccounts: savingsList,
+      savingsDetails: savingsDetails,
       primarySavings: primarySavings,
-      savingsDetail: savingsDetail,
-      balance: bal,
-      available: avail,
+      savingsDetail: primarySavings && primarySavings.detail,
+      balance: totalBalance,
+      available: totalAvailable,
       currency: currency,
       transactions: transactions,
+      allTransactions: allTransactions,
       loans: loans,
       sess: sess,
     };
+  }
+
+  /** Search clients by accountNo / name / id for member-to-member transfer. */
+  async function searchClients(query) {
+    query = String(query || "").trim();
+    if (!query) return [];
+    var clients = await get("/clients?limit=200&offset=0");
+    var items = (clients && clients.pageItems) || [];
+    var q = query.toLowerCase();
+    var qDigits = query.replace(/^0+/, "");
+    var sess = loadSession();
+    return items.filter(function (c) {
+      if (sess && String(c.id) === String(sess.clientId)) return false;
+      var acc = String(c.accountNo || "");
+      var name = String(c.displayName || "").toLowerCase();
+      var id = String(c.id || "");
+      return id === query || acc === query || acc.replace(/^0+/, "") === qDigits ||
+        name.indexOf(q) >= 0;
+    }).slice(0, 12);
+  }
+
+  async function getClientSavings(clientId) {
+    var accounts = {};
+    try { accounts = await get("/clients/" + clientId + "/accounts"); } catch (e) { accounts = {}; }
+    var list = accounts.savingsAccounts || [];
+    if (!list.length) {
+      try {
+        var savPage = await get("/savingsaccounts?limit=200");
+        var savItems = (savPage && savPage.pageItems) || [];
+        list = savItems.filter(function (s) { return String(s.clientId) === String(clientId); });
+      } catch (e2) { /* ignore */ }
+    }
+    return list.filter(function (s) {
+      return !s.status || s.status.active || (s.status.value === "Active");
+    });
+  }
+
+  /**
+   * Fineract account transfer (savings → savings).
+   * Supports own-account internal move and member-to-member.
+   */
+  async function accountTransfer(opts) {
+    opts = opts || {};
+    var sess = loadSession();
+    var fromOfficeId = opts.fromOfficeId || sess.officeId || 1;
+    var toOfficeId = opts.toOfficeId || opts.fromOfficeId || sess.officeId || 1;
+    var body = {
+      fromOfficeId: Number(fromOfficeId),
+      fromClientId: Number(opts.fromClientId || sess.clientId),
+      fromAccountType: ACCOUNT_TYPE_SAVINGS,
+      fromAccountId: Number(opts.fromAccountId),
+      toOfficeId: Number(toOfficeId),
+      toClientId: Number(opts.toClientId),
+      toAccountType: ACCOUNT_TYPE_SAVINGS,
+      toAccountId: Number(opts.toAccountId),
+      transferDate: opts.transferDate || todayStr(),
+      transferAmount: Number(opts.amount),
+      transferDescription: opts.description || "Pivosacc mobile transfer",
+      dateFormat: "yyyy-MM-dd",
+      locale: "en",
+    };
+    if (!body.fromAccountId || !body.toAccountId) throw new Error("Select from and to savings accounts.");
+    if (!(body.transferAmount > 0)) throw new Error("Enter a valid transfer amount.");
+    if (body.fromAccountId === body.toAccountId) throw new Error("From and to accounts must differ.");
+    return post("/accounttransfers", body);
+  }
+
+  /**
+   * Savings withdrawal — used for utility-tagged ledger posts and cash-out attempts.
+   * MoMo rails remain Phase 1; this posts a Fineract withdrawal when possible.
+   */
+  async function savingsWithdrawal(opts) {
+    opts = opts || {};
+    var savingsId = opts.savingsId;
+    if (!savingsId) throw new Error("No savings account selected.");
+    var amount = Number(opts.amount);
+    if (!(amount > 0)) throw new Error("Enter a valid amount.");
+    var body = {
+      transactionDate: opts.transactionDate || todayStr(),
+      transactionAmount: amount,
+      dateFormat: "yyyy-MM-dd",
+      locale: "en",
+      paymentTypeId: opts.paymentTypeId || 1, // Money Transfer
+    };
+    if (opts.note) body.note = opts.note;
+    if (opts.receiptNumber) body.receiptNumber = opts.receiptNumber;
+    if (opts.routingCode) body.routingCode = opts.routingCode;
+    return post("/savingsaccounts/" + savingsId + "/transactions?command=withdrawal", body);
+  }
+
+  /** Loan repayment via Fineract (works when loan status is Active). */
+  async function loanRepayment(opts) {
+    opts = opts || {};
+    var loanId = opts.loanId;
+    if (!loanId) throw new Error("No loan selected.");
+    var amount = Number(opts.amount);
+    if (!(amount > 0)) throw new Error("Enter a valid repayment amount.");
+    var body = {
+      transactionDate: opts.transactionDate || todayStr(),
+      transactionAmount: amount,
+      dateFormat: "yyyy-MM-dd",
+      locale: "en",
+      paymentTypeId: opts.paymentTypeId || 4, // Cash / ledger
+    };
+    if (opts.note) body.note = opts.note;
+    return post("/loans/" + loanId + "/transactions?command=repayment", body);
+  }
+
+  async function loanRepayTemplate(loanId) {
+    return get("/loans/" + loanId + "/transactions/template?command=repayment");
   }
 
   global.MobileAPI = {
@@ -291,6 +463,10 @@
     logout: logout, requireAuth: requireAuth,
     getSession: getSession, saveSession: saveSession, clearSession: clearSession,
     isLoggedIn: isLoggedIn, loadMemberBundle: loadMemberBundle,
+    searchClients: searchClients, getClientSavings: getClientSavings,
+    accountTransfer: accountTransfer, savingsWithdrawal: savingsWithdrawal,
+    loanRepayment: loanRepayment, loanRepayTemplate: loanRepayTemplate,
+    todayStr: todayStr, ACCOUNT_TYPE_SAVINGS: ACCOUNT_TYPE_SAVINGS,
     fmtMoney: fmtMoney, fmtAmt: fmtAmt, fmtDate: fmtDate, initials: initials,
     toast: toast, BASE: BASE,
   };
