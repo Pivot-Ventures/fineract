@@ -1,48 +1,32 @@
-# Pivosacc (Flutter WebView shell)
+# Pivosacc member app (native Flutter)
 
-Thin Flutter Android wrapper around the **Pivosacc mobile web UI** at
-`~/Projects/sacco/fineract/mobile` (port **5174**, bind `0.0.0.0`).
+Material 3 native member banking — **no WebView**. Talks to Apache Fineract through the LAN mobile proxy:
 
-## Why WebView first
+```
+http://192.168.1.123:5174/fineract-provider/api/v1
+```
 
-Ships a installable APK so the Samsung S23 (and other devices) can use the
-existing member banking UI on the LAN. A full native Flutter UI can replace
-this shell later without changing the Fineract / mobile API surface.
+Keep `mobile/server.py` on `*:5174` while demoing.
 
-## Default URL
+## Demo
 
-`http://192.168.1.123:5174/` (Mac `en0` LAN IP at build time)
+- Member: `000000001` (Nakato Grace)
+- PIN: `1234`
+- Peer transfer: `000000002` (Okello James)
 
-Long-press the app title (or tap the link icon) to override and persist a
-different base URL.
+## Screens
 
-## Prerequisites
+Login · Home balances · Deposit (green) · Withdraw (red) · Transfer · Pay utilities (NWSC / UMEME / DStv / School logos) · Statement · Loans + repay · Profile / More
 
-- Mobile server running: `screen` session `pivosacc-mobile` or
-  `cd ~/Projects/sacco/fineract/mobile && ./start-mobile.sh`
-- Phone and Mac on the same LAN; Mac firewall must allow inbound TCP 5174
-
-## Build & install
+## Build / install (S23)
 
 ```bash
-export PATH="$HOME/development/flutter/bin:$PATH"
-export JAVA_HOME="$HOME/development/jdk/jdk-17.0.20.1+1/Contents/Home"
-export ANDROID_HOME="$HOME/Library/Android/sdk"
-
+export PATH="$HOME/development/flutter/bin:$HOME/Library/Android/sdk/platform-tools:$PATH"
 cd ~/Projects/sacco/fineract/mobile_flutter
 flutter pub get
 flutter build apk --release
-
-adb -s adb-R5CX51683ZA-eNPG4Z._adb-tls-connect._tcp install -r \
-  build/app/outputs/flutter-apk/app-release.apk
-
-adb -s adb-R5CX51683ZA-eNPG4Z._adb-tls-connect._tcp shell am start \
-  -n tech.pivotventures.pivosacc/.MainActivity
+adb -s adb-R5CX51683ZA-eNPG4Z._adb-tls-connect._tcp install -r build/app/outputs/flutter-apk/app-release.apk
+adb -s adb-R5CX51683ZA-eNPG4Z._adb-tls-connect._tcp shell am start -n tech.pivotventures.pivosacc/.MainActivity
 ```
 
-Package id: `tech.pivotventures.pivosacc` · App name: **Pivosacc**
-
-## Cleartext HTTP
-
-`android:usesCleartextTraffic="true"` plus
-`res/xml/network_security_config.xml` so the WebView can load `http://` LAN URLs.
+Long-press the app title to change API base URL.

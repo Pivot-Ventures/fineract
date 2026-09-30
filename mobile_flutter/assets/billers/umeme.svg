@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="14" fill="#F5A623"/>
+  <path d="M36 10L22 34h10l-4 20 18-28H34l2-16z" fill="#1A1A1A"/>
+  <text x="32" y="58" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="6.5" font-weight="800" fill="#1A1A1A">UMEME</text>
+</svg>

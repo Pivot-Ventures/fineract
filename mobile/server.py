@@ -136,7 +136,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 def main():
     http.server.HTTPServer.allow_reuse_address = True
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    server = http.server.ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print("Pivosacc Mobile → http://127.0.0.1:%s/" % PORT)
     print("Proxy %s → https://%s:%s%s" % (PROXY_PREFIX, UPSTREAM_HOST, UPSTREAM_PORT, PROXY_PREFIX))
     print("Root: %s" % ROOT)
