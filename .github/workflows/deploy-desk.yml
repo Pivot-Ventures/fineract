@@ -1,0 +1,146 @@
+# Pivot SACCO Desk — static UI deploy.
+# Ship path: rebase onto main, merge, and this workflow rsyncs desk/.
+# No --delete (live-only pages stay). Does not restart Fineract or Caddy.
+
+name: Deploy SACCO Desk
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "desk/**"
+      - ".github/workflows/deploy-desk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Queue deploys. An in-progress rsync finishes before the next push syncs,
+# so the droplet is not left on a cancelled transfer.
+concurrency:
+  group: deploy-sacco-desk
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Sync desk static files
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    # Push filter is already main. This also keeps workflow_dispatch on other
+    # branches from copying an unmerged tree to the droplet.
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Sync desk to droplet
+        env:
+          SACCO_DESK_HOST: ${{ secrets.SACCO_DESK_HOST }}
+          SACCO_DESK_USER: ${{ secrets.SACCO_DESK_USER }}
+          SACCO_DESK_SSH_KEY: ${{ secrets.SACCO_DESK_SSH_KEY }}
+          SACCO_DESK_PATH: ${{ secrets.SACCO_DESK_PATH }}
+        shell: bash
+        run: |
+          # shellcheck shell=bash
+          set -euo pipefail
+
+          if [ -z "${SACCO_DESK_HOST}" ] || [ -z "${SACCO_DESK_USER}" ] || [ -z "${SACCO_DESK_SSH_KEY}" ]; then
+            echo "SACCO_DESK_HOST, SACCO_DESK_USER, and SACCO_DESK_SSH_KEY must be set."
+            exit 1
+          fi
+
+          trim() {
+            local value="$1"
+            value="${value//$'\r'/}"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            printf '%s' "${value}"
+          }
+
+          host="$(trim "${SACCO_DESK_HOST}")"
+          remote_user="$(trim "${SACCO_DESK_USER}")"
+          dest="$(trim "${SACCO_DESK_PATH:-/opt/pivot-sacco/desk}")"
+          if [ -z "${dest}" ]; then
+            dest="/opt/pivot-sacco/desk"
+          fi
+          dest="${dest%/}"
+
+          if [ "${#host}" -gt 253 ] || [ "${#remote_user}" -gt 32 ] || [ "${#dest}" -gt 512 ]; then
+            echo "SACCO_DESK_HOST, SACCO_DESK_USER, or SACCO_DESK_PATH is too long."
+            exit 1
+          fi
+          if [[ ! "${host}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] \
+            && [[ ! "${host}" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]]; then
+            echo "SACCO_DESK_HOST must be an IPv4 address or hostname."
+            exit 1
+          fi
+          if [[ ! "${remote_user}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$ ]]; then
+            echo "SACCO_DESK_USER must be a simple account name."
+            exit 1
+          fi
+          if [[ ! "${dest}" =~ ^/[A-Za-z0-9._/-]+$ ]] || [[ "${dest}" == *..* ]] || [[ "${dest}" == *//* ]]; then
+            echo "SACCO_DESK_PATH must be an absolute directory without '..'."
+            exit 1
+          fi
+
+          if [ ! -d desk ]; then
+            echo "desk/ is missing from this checkout."
+            exit 1
+          fi
+
+          workdir="$(mktemp -d)"
+          trap 'rm -rf "${workdir}"' EXIT
+          keyfile="${workdir}/id"
+          known_hosts="${workdir}/known_hosts"
+          umask 077
+          # Secrets are usually real newlines. Also accept a one-line key with literal \n.
+          printf '%s\n' "${SACCO_DESK_SSH_KEY}" | sed -e 's/\r$//' -e 's/\\n/\n/g' > "${keyfile}"
+          chmod 600 "${keyfile}"
+          if ! grep -q 'PRIVATE KEY' "${keyfile}"; then
+            echo "SACCO_DESK_SSH_KEY does not look like a PEM or OpenSSH private key."
+            exit 1
+          fi
+          if ! ssh-keygen -y -P "" -f "${keyfile}" >/dev/null; then
+            echo "SACCO_DESK_SSH_KEY could not be parsed. Use an unencrypted private key."
+            exit 1
+          fi
+
+          # First-contact host key for this run. The address comes from SACCO_DESK_HOST.
+          ssh-keyscan -T 15 -H "${host}" > "${known_hosts}" || true
+          if [ ! -s "${known_hosts}" ]; then
+            echo "Could not collect a host key. Check SACCO_DESK_HOST and SSH reachability from GitHub-hosted runners."
+            exit 1
+          fi
+          chmod 644 "${known_hosts}"
+
+          echo "Syncing desk/ to ${remote_user}@${host}:${dest}/"
+          dest_q="$(printf '%q' "${dest}")"
+          ssh \
+            -i "${keyfile}" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=${known_hosts}" \
+            -o ConnectTimeout=20 \
+            -o PasswordAuthentication=no \
+            "${remote_user}@${host}" \
+            "mkdir -p -- ${dest_q}"
+
+          # Static HTML/JS only. No --delete, so live-only pages (shares, fixed
+          # deposits, users, and similar) stay on the droplet. Do not restart
+          # Fineract or Caddy.
+          export RSYNC_RSH="ssh -i ${keyfile} -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${known_hosts} -o ConnectTimeout=20 -o PasswordAuthentication=no"
+          rsync -azi --stats --delay-updates --safe-links \
+            --exclude '/README.md' \
+            --exclude '/README-WIRE.md' \
+            --exclude '/server.py' \
+            --exclude '/start-desk.sh' \
+            --exclude '/scripts/' \
+            --exclude '/.gitignore' \
+            desk/ \
+            "${remote_user}@${host}:${dest}/"
+
+          echo "Desk sync finished. Fineract and Caddy were left running."
