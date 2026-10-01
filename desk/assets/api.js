@@ -309,6 +309,28 @@
     return data;
   }
 
+  function optionValue(o) {
+    return o.value !== undefined ? o.value : o.id;
+  }
+
+  function optionLabel(o) {
+    var val = optionValue(o);
+    return o.label !== undefined ? o.label : (o.name || val);
+  }
+
+  function writeOptions(sel, options, preferred) {
+    var html = "";
+    var match = false;
+    (options || []).forEach(function (o) {
+      var val = optionValue(o);
+      var chosen = String(val) === String(preferred);
+      if (chosen) match = true;
+      html += '<option value="' + escapeHtml(val) + '"' + (chosen ? " selected" : "") + ">" + escapeHtml(optionLabel(o)) + "</option>";
+    });
+    sel.innerHTML = html;
+    if (!match && sel.options.length) sel.selectedIndex = 0;
+  }
+
   function openDialog(opts) {
     opts = opts || {};
     return new Promise(function (resolve) {
@@ -316,44 +338,88 @@
       overlay.style.cssText = "position:fixed;inset:0;background:rgba(8,24,28,.45);z-index:80;display:flex;align-items:flex-start;justify-content:center;padding:48px 16px;overflow:auto";
       var box = document.createElement("form");
       box.className = "card";
-      box.style.cssText = "width:min(520px,100%);margin:0;background:#fff";
+      box.style.cssText = "width:min(" + (opts.width || 520) + "px,100%);margin:0;background:#fff";
       var fields = opts.fields || [];
-      var html = '<div class="card-h"><h2>' + escapeHtml(opts.title || "Action") + '</h2></div><div class="card-b"><div class="form-grid">';
-      fields.forEach(function (f, i) {
-        html += '<div class="form-row' + (f.full ? " full" : "") + '"><label>' + escapeHtml(f.label) + '</label>';
+      var depends = {};
+      var html = '<div class="card-h"><h2>' + escapeHtml(opts.title || "Action") + '</h2></div><div class="card-b">';
+      if (opts.message) html += '<p class="text-muted" style="margin:0 0 12px;font-size:13px">' + escapeHtml(opts.message) + "</p>";
+      html += '<div class="form-grid">';
+      fields.forEach(function (f) {
+        if (f.type === "note") {
+          html += '<div class="form-row full"><p class="text-muted" style="margin:0;font-size:12px">' + escapeHtml(f.label) + "</p></div>";
+          return;
+        }
+        html += '<div class="form-row' + (f.full ? " full" : "") + '"><label>' + escapeHtml(f.label) + "</label>";
         if (f.type === "select") {
-          html += '<select data-k="' + f.key + '">';
-          (f.options || []).forEach(function (o) {
-            var val = o.value !== undefined ? o.value : o.id;
-            var lab = o.label !== undefined ? o.label : (o.name || val);
-            var sel = String(val) === String(f.value) ? " selected" : "";
-            html += '<option value="' + escapeHtml(val) + '"' + sel + '>' + escapeHtml(lab) + '</option>';
-          });
+          if (f.dependsOn && f.optionsBy) depends[f.key] = f;
+          html += '<select data-k="' + escapeHtml(f.key) + '"' + (f.dependsOn ? ' data-depends="' + escapeHtml(f.dependsOn) + '"' : "") + ">";
+          if (!f.dependsOn) {
+            (f.options || []).forEach(function (o) {
+              var val = optionValue(o);
+              var sel = String(val) === String(f.value) ? " selected" : "";
+              html += '<option value="' + escapeHtml(val) + '"' + sel + ">" + escapeHtml(optionLabel(o)) + "</option>";
+            });
+          }
           html += "</select>";
         } else if (f.type === "textarea") {
-          html += '<textarea data-k="' + f.key + '" rows="2">' + escapeHtml(f.value || "") + "</textarea>";
+          html += '<textarea data-k="' + escapeHtml(f.key) + '" rows="2">' + escapeHtml(f.value || "") + "</textarea>";
         } else {
-          html += '<input data-k="' + f.key + '" type="' + (f.type || "text") + '" value="' + escapeHtml(f.value || "") + '" />';
+          var extra = "";
+          if (f.maxLength) extra += ' maxlength="' + Number(f.maxLength) + '"';
+          if (f.placeholder) extra += ' placeholder="' + escapeHtml(f.placeholder) + '"';
+          if (f.step) extra += ' step="' + escapeHtml(f.step) + '"';
+          if (f.required) extra += " required";
+          html += '<input data-k="' + escapeHtml(f.key) + '" type="' + escapeHtml(f.type || "text") + '" value="' + escapeHtml(f.value || "") + '"' + extra + " />";
         }
+        if (f.hint) html += '<div class="text-muted" style="font-size:12px">' + escapeHtml(f.hint) + "</div>";
         html += "</div>";
       });
       html += '</div><div class="form-actions"><button type="submit" class="btn btn-amber">' + escapeHtml(opts.submitLabel || "Save") + '</button><button type="button" class="btn btn-ghost" data-cancel>Cancel</button></div></div>';
       box.innerHTML = html;
       overlay.appendChild(box);
       document.body.appendChild(overlay);
+      function syncDepends() {
+        Object.keys(depends).forEach(function (key) {
+          var f = depends[key];
+          var sel = box.querySelector('select[data-k="' + key + '"]');
+          var parent = box.querySelector('[data-k="' + f.dependsOn + '"]');
+          if (!sel || !parent) return;
+          var preferred = sel.value || f.value;
+          writeOptions(sel, f.optionsBy[parent.value] || [], preferred);
+        });
+      }
+      syncDepends();
+      box.addEventListener("change", function (e) {
+        var key = e.target && e.target.getAttribute && e.target.getAttribute("data-k");
+        if (!key) return;
+        var drives = Object.keys(depends).some(function (child) { return depends[child].dependsOn === key; });
+        if (drives) syncDepends();
+      });
       function close(val) {
         overlay.remove();
         resolve(val);
+      }
+      function readValues() {
+        var out = {};
+        box.querySelectorAll("[data-k]").forEach(function (el) {
+          out[el.getAttribute("data-k")] = el.value;
+        });
+        return out;
       }
       box.querySelector("[data-cancel]").addEventListener("click", function () { close(null); });
       overlay.addEventListener("click", function (e) { if (e.target === overlay) close(null); });
       box.addEventListener("submit", function (e) {
         e.preventDefault();
-        var out = {};
-        box.querySelectorAll("[data-k]").forEach(function (el) {
-          out[el.getAttribute("data-k")] = el.value;
+        var out = readValues();
+        if (!opts.onSubmit) { close(out); return; }
+        var btn = box.querySelector("button[type=submit]");
+        if (btn) btn.disabled = true;
+        Promise.resolve().then(function () { return opts.onSubmit(out); }).then(function (res) {
+          close(res === undefined ? out : res);
+        }).catch(function (err) {
+          if (btn) btn.disabled = false;
+          toast((err && err.message) || String(err), "error");
         });
-        close(out);
       });
       var first = box.querySelector("input, select, textarea");
       if (first) first.focus();

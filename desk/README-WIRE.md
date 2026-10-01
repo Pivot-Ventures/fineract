@@ -105,11 +105,16 @@ Do **not** use `python -m http.server` — it has no API proxy and browsers will
 - **Trial balance / income statement / balance sheet** — `/runreports/Trial Balance Table`, `Income Statement Table`, `Balance Sheet Table` with `R_startDate`, `R_endDate`, `R_officeId`.
 - **Member statement** — real savings and loan transactions.
 - **GL create, closures, accounting rules, financial activity mappings, run accruals, client image** (multipart `/clients/{id}/images`).
+- **Create charge** — `products-loans.html` POST `/charges`. The dialog picks loan or savings, flat or percent of amount, and a time type that is valid for that choice (no monthly/annual fee date). Currency defaults to UGX when UGX is in GET `/currencies` `selectedCurrencyOptions`; otherwise the first selected currency. A USD-only organisation is not rejected. Loan charges send `chargePaymentMode: 0`.
+- **Edit charge** — PUT `/charges/{id}` from the charges table for loan and savings charges. Applies-to stays as stored.
+- **Create loan product** — POST `/loanproducts` with `accountingRule: 1` (NONE) and `transactionProcessingStrategyCode: mifos-standard-strategy`. Fields follow the NONE retry in `scripts/seed-fineract.py` (principal min/default/max, repayments, monthly interest, no GL account ids). The loan product grid reloads after a successful save.
+- **Create savings product** — POST `/savingsproducts` with the voluntary savings NONE fallback (`accountingRule: 1`, monthly compounding and posting, daily balance, 365-day year, no GL account ids).
 
 ### Still not a working write (labeled in the UI)
 - Buy shares — no share product.
 - Portfolio at Risk `/runreports` — report exists but SQL throws BadSqlGrammar on this database. Collections lists loans instead.
-- Loan-product wizard, floating rate edit, CSV import, KYC queue, family/address datatables, provisioning criteria create, reversing the old mock journal refs, global settings screen.
+- Floating rate edit, CSV import, KYC queue, family/address datatables, provisioning criteria create, reversing the old mock journal refs, global settings screen.
+- Cash-based loan or savings products (accounting rule 2) — those need a seeded chart of accounts. Desk create stays on NONE.
 - Cash in/out will **not** hit a cashier whose staff is not the logged-in user. Joseph's drawer is the one tied to `mifos`.
 
 Smoke (already run): POST teller #2, POST cashier #2 (Mary), POST allocate 50,000 on cashier #1, savings deposit 25,000 shows as Cash In, POST settle 1,000. Drawer net after that was UGX 574,000.
