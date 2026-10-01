@@ -105,6 +105,10 @@ Do **not** use `python -m http.server` — it has no API proxy and browsers will
 - **Trial balance / income statement / balance sheet** — `/runreports/Trial Balance Table`, `Income Statement Table`, `Balance Sheet Table` with `R_startDate`, `R_endDate`, `R_officeId`.
 - **Member statement** — real savings and loan transactions.
 - **GL create, closures, accounting rules, financial activity mappings, run accruals, client image** (multipart `/clients/{id}/images`).
+- **Create charge** — `products-loans.html` POST `/charges`. The dialog picks loan or savings, flat or percent of amount, and a time type that is valid for that choice (no monthly/annual fee date). Currency defaults to UGX when UGX is in GET `/currencies` `selectedCurrencyOptions`; otherwise the first selected currency. A USD-only organisation is not rejected. Loan charges send `chargePaymentMode: 0`.
+- **Edit charge** — PUT `/charges/{id}` from the charges table for loan and savings charges. Applies-to stays as stored.
+- **Create loan product** — POST `/loanproducts` with `accountingRule: 1` (NONE) and `transactionProcessingStrategyCode: mifos-standard-strategy`. Fields follow the NONE retry in `scripts/seed-fineract.py` (principal min/default/max, repayments, monthly interest, no GL account ids). The loan product grid reloads after a successful save.
+- **Create savings product** — POST `/savingsproducts` with the voluntary savings NONE fallback (`accountingRule: 1`, monthly compounding and posting, daily balance, 365-day year, no GL account ids).
 
 ### LIVE writes added 2026-10-01 (follow-up, chart seeded)
 Live inventory used here: 39 GL accounts and 7 financial-activity mappings, with activity 101 on vault `1110` and activity 102 on teller `1120`. Cash product dialogs prefer those codes, then the first GL of the right type.
@@ -113,7 +117,7 @@ Live inventory used here: 39 GL accounts and 7 financial-activity mappings, with
 - **Share product** — POST `/products/share`. Accounting None, or Cash with `shareReferenceId` (1120), `shareSuspenseId`, `shareEquityId`, `incomeFromFeeAccountId`.
 - **Fixed deposit** — POST `/fixeddepositproducts` with a 6–24 month chart, `interestPostingPeriodType` 4, and `depositAmount`. Cash uses the savings reference/control set (reference defaults to 1120).
 - **Recurring deposit** — POST `/recurringdepositproducts` with the same chart plus monthly `recurringFrequency`.
-- **Edit loan / savings product** — PUT `/loanproducts/{id}` and PUT `/savingsproducts/{id}`. Accounting can stay None or switch to Cash (rule 2) with GL pickers. Creating those products stays on the products/charges PR.
+- **Edit loan / savings product** — PUT `/loanproducts/{id}` and PUT `/savingsproducts/{id}`. Accounting can stay None or switch to Cash (rule 2) with GL pickers. Create still posts accounting NONE; cash is chosen on edit.
 - **Provisioning** — `accruals.html` POST `/provisioningcriteria` (one age bucket) and POST `/provisioningentries`.
 - **Client address** — `client-detail.html` turns on `configurations/name/enable-address` when it is off, then POST `/client/{id}/addresses?type=`. Family stays unwired.
 - **Accounting rule** — when none exist, the create dialog debits vault 1110 (else teller 1120) and credits a liability.
@@ -121,7 +125,8 @@ Live inventory used here: 39 GL accounts and 7 financial-activity mappings, with
 
 ### Still not a working write (labeled in the UI)
 - Portfolio at Risk `/runreports` — report exists but SQL throws BadSqlGrammar on this database. Collections lists loans instead.
-- Loan-product and charge create wizards (separate products PR), CSV import, KYC queue, family datatable, reversing the old mock journal refs, global settings screen.
+- CSV import, KYC queue, family datatable, reversing the old mock journal refs, global settings screen.
+- New loan and savings products are created with accounting NONE. Edit can switch an existing product to cash when the chart is seeded.
 - Cash in/out will **not** hit a cashier whose staff is not the logged-in user. Joseph's drawer is the one tied to `mifos`.
 
 Smoke (already run): POST teller #2, POST cashier #2 (Mary), POST allocate 50,000 on cashier #1, savings deposit 25,000 shows as Cash In, POST settle 1,000. Drawer net after that was UGX 574,000.

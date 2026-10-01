@@ -492,64 +492,131 @@
 
   /* ---------- PRODUCTS ---------- */
   if (page === "products" || location.pathname.match(/products-loans/)) {
-    pageGuard(async function () {
-      function rowsOf(data) {
-        if (Array.isArray(data)) return data;
-        if (data && Array.isArray(data.pageItems)) return data.pageItems;
-        return [];
+    var chargeById = {};
+    function asList(data) {
+      if (Array.isArray(data)) return data;
+      if (data && Array.isArray(data.pageItems)) return data.pageItems;
+      return [];
+    }
+    function enumText(obj) {
+      if (!obj) return "—";
+      if (typeof obj === "string" || typeof obj === "number") return String(obj);
+      return obj.value || obj.code || "—";
+    }
+    function currencyCode(obj) {
+      if (!obj) return "";
+      if (obj.currency && obj.currency.code) return obj.currency.code;
+      return obj.currencyCode || "";
+    }
+    function chargeAmount(c) {
+      var calcId = c.chargeCalculationType && c.chargeCalculationType.id;
+      var code = currencyCode(c);
+      if (String(calcId) === "1") {
+        var n = Number(c.amount);
+        var shown = isFinite(n) ? n.toLocaleString("en-UG", { maximumFractionDigits: 2 }) : String(c.amount);
+        return (code ? code + " " : "") + shown;
       }
-      function put(id, html, cols) {
-        var tb = document.getElementById(id);
-        if (tb) tb.innerHTML = html || '<tr><td colspan="' + cols + '">None yet</td></tr>';
+      return String(c.amount) + "%";
+    }
+    function renderLoanProducts(loans) {
+      var grid = document.getElementById("loan-products");
+      if (!grid) return;
+      if (!loans.length) {
+        grid.innerHTML = '<p class="empty-hint">No loan products yet. Use ＋ Loan product.</p>';
+        return;
       }
-      var pack = await Promise.all([
-        api.get("/loanproducts").catch(function () { return []; }),
+      grid.innerHTML = loans.map(function (p) {
+        var code = currencyCode(p);
+        var rate = p.interestRatePerPeriod != null ? (p.interestRatePerPeriod + "% / period") : "—";
+        return '<div class="product-card"><h3>' + api.escapeHtml(p.name) + "</h3>" +
+          '<div class="text-muted" style="font-size:12px">' + api.escapeHtml(p.shortName || "—") +
+          (code ? " · " + api.escapeHtml(code) : "") + "</div>" +
+          '<div class="rate">' + api.escapeHtml(String(rate)) + "</div>" +
+          "<div>Principal " + api.formatMoney(p.principal, code || "UGX") + "</div>" +
+          '<div class="text-muted" style="margin-top:6px;font-size:12px">' +
+          api.escapeHtml(String(p.numberOfRepayments || "—")) + " repayments</div>" +
+          '<div style="margin-top:10px"><button class="btn btn-sm btn-ghost" type="button" data-edit-loan="' +
+          api.escapeHtml(p.id) + '">Edit</button></div></div>';
+      }).join("");
+    }
+    function renderSavingsProducts(savings) {
+      var tbody = document.querySelector("#savings-products tbody");
+      if (!tbody) return;
+      tbody.innerHTML = savings.map(function (p) {
+        return "<tr><td class=\"strong\">" + api.escapeHtml(p.name) + "</td><td class=\"mono\">" +
+          api.escapeHtml(p.shortName || "—") + "</td><td>" + api.escapeHtml(currencyCode(p) || "—") +
+          '</td><td class="mono text-right">' + api.escapeHtml(String(p.nominalAnnualInterestRate != null ? p.nominalAnnualInterestRate : "—")) +
+          '%</td><td><button class="btn btn-sm btn-ghost" type="button" data-edit-savings="' + api.escapeHtml(p.id) +
+          '">Edit</button></td></tr>';
+      }).join("") || '<tr><td colspan="5">No savings products yet. Use ＋ Savings product.</td></tr>';
+    }
+    function renderCharges(charges) {
+      var tbody = document.querySelector("#charges-table tbody");
+      if (!tbody) return;
+      chargeById = {};
+      charges.forEach(function (c) { chargeById[String(c.id)] = c; });
+      tbody.innerHTML = charges.map(function (c) {
+        var appliesId = c.chargeAppliesTo && c.chargeAppliesTo.id;
+        var canEdit = String(appliesId) === "1" || String(appliesId) === "2";
+        return "<tr><td class=\"strong\">" + api.escapeHtml(c.name) + "</td><td>" + api.escapeHtml(enumText(c.chargeAppliesTo)) +
+          "</td><td>" + api.escapeHtml(enumText(c.chargeTimeType)) + "</td><td>" + api.escapeHtml(enumText(c.chargeCalculationType)) +
+          '</td><td class="mono text-right">' + api.escapeHtml(chargeAmount(c)) + "</td><td>" +
+          (c.active === false ? '<span class="status closed">Inactive</span>' : '<span class="status active">Active</span>') +
+          "</td><td>" + (canEdit ? '<button type="button" class="btn btn-sm btn-ghost" data-edit-charge="' + api.escapeHtml(c.id) + '">Edit</button>' : "—") +
+          "</td></tr>";
+      }).join("") || '<tr><td colspan="7">No charges yet. Use ＋ Charge.</td></tr>';
+    }
+    function renderFloating(rates) {
+      var tbody = document.querySelector("#floating-table tbody");
+      if (!tbody) return;
+      if (rates === null) {
+        tbody.innerHTML = '<tr><td colspan="4">Floating rates could not be loaded.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rates.map(function (r) {
+        return "<tr><td class=\"strong\">" + api.escapeHtml(r.name || "") + "</td><td>" +
+          (r.isBaseLendingRate ? "Base" : "—") + "</td><td>" + (r.isActive === false ? "Inactive" : "Active") +
+          '</td><td><button class="btn btn-sm btn-ghost" type="button" data-edit-rate="' + api.escapeHtml(r.id) +
+          '">Edit</button></td></tr>';
+      }).join("") || '<tr><td colspan="4">No floating rates</td></tr>';
+    }
+    function putRows(id, html, cols) {
+      var tb = document.getElementById(id);
+      if (tb) tb.innerHTML = html || '<tr><td colspan="' + cols + '">None yet</td></tr>';
+    }
+    function depositRow(p) {
+      return "<tr><td class=\"mono\">" + api.escapeHtml(p.id) + "</td><td class=\"strong\">" + api.escapeHtml(p.name) +
+        "</td><td>" + api.escapeHtml(p.shortName || "") +
+        "</td><td class=\"mono text-right\">" + api.formatMoney(p.depositAmount || p.minDepositAmount) + "</td></tr>";
+    }
+    async function loadProductScreen() {
+      var results = await Promise.all([
+        api.get("/loanproducts"),
         api.get("/savingsproducts").catch(function () { return []; }),
-        api.get("/floatingrates").catch(function () { return []; }),
+        api.get("/charges").catch(function () { return []; }),
+        api.get("/floatingrates").catch(function () { return null; }),
         api.get("/products/share").catch(function () { return []; }),
         api.get("/fixeddepositproducts").catch(function () { return []; }),
         api.get("/recurringdepositproducts").catch(function () { return []; })
       ]);
-      var loans = rowsOf(pack[0]);
-      var savings = rowsOf(pack[1]);
-      var rates = rowsOf(pack[2]);
-      var shares = rowsOf(pack[3]);
-      var fds = rowsOf(pack[4]);
-      var rds = rowsOf(pack[5]);
-      put("loan-products", loans.map(function (p) {
-        return "<tr><td class=\"mono\">" + p.id + "</td><td class=\"strong\">" + api.escapeHtml(p.name) +
-          "</td><td class=\"mono text-right\">" + api.formatMoney(p.principal || p.minPrincipal) +
-          "</td><td>" + (p.numberOfRepayments || "—") + "</td><td>" +
-          api.escapeHtml(p.interestRatePerPeriod != null ? String(p.interestRatePerPeriod) : "—") +
-          '</td><td><button class="btn btn-sm btn-ghost" type="button" data-edit-loan="' + p.id + '">Edit</button></td></tr>';
-      }).join(""), 6);
-      put("savings-products", savings.map(function (p) {
-        return "<tr><td class=\"mono\">" + p.id + "</td><td class=\"strong\">" + api.escapeHtml(p.name) +
-          "</td><td>" + api.escapeHtml(p.shortName || "") +
-          "</td><td class=\"mono text-right\">" + api.formatMoney(p.nominalAnnualInterestRate) +
-          '%</td><td><button class="btn btn-sm btn-ghost" type="button" data-edit-savings="' + p.id + '">Edit</button></td></tr>';
-      }).join(""), 5);
-      var floatBody = document.querySelector("#floating-table tbody");
-      if (floatBody) {
-        floatBody.innerHTML = rates.map(function (r) {
-          return "<tr><td class=\"strong\">" + api.escapeHtml(r.name || "") + "</td><td>" +
-            (r.isBaseLendingRate ? "Base" : "—") + "</td><td>" + (r.isActive === false ? "Inactive" : "Active") +
-            '</td><td><button class="btn btn-sm btn-ghost" type="button" data-edit-rate="' + r.id + '">Edit</button></td></tr>';
-        }).join("") || '<tr><td colspan="4">No floating rates</td></tr>';
-      }
-      put("share-products", shares.map(function (p) {
-        return "<tr><td class=\"mono\">" + p.id + "</td><td class=\"strong\">" + api.escapeHtml(p.name) +
+      renderLoanProducts(asList(results[0]));
+      renderSavingsProducts(asList(results[1]));
+      renderCharges(asList(results[2]));
+      renderFloating(results[3] === null ? null : asList(results[3]));
+      var shares = asList(results[4]);
+      putRows("share-products", shares.map(function (p) {
+        return "<tr><td class=\"mono\">" + api.escapeHtml(p.id) + "</td><td class=\"strong\">" + api.escapeHtml(p.name) +
           "</td><td>" + api.escapeHtml(p.shortName || "") +
           "</td><td class=\"mono text-right\">" + api.formatMoney(p.unitPrice) + "</td></tr>";
       }).join(""), 4);
-      function depositRow(p) {
-        return "<tr><td class=\"mono\">" + p.id + "</td><td class=\"strong\">" + api.escapeHtml(p.name) +
-          "</td><td>" + api.escapeHtml(p.shortName || "") +
-          "</td><td class=\"mono text-right\">" + api.formatMoney(p.depositAmount || p.minDepositAmount) + "</td></tr>";
-      }
-      put("fd-products", fds.map(depositRow).join(""), 4);
-      put("rd-products", rds.map(depositRow).join(""), 4);
-    })();
+      putRows("fd-products", asList(results[5]).map(depositRow).join(""), 4);
+      putRows("rd-products", asList(results[6]).map(depositRow).join(""), 4);
+    }
+    window.PivotProducts = {
+      reload: loadProductScreen,
+      getCharge: function (id) { return chargeById[String(id)] || null; }
+    };
+    pageGuard(loadProductScreen)();
   }
 
   /* journal POST moved to assets/actions.js */

@@ -1231,18 +1231,159 @@
     });
   }
   if (page === "products") {
+    var forms = window.PivotProductForms;
     var W = window.PivotDeskWrites;
-    api.claimMocks(["Create loan product", "Create charge", "Edit rate", "Create floating rate", "Create share product", "Create fixed deposit", "Create recurring deposit"]);
-    buttonsNamed("Create loan product").forEach(function (btn) { on(btn, async function () { api.toast("Loan product create needs fund, strategy, and a full GL mapping. List stays live; the wizard is not posted.", "error"); }); });
+    if (!forms && !W) return;
+    api.claimMocks([
+      "Create loan product", "Create savings product", "Create charge", "Edit rate",
+      "Create floating rate", "Create share product", "Create fixed deposit", "Create recurring deposit"
+    ]);
+    var currencyCache = null;
+    async function orgCurrencies() {
+      if (!forms) throw new Error("Product form helpers did not load");
+      if (currencyCache) return currencyCache;
+      var data = null;
+      try { data = await api.get("/currencies"); } catch (e) { data = null; }
+      currencyCache = forms.currencyPack(data);
+      return currencyCache;
+    }
+    async function refreshProducts() {
+      if (window.PivotProducts && window.PivotProducts.reload) await window.PivotProducts.reload();
+    }
+    function enumId(obj, fallback) {
+      if (obj == null) return fallback;
+      if (typeof obj === "number" || typeof obj === "string") return String(obj);
+      if (obj.id != null) return String(obj.id);
+      return fallback;
+    }
+    function chargeFields(pack, existing) {
+      var applies = existing ? enumId(existing.chargeAppliesTo, "1") : "1";
+      var appliesOptions = applies === "2"
+        ? [{ value: "2", label: "Savings" }]
+        : (existing ? [{ value: "1", label: "Loan" }] : [{ value: "1", label: "Loan" }, { value: "2", label: "Savings" }]);
+      var timeDefault = existing ? enumId(existing.chargeTimeType, applies === "2" ? "5" : "1") : (applies === "2" ? "5" : "1");
+      var calcDefault = existing ? enumId(existing.chargeCalculationType, "1") : "1";
+      var currencyDefault = pack.code;
+      if (existing && existing.currency && existing.currency.code) currencyDefault = existing.currency.code;
+      var currencyOptions = pack.options.slice();
+      if (!currencyOptions.some(function (o) { return o.value === currencyDefault; })) {
+        currencyOptions.unshift({ value: currencyDefault, label: currencyDefault });
+      }
+      return [
+        { key: "name", label: "Name", required: true, full: true, value: existing ? (existing.name || "") : "" },
+        { key: "chargeAppliesTo", label: "Applies to", type: "select", value: applies, options: appliesOptions },
+        { key: "chargeCalculationType", label: "Calculation", type: "select", value: calcDefault, options: forms.CALC },
+        { key: "chargeTimeType", label: "When", type: "select", value: timeDefault, dependsOn: "chargeAppliesTo", optionsBy: { "1": forms.LOAN_TIME, "2": forms.SAVINGS_TIME } },
+        { key: "amount", label: "Amount or percent", type: "number", step: "any", required: true, value: existing && existing.amount != null ? String(existing.amount) : (pack.code === "UGX" ? "10000" : "10") },
+        { key: "currencyCode", label: "Currency", type: "select", value: currencyDefault, options: currencyOptions },
+        { key: "active", label: "Status", type: "select", value: existing && existing.active === false ? "false" : "true", options: [{ value: "true", label: "Active" }, { value: "false", label: "Inactive" }] },
+        { type: "note", label: "Monthly and annual savings fees need a due date, so they are not offered here. Loan charges are collected the regular way." }
+      ];
+    }
+    async function chargeDialog(existing) {
+      if (!forms) throw new Error("Product form helpers did not load");
+      var pack = await orgCurrencies();
+      var editing = !!existing;
+      var paymentMode = existing && existing.chargePaymentMode && existing.chargePaymentMode.id != null
+        ? existing.chargePaymentMode.id : 0;
+      return api.openDialog({
+        title: editing ? "Edit charge" : "Create charge",
+        submitLabel: editing ? "Save" : "Create",
+        message: "Currency defaults to UGX when it is selected for the organisation, otherwise the first selected currency.",
+        fields: chargeFields(pack, existing),
+        onSubmit: function (val) {
+          var body = forms.chargePayload(val, { editing: editing, pack: pack, paymentMode: paymentMode });
+          if (editing) return api.put("/charges/" + existing.id, body);
+          return api.post("/charges", body);
+        }
+      });
+    }
     buttonsNamed("Create charge").forEach(function (btn) {
       on(btn, async function () {
-        var v = await api.openDialog({ title: "Create charge", submitLabel: "Create", fields: [
-          { key: "name", label: "Name", value: "Processing fee" },
-          { key: "amount", label: "Amount", type: "number", value: "10000" }
-        ]});
-        if (!v) return;
-        await api.post("/charges", { name: v.name, amount: api.parseAmount(v.amount), currencyCode: "UGX", chargeAppliesTo: 1, chargeTimeType: 1, chargeCalculationType: 1, chargePaymentMode: 0, active: true, locale: "en" });
+        var created = await chargeDialog(null);
+        if (!created) return;
         api.toast("Charge created", "success");
+        await refreshProducts();
+      });
+    });
+    var chargesTable = document.getElementById("charges-table");
+    if (chargesTable) {
+      chargesTable.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-edit-charge]");
+        if (!btn) return;
+        e.preventDefault();
+        var id = btn.getAttribute("data-edit-charge");
+        var known = window.PivotProducts && window.PivotProducts.getCharge(id);
+        var load = known ? Promise.resolve(known) : api.get("/charges/" + id);
+        load.then(function (charge) {
+          var applies = enumId(charge.chargeAppliesTo, "");
+          if (applies !== "1" && applies !== "2") {
+            api.toast("Only loan and savings charges can be edited here.", "error");
+            return null;
+          }
+          return chargeDialog(charge);
+        }).then(function (saved) {
+          if (!saved) return null;
+          api.toast("Charge updated", "success");
+          return refreshProducts();
+        }).catch(function (err) { api.toast(err.message || String(err), "error"); });
+      });
+    }
+    buttonsNamed("Create loan product").forEach(function (btn) {
+      on(btn, async function () {
+        if (!forms) throw new Error("Product form helpers did not load");
+        var pack = await orgCurrencies();
+        var defaults = forms.principalDefaults(pack.code);
+        var created = await api.openDialog({
+          title: "Create loan product",
+          submitLabel: "Create",
+          width: 640,
+          message: "Accounting is NONE, so this does not ask for general-ledger accounts. Interest is declining balance, equal instalments, per month. Use Edit afterwards to switch to cash.",
+          fields: [
+            { key: "name", label: "Name", required: true, full: true, value: "" },
+            { key: "shortName", label: "Short name", required: true, maxLength: 4, placeholder: "SDL", value: "" },
+            { key: "currencyCode", label: "Currency", type: "select", value: pack.code, options: pack.options },
+            { key: "principal", label: "Principal (default)", type: "number", step: "any", value: defaults.principal },
+            { key: "minPrincipal", label: "Minimum principal", type: "number", step: "any", value: defaults.minPrincipal },
+            { key: "maxPrincipal", label: "Maximum principal", type: "number", step: "any", value: defaults.maxPrincipal },
+            { key: "numberOfRepayments", label: "Repayments", type: "number", value: "12" },
+            { key: "minNumberOfRepayments", label: "Minimum repayments", type: "number", value: "3" },
+            { key: "maxNumberOfRepayments", label: "Maximum repayments", type: "number", value: "36" },
+            { key: "repaymentEvery", label: "Repay every (months)", type: "number", value: "1" },
+            { key: "interestRatePerPeriod", label: "Interest % per month", type: "number", step: "any", value: "2" },
+            { key: "minInterestRatePerPeriod", label: "Minimum interest %", type: "number", step: "any", value: "0.5" },
+            { key: "maxInterestRatePerPeriod", label: "Maximum interest %", type: "number", step: "any", value: "5" },
+            { type: "note", label: "Strategy mifos-standard-strategy. Schedule frequency is months. New products use accounting NONE. Edit can switch the product to cash once the chart is seeded." }
+          ],
+          onSubmit: function (val) { return api.post("/loanproducts", forms.loanProductPayload(val, pack)); }
+        });
+        if (!created) return;
+        api.toast("Loan product created", "success");
+        await refreshProducts();
+      });
+    });
+    buttonsNamed("Create savings product").forEach(function (btn) {
+      on(btn, async function () {
+        if (!forms) throw new Error("Product form helpers did not load");
+        var pack = await orgCurrencies();
+        var created = await api.openDialog({
+          title: "Create savings product",
+          submitLabel: "Create",
+          width: 640,
+          message: "Accounting is NONE. Interest compounds and posts monthly on the daily balance, using a 365-day year. Use Edit afterwards to switch to cash.",
+          fields: [
+            { key: "name", label: "Name", required: true, full: true, value: "" },
+            { key: "shortName", label: "Short name", required: true, maxLength: 4, placeholder: "VS", value: "" },
+            { key: "currencyCode", label: "Currency", type: "select", value: pack.code, options: pack.options },
+            { key: "nominalAnnualInterestRate", label: "Nominal annual interest %", type: "number", step: "any", value: "3" },
+            { key: "description", label: "Description", type: "textarea", full: true, value: "" },
+            { type: "note", label: "Same shape as the voluntary savings fallback in the seed script. No general-ledger accounts are sent on create. Edit can switch the product to cash." }
+          ],
+          onSubmit: function (val) { return api.post("/savingsproducts", forms.savingsProductPayload(val, pack)); }
+        });
+        if (!created) return;
+        api.toast("Savings product created", "success");
+        await refreshProducts();
       });
     });
     function writes() {

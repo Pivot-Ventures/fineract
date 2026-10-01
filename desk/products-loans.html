@@ -84,33 +84,27 @@
         <div class="api-chip"><span>Fineract</span> /loanproducts · /savingsproducts · /floatingrates · /products/share · /fixeddepositproducts</div>
       </div>
 
-      <div class="btn-group" style="margin-bottom:14px">
-        <button class="btn btn-amber" data-mock="Create loan product">＋ Loan product</button>
-        <button class="btn btn-ghost" data-mock="Create charge">＋ Charge</button>
-        <button class="btn btn-ghost" data-mock="Create floating rate">＋ Floating rate</button>
-        <button class="btn btn-ghost" data-mock="Create share product">＋ Share product</button>
-        <button class="btn btn-ghost" data-mock="Create fixed deposit">＋ Fixed deposit</button>
-        <button class="btn btn-ghost" data-mock="Create recurring deposit">＋ Recurring deposit</button>
+      <div class="btn-group" style="margin-bottom:8px">
+        <button class="btn btn-amber" type="button" data-mock="Create loan product">＋ Loan product</button>
+        <button class="btn btn-amber" type="button" data-mock="Create savings product">＋ Savings product</button>
+        <button class="btn btn-ghost" type="button" data-mock="Create charge">＋ Charge</button>
+        <button class="btn btn-ghost" type="button" data-mock="Create floating rate">＋ Floating rate</button>
+        <button class="btn btn-ghost" type="button" data-mock="Create share product">＋ Share product</button>
+        <button class="btn btn-ghost" type="button" data-mock="Create fixed deposit">＋ Fixed deposit</button>
+        <button class="btn btn-ghost" type="button" data-mock="Create recurring deposit">＋ Recurring deposit</button>
       </div>
-      <p class="text-muted" style="margin:-6px 0 14px;font-size:13px">Cash accounting uses the seeded chart (vault 1110, teller 1120). Loan and savings create stay on the products PR; edit here can switch a product to cash.</p>
+      <p class="text-muted" style="margin:0 0 14px;font-size:12px">New loan and savings products use accounting NONE, so no general-ledger accounts are required. Edit can switch a product to cash using the seeded chart (vault 1110, teller 1120). Currency defaults to UGX when the organisation has it selected.</p>
       <h2 style="font-size:15px;margin:8px 0 10px">Loan products</h2>
-      <div class="card"><div class="card-b table-wrap"><table class="data">
-        <thead><tr><th>ID</th><th>Name</th><th class="text-right">Principal</th><th>Repayments</th><th>Rate</th><th></th></tr></thead>
-        <tbody id="loan-products"><tr><td colspan="6">Loading…</td></tr></tbody>
-      </table></div></div>
+      <div class="product-grid" id="loan-products"><p class="empty-hint">Loading…</p></div>
       <h2 style="font-size:15px;margin:22px 0 10px">Savings products</h2>
-      <div class="card"><div class="card-b table-wrap"><table class="data">
-        <thead><tr><th>ID</th><th>Name</th><th>Short</th><th class="text-right">Annual rate</th><th></th></tr></thead>
-        <tbody id="savings-products"><tr><td colspan="5">Loading…</td></tr></tbody>
+      <div class="card"><div class="card-b table-wrap"><table class="data" id="savings-products">
+        <thead><tr><th>Product</th><th>Short name</th><th>Currency</th><th class="text-right">Nominal annual interest</th><th></th></tr></thead>
+        <tbody><tr><td colspan="5">Loading…</td></tr></tbody>
       </table></div></div>
       <h2 style="font-size:15px;margin:22px 0 10px" id="charges">Charges</h2>
-      <div class="card"><div class="card-b table-wrap"><table class="data">
-        <thead><tr><th>Charge</th><th>Applies</th><th class="text-right">Amount</th></tr></thead>
-        <tbody>
-          <tr><td>Processing fee</td><td>Loans</td><td class="mono text-right">1%</td></tr>
-          <tr><td>Withdrawal fee</td><td>Savings</td><td class="mono text-right">2,000</td></tr>
-          <tr><td>Late penalty</td><td>Loans</td><td class="mono text-right">5% overdue</td></tr>
-        </tbody>
+      <div class="card"><div class="card-b table-wrap"><table class="data" id="charges-table">
+        <thead><tr><th>Charge</th><th>Applies</th><th>When</th><th>Calculation</th><th class="text-right">Amount</th><th>Status</th><th></th></tr></thead>
+        <tbody><tr><td colspan="7">Loading…</td></tr></tbody>
       </table></div></div>
       <h2 style="font-size:15px;margin:22px 0 10px">Floating rates</h2>
       <div class="card"><div class="card-b table-wrap"><table class="data" id="floating-table">
@@ -139,6 +133,7 @@
   <script src="assets/api.js"></script>
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
+  <script src="assets/product-forms.js"></script>
   <script src="assets/desk-writes.js"></script>
   <script src="assets/actions.js"></script>
 </body>
