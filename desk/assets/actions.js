@@ -912,10 +912,25 @@
       title: "Open savings account" + (preset ? " for " + preset.name : ""), submitLabel: "Open account", fields: fields,
       onSubmit: async function (val) {
         var clientId = preset ? preset.id : val.clientId;
+        var tpl = await api.get("/savingsaccounts/template?clientId=" + encodeURIComponent(clientId) + "&productId=" + encodeURIComponent(val.productId));
         var created = await api.post("/savingsaccounts", withDate({ clientId: Number(clientId), productId: Number(val.productId), submittedOnDate: val.date }));
         var id = created.savingsId || created.resourceId;
         result = id;
-        if (val.activate === "yes") {
+        /* The product's default charges (withdrawal fee, entrance fee) are attached one by one after creation:
+           sending them in the create call crashes this Fineract build (NPE in SavingsAccountCharge). */
+        var failedCharges = [];
+        for (var ci = 0; ci < (tpl.charges || []).length; ci++) {
+          var c = tpl.charges[ci];
+          var cbody = { chargeId: c.chargeId || c.id, amount: c.amount };
+          if (c.chargeTimeType && c.chargeTimeType.id === 2) cbody.dueDate = val.date;
+          try {
+            await api.post("/savingsaccounts/" + encodeURIComponent(id) + "/charges", withDate(cbody));
+          } catch (err) {
+            failedCharges.push(c.name);
+          }
+        }
+        if (failedCharges.length) warning = "Charges not attached: " + failedCharges.join(", ") + ". Add them on the account before activating.";
+        if (val.activate === "yes" && !failedCharges.length) {
           /* The account exists now — never let a retry create a second one. */
           try {
             await api.post("/savingsaccounts/" + encodeURIComponent(id) + "?command=approve", withDate({ approvedOnDate: val.date }));

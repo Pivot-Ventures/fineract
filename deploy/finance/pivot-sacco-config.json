@@ -1,0 +1,325 @@
+{
+  "_minOpeningBalance": "minRequiredOpeningBalance is 0 on purpose: Fineract books the minimum opening balance as an automatic deposit on activation, which would invent cash (and corrupt migrated balances). Staff take the first deposit as a normal deposit; minRequiredBalance stays enforced.",
+  "_about": "Pivot SACCO finance configuration for Apache Fineract. Applied by apply_config.py (idempotent). DRAFT DEFAULTS: every business value (rates, fees, limits, share price, provisioning, holidays) must be confirmed by the Board / Manager before production. Generate the sign-off sheet with: python3 apply_config.py --review > REVIEW.md",
+  "version": "2026-09-30-draft",
+
+  "currency": { "code": "UGX", "decimals": 0 },
+
+  "workingDays": {
+    "days": ["MO", "TU", "WE", "TH", "FR", "SA"],
+    "repaymentRescheduleType": 2,
+    "extendTermForDailyRepayments": false,
+    "_note": "REVIEW: branches open Monday–Saturday; repayments falling on a non-working day move to the next working day."
+  },
+
+  "globalConfigurations": [
+    { "name": "reschedule-repayments-on-holidays", "enabled": true },
+    { "name": "days-before-repayment-is-due", "enabled": true, "value": 3 },
+    { "name": "days-after-repayment-is-overdue", "enabled": true, "value": 1 }
+  ],
+
+  "codes": {
+    "Gender": ["Female", "Male"],
+    "ClientType": ["Individual", "Joint", "Group / Association", "Company / Institution"],
+    "ClientClassification": ["Salaried", "Business owner", "Farmer", "Student", "Other"],
+    "Customer Identifier": ["National ID (NIN)", "Passport", "Driving Permit", "Refugee ID", "Employee ID"],
+    "ClientClosureReason": ["Voluntary withdrawal", "Deceased", "Expelled", "Transferred", "Duplicate record"],
+    "LoanPurpose": ["Business working capital", "Agriculture", "School fees", "Construction / housing", "Asset purchase", "Medical", "Emergency", "Other"],
+    "LoanCollateral": ["Land title", "Motor vehicle logbook", "Household assets", "Salary assignment", "Savings (lien)"],
+    "WriteOffReasons": ["Borrower deceased", "Uncollectable after legal action", "Board approved write-off"],
+    "MARITAL STATUS": ["Single", "Married", "Divorced", "Widowed"],
+    "RELATIONSHIP": ["Spouse", "Child", "Parent", "Sibling", "Next of kin (other)"],
+    "GuarantorRelationship": ["Fellow member", "Spouse", "Relative", "Employer"]
+  },
+
+  "glAccounts": [
+    { "code": "1000", "name": "ASSETS", "type": "ASSET", "usage": "HEADER" },
+    { "code": "1100", "name": "Cash and bank", "type": "ASSET", "usage": "HEADER", "parent": "1000" },
+    { "code": "1110", "name": "Cash in main vault", "type": "ASSET", "parent": "1100" },
+    { "code": "1120", "name": "Cash at teller tills", "type": "ASSET", "parent": "1100" },
+    { "code": "1130", "name": "Bank current account", "type": "ASSET", "parent": "1100", "_note": "REVIEW: one account per bank (e.g. Centenary, Stanbic)" },
+    { "code": "1140", "name": "MTN Mobile Money float", "type": "ASSET", "parent": "1100" },
+    { "code": "1150", "name": "Airtel Money float", "type": "ASSET", "parent": "1100" },
+    { "code": "1160", "name": "Salary check-off receivable (employers)", "type": "ASSET", "parent": "1100" },
+    { "code": "1200", "name": "Loan portfolio", "type": "ASSET", "usage": "HEADER", "parent": "1000" },
+    { "code": "1210", "name": "Business / development loans", "type": "ASSET", "parent": "1200" },
+    { "code": "1220", "name": "Emergency loans", "type": "ASSET", "parent": "1200" },
+    { "code": "1230", "name": "School fees loans", "type": "ASSET", "parent": "1200" },
+    { "code": "1240", "name": "Salary / check-off loans", "type": "ASSET", "parent": "1200" },
+    { "code": "1300", "name": "Receivables", "type": "ASSET", "usage": "HEADER", "parent": "1000" },
+    { "code": "1310", "name": "Interest receivable on loans", "type": "ASSET", "parent": "1300" },
+    { "code": "1320", "name": "Fees receivable", "type": "ASSET", "parent": "1300" },
+    { "code": "1330", "name": "Penalties receivable", "type": "ASSET", "parent": "1300" },
+    { "code": "1340", "name": "Other receivables", "type": "ASSET", "parent": "1300" },
+    { "code": "1500", "name": "Fixed assets", "type": "ASSET", "usage": "HEADER", "parent": "1000" },
+    { "code": "1510", "name": "Furniture and fittings", "type": "ASSET", "parent": "1500" },
+    { "code": "1520", "name": "Computers and equipment", "type": "ASSET", "parent": "1500" },
+    { "code": "1530", "name": "Motor vehicles", "type": "ASSET", "parent": "1500" },
+    { "code": "1590", "name": "Accumulated depreciation", "type": "ASSET", "parent": "1500" },
+    { "code": "1600", "name": "Investments", "type": "ASSET", "usage": "HEADER", "parent": "1000" },
+    { "code": "1610", "name": "Fixed deposits with banks", "type": "ASSET", "parent": "1600" },
+    { "code": "1620", "name": "Treasury bills and bonds", "type": "ASSET", "parent": "1600" },
+    { "code": "1900", "name": "Clearing and suspense", "type": "ASSET", "usage": "HEADER", "parent": "1000" },
+    { "code": "1910", "name": "Transfers in suspense", "type": "ASSET", "parent": "1900" },
+    { "code": "1990", "name": "Data migration clearing", "type": "ASSET", "parent": "1900", "_note": "Contra for opening balances loaded from the legacy system. Must be zero after migration." },
+
+    { "code": "2000", "name": "LIABILITIES", "type": "LIABILITY", "usage": "HEADER" },
+    { "code": "2100", "name": "Member deposits", "type": "LIABILITY", "usage": "HEADER", "parent": "2000" },
+    { "code": "2110", "name": "Voluntary savings", "type": "LIABILITY", "parent": "2100" },
+    { "code": "2120", "name": "Compulsory savings", "type": "LIABILITY", "parent": "2100" },
+    { "code": "2130", "name": "Fixed deposits", "type": "LIABILITY", "parent": "2100" },
+    { "code": "2140", "name": "Children and youth savings", "type": "LIABILITY", "parent": "2100" },
+    { "code": "2200", "name": "Interest payable", "type": "LIABILITY", "usage": "HEADER", "parent": "2000" },
+    { "code": "2210", "name": "Interest payable on savings", "type": "LIABILITY", "parent": "2200" },
+    { "code": "2220", "name": "Interest payable on fixed deposits", "type": "LIABILITY", "parent": "2200" },
+    { "code": "2300", "name": "Payables", "type": "LIABILITY", "usage": "HEADER", "parent": "2000" },
+    { "code": "2310", "name": "Accounts payable", "type": "LIABILITY", "parent": "2300" },
+    { "code": "2320", "name": "Withholding tax payable", "type": "LIABILITY", "parent": "2300" },
+    { "code": "2330", "name": "Loan overpayments", "type": "LIABILITY", "parent": "2300" },
+    { "code": "2340", "name": "Liability transfers in suspense", "type": "LIABILITY", "parent": "2300" },
+    { "code": "2350", "name": "Dividends payable", "type": "LIABILITY", "parent": "2300" },
+    { "code": "2360", "name": "Share purchases in suspense", "type": "LIABILITY", "parent": "2300" },
+    { "code": "2370", "name": "Dormant / unclaimed balances", "type": "LIABILITY", "parent": "2300" },
+    { "code": "2400", "name": "Provisions", "type": "LIABILITY", "usage": "HEADER", "parent": "2000" },
+    { "code": "2410", "name": "Loan loss provision", "type": "LIABILITY", "parent": "2400" },
+    { "code": "2500", "name": "Borrowings", "type": "LIABILITY", "usage": "HEADER", "parent": "2000" },
+    { "code": "2510", "name": "External borrowings", "type": "LIABILITY", "parent": "2500" },
+
+    { "code": "3000", "name": "EQUITY", "type": "EQUITY", "usage": "HEADER" },
+    { "code": "3100", "name": "Member share capital", "type": "EQUITY", "parent": "3000" },
+    { "code": "3200", "name": "Statutory reserve", "type": "EQUITY", "parent": "3000" },
+    { "code": "3300", "name": "Retained earnings", "type": "EQUITY", "parent": "3000" },
+    { "code": "3400", "name": "Donations and grants", "type": "EQUITY", "parent": "3000" },
+    { "code": "3900", "name": "Opening balances contra", "type": "EQUITY", "parent": "3000" },
+
+    { "code": "4000", "name": "INCOME", "type": "INCOME", "usage": "HEADER" },
+    { "code": "4100", "name": "Interest income on loans", "type": "INCOME", "usage": "HEADER", "parent": "4000" },
+    { "code": "4110", "name": "Interest - business loans", "type": "INCOME", "parent": "4100" },
+    { "code": "4120", "name": "Interest - emergency loans", "type": "INCOME", "parent": "4100" },
+    { "code": "4130", "name": "Interest - school fees loans", "type": "INCOME", "parent": "4100" },
+    { "code": "4140", "name": "Interest - salary loans", "type": "INCOME", "parent": "4100" },
+    { "code": "4200", "name": "Fee and commission income", "type": "INCOME", "usage": "HEADER", "parent": "4000" },
+    { "code": "4210", "name": "Loan processing fees", "type": "INCOME", "parent": "4200" },
+    { "code": "4220", "name": "Membership and entrance fees", "type": "INCOME", "parent": "4200" },
+    { "code": "4230", "name": "Savings account fees", "type": "INCOME", "parent": "4200" },
+    { "code": "4240", "name": "Penalty income", "type": "INCOME", "parent": "4200" },
+    { "code": "4300", "name": "Other income", "type": "INCOME", "usage": "HEADER", "parent": "4000" },
+    { "code": "4310", "name": "Interest on bank deposits and investments", "type": "INCOME", "parent": "4300" },
+    { "code": "4320", "name": "Recoveries of written-off loans", "type": "INCOME", "parent": "4300" },
+    { "code": "4330", "name": "Miscellaneous income", "type": "INCOME", "parent": "4300" },
+
+    { "code": "5000", "name": "EXPENSES", "type": "EXPENSE", "usage": "HEADER" },
+    { "code": "5100", "name": "Interest expense", "type": "EXPENSE", "usage": "HEADER", "parent": "5000" },
+    { "code": "5110", "name": "Interest on savings", "type": "EXPENSE", "parent": "5100" },
+    { "code": "5120", "name": "Interest on fixed deposits", "type": "EXPENSE", "parent": "5100" },
+    { "code": "5130", "name": "Interest on borrowings", "type": "EXPENSE", "parent": "5100" },
+    { "code": "5200", "name": "Credit losses", "type": "EXPENSE", "usage": "HEADER", "parent": "5000" },
+    { "code": "5210", "name": "Loan loss provision expense", "type": "EXPENSE", "parent": "5200" },
+    { "code": "5220", "name": "Loans written off", "type": "EXPENSE", "parent": "5200" },
+    { "code": "5300", "name": "Operating expenses", "type": "EXPENSE", "usage": "HEADER", "parent": "5000" },
+    { "code": "5310", "name": "Salaries and wages", "type": "EXPENSE", "parent": "5300" },
+    { "code": "5320", "name": "Rent", "type": "EXPENSE", "parent": "5300" },
+    { "code": "5330", "name": "Utilities", "type": "EXPENSE", "parent": "5300" },
+    { "code": "5340", "name": "Stationery and printing", "type": "EXPENSE", "parent": "5300" },
+    { "code": "5350", "name": "Transport", "type": "EXPENSE", "parent": "5300" },
+    { "code": "5360", "name": "Communication and airtime", "type": "EXPENSE", "parent": "5300" },
+    { "code": "5370", "name": "Bank charges", "type": "EXPENSE", "parent": "5300" },
+    { "code": "5380", "name": "Mobile money charges", "type": "EXPENSE", "parent": "5300" },
+    { "code": "5390", "name": "Depreciation", "type": "EXPENSE", "parent": "5300" },
+    { "code": "5395", "name": "Audit and professional fees", "type": "EXPENSE", "parent": "5300" },
+    { "code": "5396", "name": "Board and AGM expenses", "type": "EXPENSE", "parent": "5300" },
+    { "code": "5397", "name": "Software and IT", "type": "EXPENSE", "parent": "5300" }
+  ],
+
+  "financialActivityMappings": {
+    "assetTransfer": "1910",
+    "liabilityTransfer": "2340",
+    "cashAtMainVault": "1110",
+    "cashAtTeller": "1120",
+    "fundSource": "1120",
+    "payableDividends": "2350",
+    "openingBalancesTransferContra": "3900"
+  },
+
+  "paymentTypes": [
+    { "name": "Cash", "isCashPayment": true, "gl": "1120" },
+    { "name": "MTN Mobile Money", "gl": "1140" },
+    { "name": "Airtel Money", "gl": "1150" },
+    { "name": "Bank transfer", "gl": "1130" },
+    { "name": "Cheque", "gl": "1130" },
+    { "name": "Salary check-off", "gl": "1160" },
+    { "name": "Migration", "gl": "1990", "_note": "Used ONLY to load opening balances from the legacy system; disable after cutover." }
+  ],
+  "defaultFundSource": "1120",
+
+  "charges": [
+    { "key": "membershipFee", "name": "Membership / entrance fee", "appliesTo": "savings", "timeType": 2, "calculationType": 1, "amount": 20000, "incomeGl": "4220", "_review": "REVIEW: one-off entrance fee UGX 20,000, attached to the member's Voluntary Savings account when it is opened and collected automatically from the first deposits (daily 'Pay Due Savings Charges' job). Modelled on savings because this Fineract build does not store an income account on client-level charges." },
+    { "key": "processingFee2", "name": "Loan processing fee 2%", "appliesTo": "loan", "timeType": 1, "calculationType": 2, "amount": 2, "incomeGl": "4210", "_review": "REVIEW: 2% of principal at disbursement. Fineract books disbursement fees as cash received at the till (Dr 1120). If the fee is instead deducted from the member's savings, switch these charges to payment mode 'account transfer'." },
+    { "key": "processingFee1_5", "name": "Loan processing fee 1.5%", "appliesTo": "loan", "timeType": 1, "calculationType": 2, "amount": 1.5, "incomeGl": "4210" },
+    { "key": "processingFee1", "name": "Loan processing fee 1%", "appliesTo": "loan", "timeType": 1, "calculationType": 2, "amount": 1, "incomeGl": "4210" },
+    { "key": "latePenalty", "name": "Late repayment penalty", "appliesTo": "loan", "timeType": 9, "calculationType": 3, "amount": 1, "penalty": true, "feeInterval": 1, "feeFrequency": 2, "incomeGl": "4240", "_review": "REVIEW: 1% per month of the overdue instalment (principal + interest)" },
+    { "key": "withdrawalFee", "name": "Savings withdrawal fee", "appliesTo": "savings", "timeType": 5, "calculationType": 1, "amount": 1000, "incomeGl": "4230", "_review": "REVIEW: UGX 1,000 per over-the-counter withdrawal" }
+  ],
+
+  "shareProduct": {
+    "name": "Member Shares", "shortName": "SHR",
+    "description": "Ordinary member share capital",
+    "unitPrice": 20000, "totalShares": 1000000, "sharesIssued": 1000000,
+    "minimumShares": 5, "nominalShares": 5, "maximumShares": 5000,
+    "minimumActivePeriodForDividends": 90,
+    "lockinPeriod": 12, "lockinPeriodType": 2,
+    "gl": { "shareReference": "1120", "shareSuspense": "2360", "shareEquity": "3100", "incomeFromFees": "4220" },
+    "_review": "REVIEW: share price UGX 20,000; minimum 5 shares (UGX 100,000) to be a full member; max 5,000 shares per member; shares locked 12 months; dividends only for shares held 90+ days."
+  },
+
+  "savingsProducts": [
+    {
+      "name": "Voluntary Savings", "shortName": "VSV",
+      "description": "Ordinary withdrawable savings",
+      "nominalAnnualInterestRate": 3, "compounding": 4, "posting": 7, "calculation": 1, "daysInYear": 365,
+      "minRequiredOpeningBalance": 0, "minRequiredBalance": 5000, "enforceMinRequiredBalance": true,
+      "minBalanceForInterestCalculation": 50000,
+      "charges": ["membershipFee", "withdrawalFee"],
+      "gl": { "control": "2110", "interestExpense": "5110", "interestPayable": "2210" },
+      "_review": "REVIEW: 3% p.a. on daily balance, compounded monthly, posted annually; first deposit at least UGX 10,000 (collected as a normal deposit); minimum balance UGX 5,000; no interest below UGX 50,000; entrance fee UGX 20,000 charged on activation."
+    },
+    {
+      "name": "Compulsory Savings", "shortName": "CSV",
+      "description": "Monthly compulsory contribution; withdrawable only on exit",
+      "nominalAnnualInterestRate": 5, "compounding": 4, "posting": 7, "calculation": 1, "daysInYear": 365,
+      "minRequiredOpeningBalance": 0, "minRequiredBalance": 0, "enforceMinRequiredBalance": false,
+      "lockinPeriod": 12, "lockinPeriodType": 2,
+      "charges": [],
+      "gl": { "control": "2120", "interestExpense": "5110", "interestPayable": "2210" },
+      "_review": "REVIEW: 5% p.a.; first deposit UGX 20,000; UGX 20,000/month expected contribution (enforced by staff/standing instruction, not the product); withdrawals blocked for the first 12 months. Fineract has no 'withdraw only on exit' rule — closing the account on exit is the control."
+    },
+    {
+      "name": "Children and Youth Savings", "shortName": "CYS",
+      "description": "Savings for members' children and youth",
+      "nominalAnnualInterestRate": 4, "compounding": 4, "posting": 7, "calculation": 1, "daysInYear": 365,
+      "minRequiredOpeningBalance": 0, "minRequiredBalance": 5000, "enforceMinRequiredBalance": true,
+      "lockinPeriod": 3, "lockinPeriodType": 2,
+      "charges": [],
+      "gl": { "control": "2140", "interestExpense": "5110", "interestPayable": "2210" },
+      "_review": "REVIEW: 4% p.a.; minimum balance UGX 5,000; withdrawals blocked for the first 3 months; no withdrawal fee."
+    }
+  ],
+
+  "fixedDepositProduct": {
+    "name": "Fixed Deposit", "shortName": "FXD",
+    "description": "Term deposit",
+    "minDepositTerm": 3, "maxDepositTerm": 24, "depositTermType": 2, "inMultiplesOfDepositTerm": 3,
+    "minDepositAmount": 500000, "depositAmount": 1000000, "maxDepositAmount": 500000000,
+    "compounding": 4, "posting": 11, "calculation": 1, "daysInYear": 365,
+    "preClosurePenalInterest": 2, "preClosurePenalInterestOnType": 1,
+    "chartSlabs": [
+      { "fromPeriod": 1, "toPeriod": 5, "rate": 6 },
+      { "fromPeriod": 6, "toPeriod": 11, "rate": 8 },
+      { "fromPeriod": 12, "toPeriod": 24, "rate": 10 }
+    ],
+    "gl": { "control": "2130", "interestExpense": "5120", "interestPayable": "2220" },
+    "_review": "REVIEW: 3–24 months in 3-month steps; minimum UGX 500,000; 6% (3–5 m), 8% (6–11 m), 10% (12–24 m) p.a.; early closure loses 2% of the rate."
+  },
+
+  "loanProductDefaults": {
+    "interestType": 0, "amortizationType": 1, "interestCalculationPeriodType": 1,
+    "repaymentFrequencyType": 2, "repaymentEvery": 1, "interestRateFrequencyType": 2,
+    "daysInYearType": 365, "daysInMonthType": 1,
+    "transactionProcessingStrategyCode": "mifos-standard-strategy",
+    "inMultiplesOf": 1000, "installmentAmountInMultiplesOf": 100,
+    "overdueDaysForNPA": 90, "accountMovesOutOfNPAOnlyOnArrearsCompletion": true,
+    "graceOnArrearsAgeing": 0, "inArrearsTolerance": 0,
+    "includeInBorrowerCycle": true,
+    "charges": ["latePenalty"],
+    "gl": {
+      "interestReceivable": "1310", "feesReceivable": "1320", "penaltiesReceivable": "1330",
+      "transfersSuspense": "1910", "incomeFromFees": "4210", "incomeFromPenalties": "4240",
+      "incomeFromRecovery": "4320", "writeOff": "5220", "overpayment": "2330"
+    }
+  },
+
+  "loanProducts": [
+    {
+      "name": "Business / Development Loan", "shortName": "BDL",
+      "description": "Main member loan for business and development",
+      "principal": 2000000, "minPrincipal": 500000, "maxPrincipal": 20000000,
+      "numberOfRepayments": 12, "minNumberOfRepayments": 3, "maxNumberOfRepayments": 36,
+      "interestRatePerPeriod": 2, "minInterestRatePerPeriod": 1.5, "maxInterestRatePerPeriod": 2.5,
+      "charges": ["processingFee2", "latePenalty"],
+      "holdGuaranteeFunds": true, "mandatoryGuarantee": 50, "minimumGuaranteeFromOwnFunds": 25, "minimumGuaranteeFromGuarantor": 25,
+      "gl": { "portfolio": "1210", "interestIncome": "4110" },
+      "_review": "REVIEW: UGX 500k–20M, 3–36 months, 2% per month reducing balance (range 1.5–2.5%), 2% processing fee, 50% of the loan must be guaranteed (25% own savings + 25% guarantors)."
+    },
+    {
+      "name": "Emergency Loan", "shortName": "EML",
+      "description": "Short-term emergency loan",
+      "principal": 500000, "minPrincipal": 100000, "maxPrincipal": 2000000,
+      "numberOfRepayments": 3, "minNumberOfRepayments": 1, "maxNumberOfRepayments": 3,
+      "interestRatePerPeriod": 3, "minInterestRatePerPeriod": 3, "maxInterestRatePerPeriod": 3,
+      "charges": ["processingFee1", "latePenalty"],
+      "holdGuaranteeFunds": false,
+      "gl": { "portfolio": "1220", "interestIncome": "4120" },
+      "_review": "REVIEW: UGX 100k–2M, 1–3 months, 3% per month reducing balance, 1% processing fee, no guarantee requirement."
+    },
+    {
+      "name": "School Fees Loan", "shortName": "SFL",
+      "description": "Loan for school and university fees",
+      "principal": 1000000, "minPrincipal": 200000, "maxPrincipal": 10000000,
+      "numberOfRepayments": 4, "minNumberOfRepayments": 3, "maxNumberOfRepayments": 12,
+      "interestRatePerPeriod": 2, "minInterestRatePerPeriod": 1.5, "maxInterestRatePerPeriod": 2,
+      "charges": ["processingFee1_5", "latePenalty"],
+      "holdGuaranteeFunds": false,
+      "gl": { "portfolio": "1230", "interestIncome": "4130" },
+      "_review": "REVIEW: UGX 200k–10M, 3–12 months, 2% per month reducing balance, 1.5% processing fee."
+    },
+    {
+      "name": "Salary / Check-off Loan", "shortName": "SAL",
+      "description": "Loan repaid by employer payroll deduction",
+      "principal": 3000000, "minPrincipal": 500000, "maxPrincipal": 30000000,
+      "numberOfRepayments": 12, "minNumberOfRepayments": 3, "maxNumberOfRepayments": 36,
+      "interestRatePerPeriod": 1.8, "minInterestRatePerPeriod": 1.5, "maxInterestRatePerPeriod": 2,
+      "charges": ["processingFee1_5", "latePenalty"],
+      "holdGuaranteeFunds": false,
+      "gl": { "portfolio": "1240", "interestIncome": "4140" },
+      "_review": "REVIEW: UGX 500k–30M, 3–36 months, 1.8% per month reducing balance, 1.5% processing fee; requires an employer check-off agreement (tracked outside Fineract)."
+    }
+  ],
+
+  "provisioning": {
+    "criteriaName": "Pivot SACCO loan loss provisioning",
+    "liabilityGl": "2410", "expenseGl": "5210",
+    "categories": [
+      { "category": "STANDARD", "minAge": 0, "maxAge": 30, "percentage": 1 },
+      { "category": "SUB-STANDARD", "minAge": 31, "maxAge": 90, "percentage": 25 },
+      { "category": "DOUBTFUL", "minAge": 91, "maxAge": 180, "percentage": 50 },
+      { "category": "LOSS", "minAge": 181, "maxAge": 99999, "percentage": 100 }
+    ],
+    "_review": "REVIEW against the UMRA Tier 4 provisioning rules and your auditor: 1% (0–30 days), 25% (31–90), 50% (91–180), 100% (180+)."
+  },
+
+  "holidays": [
+    { "name": "Independence Day 2026", "date": "2026-10-09" },
+    { "name": "Christmas Day 2026", "date": "2026-12-25" },
+    { "name": "Boxing Day 2026", "date": "2026-12-26" },
+    { "name": "New Year's Day 2027", "date": "2027-01-01" },
+    { "name": "NRM Liberation Day 2027", "date": "2027-01-26" },
+    { "name": "Archbishop Janani Luwum Day 2027", "date": "2027-02-16" },
+    { "name": "International Women's Day 2027", "date": "2027-03-08" },
+    { "name": "Eid al-Fitr 2027", "date": "2027-03-10", "_note": "REVIEW: lunar date, confirm when gazetted" },
+    { "name": "Good Friday 2027", "date": "2027-03-26" },
+    { "name": "Easter Monday 2027", "date": "2027-03-29" },
+    { "name": "Labour Day 2027", "date": "2027-05-01" },
+    { "name": "Eid al-Adha 2027", "date": "2027-05-17", "_note": "REVIEW: lunar date, confirm when gazetted" },
+    { "name": "Martyrs' Day 2027", "date": "2027-06-03" },
+    { "name": "National Heroes' Day 2027", "date": "2027-06-09" },
+    { "name": "Independence Day 2027", "date": "2027-10-09" },
+    { "name": "Christmas Day 2027", "date": "2027-12-25" },
+    { "name": "Boxing Day 2027", "date": "2027-12-26" }
+  ],
+
+  "jobs": {
+    "activate": ["Add Periodic Accrual Transactions", "Add Accrual Transactions For Savings", "Generate Loan Loss Provisioning", "Purge Processed Commands", "Purge External Events"],
+    "deactivate": ["Update SMS Outbound with Campaign Message", "Send Messages to SMS Gateway", "Get Delivery Reports from SMS Gateway", "Execute Email", "Update Email Outbound with campaign message", "Execute Report Mailing Jobs"],
+    "_note": "SMS/e-mail jobs stay off until a gateway is configured."
+  }
+}
