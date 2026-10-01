@@ -36,6 +36,9 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
+      <a class="nav-link" data-nav="recurring-deposits" href="recurring-deposits.html"><span class="nav-icon" aria-hidden="true">↻</span> Recurring deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon">🏷</span> Products &amp; charges</a>
@@ -61,7 +64,11 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon">⚙</span> Users &amp; settings</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
+      <a class="nav-link" data-nav="settings" href="settings.html"><span class="nav-icon" aria-hidden="true">⚙</span> Settings</a>
+      <a class="nav-link" data-nav="system" href="system.html"><span class="nav-icon" aria-hidden="true">⏲</span> System</a>
     </div>
   </nav>
   <div class="sidebar-foot"><span class="mock-badge">MOCK UI</span><div style="margin-top:6px">Tenant: default · env: local</div></div>
@@ -86,7 +93,23 @@
 
       <div class="btn-group" style="margin-bottom:14px">
         <a class="btn btn-amber" href="client-onboard.html">＋ Onboard member</a>
-        <button class="btn btn-ghost" data-mock="Import">Import CSV</button>
+        <button type="button" class="btn btn-ghost" id="client-import-open">Import members</button>
+      </div>
+      <div class="card" id="client-import" hidden>
+        <div class="card-h"><h2>Member workbook import</h2></div>
+        <div class="card-b">
+          <p class="callout">Fineract imports people from the Excel workbook it generates. A CSV is not this import. Desk uploads the workbook and reports the import id. It does not mark members as created until they appear in the client list.</p>
+          <div class="btn-group">
+            <button type="button" class="btn btn-sm" id="import-download">Download workbook template</button>
+            <input id="import-file" type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+            <button type="button" class="btn btn-amber btn-sm" id="import-upload">Upload workbook</button>
+          </div>
+          <p id="import-status" class="text-muted"></p>
+          <div class="table-wrap"><table class="data" id="import-table">
+            <thead><tr><th>Import</th><th>File</th><th>When</th><th>Status</th><th>Rows</th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+          </table></div>
+        </div>
       </div>
       <div class="card"><div class="card-h"><h2>Members</h2>
         <div class="filters" style="margin:0">
@@ -118,5 +141,6 @@
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
   <script src="assets/actions.js"></script>
+  <script src="assets/desk-remaining.js"></script>
 </body>
 </html>

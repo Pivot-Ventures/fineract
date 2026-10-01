@@ -173,6 +173,180 @@
     return String(arrOrStr).slice(0, 10);
   }
 
+  function formatNumber(n) {
+    var num = Number(n);
+    if (n === null || n === undefined || n === "" || isNaN(num)) return "0";
+    return num.toLocaleString("en-UG", { maximumFractionDigits: 2 });
+  }
+
+  function isISODate(v) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) && !isNaN(Date.parse(v + "T00:00:00"));
+  }
+
+  function yearStartISO() {
+    return new Date().getFullYear() + "-01-01";
+  }
+
+  function statusBadge(obj) {
+    var label = statusLabel(obj);
+    var cls = statusClass(typeof obj === "object" && obj ? (obj.value || obj.code || label) : label);
+    return '<span class="status ' + cls + '">' + escapeHtml(label) + "</span>";
+  }
+
+  function emptyRow(cols, msg) {
+    return '<tr class="empty-row"><td colspan="' + Number(cols || 1) + '">' + escapeHtml(msg || "Nothing to show") + "</td></tr>";
+  }
+
+  function loadingRow(cols, msg) {
+    return '<tr class="loading-row"><td colspan="' + Number(cols || 1) + '">' + escapeHtml(msg || "Loading…") + "</td></tr>";
+  }
+
+  function setStatus(msg) {
+    var bar = document.getElementById("status-bar");
+    if (!bar) return;
+    bar.hidden = !msg;
+    bar.textContent = msg || "";
+  }
+
+  function clearStatus() { setStatus(""); }
+
+  function permissionCodes() {
+    var sess = loadSession() || {};
+    return (sess.permissions || []).map(function (p) {
+      return typeof p === "string" ? p : (p && (p.code || p.name)) || "";
+    }).filter(Boolean);
+  }
+
+  function can(code) {
+    var perms = permissionCodes();
+    if (!perms.length || perms.indexOf("ALL_FUNCTIONS") >= 0) return true;
+    var list = Array.isArray(code) ? code : [code];
+    return list.some(function (c) { return perms.indexOf(c) >= 0; });
+  }
+
+  var paymentTypeCache = null;
+  function paymentTypes() {
+    if (paymentTypeCache) return Promise.resolve(paymentTypeCache);
+    return get("/paymenttypes").then(function (rows) {
+      paymentTypeCache = Array.isArray(rows) ? rows : [];
+      return paymentTypeCache;
+    });
+  }
+
+  function searchRows(resource, q) {
+    var query = String(q || "").trim();
+    if (query.length < 2) return Promise.resolve([]);
+    return get("/search?exactMatch=false&resource=" + encodeURIComponent(resource) + "&query=" + encodeURIComponent(query)).then(function (rows) {
+      rows = Array.isArray(rows) ? rows : [];
+      return rows.map(function (r) {
+        var name = r.entityName || r.parentName || "";
+        var acct = r.entityAccountNo || r.entityExternalId || "";
+        return {
+          value: r.entityId,
+          label: name + (acct ? " (" + acct + ")" : ""),
+          sub: r.entityType || r.parentName || ""
+        };
+      });
+    });
+  }
+
+  function searchClients(q) { return searchRows("clients", q); }
+  function searchLoans(q) { return searchRows("loans", q); }
+  function searchSavings(q) { return searchRows("savings", q); }
+
+  function confirmDialog(opts) {
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      var overlay = document.createElement("div");
+      overlay.style.cssText = "position:fixed;inset:0;background:rgba(8,24,28,.45);z-index:90;display:flex;align-items:flex-start;justify-content:center;padding:48px 16px;overflow:auto";
+      var box = document.createElement("div");
+      box.className = "card";
+      box.style.cssText = "width:min(520px,100%);margin:0;background:#fff";
+      var lines = opts.lines || [];
+      var html = '<div class="card-h"><h2>' + escapeHtml(opts.title || "Confirm") + "</h2></div><div class=\"card-b\">";
+      if (opts.summary) html += '<p style="margin:0 0 10px">' + escapeHtml(opts.summary) + "</p>";
+      if (lines.length) {
+        html += '<div class="meta-list">';
+        lines.forEach(function (pair) {
+          html += '<div class="meta-item"><div class="k">' + escapeHtml(pair[0]) + '</div><div class="v">' + escapeHtml(pair[1]) + "</div></div>";
+        });
+        html += "</div>";
+      }
+      if (opts.note) html += '<p class="text-muted" style="margin:12px 0 0;font-size:13px">' + escapeHtml(opts.note) + "</p>";
+      html += '<div class="form-actions"><button type="button" class="btn btn-amber" data-ok>' + escapeHtml(opts.confirmLabel || "Confirm") + '</button><button type="button" class="btn btn-ghost" data-cancel>Cancel</button></div></div>';
+      box.innerHTML = html;
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      function finish(val) { overlay.remove(); resolve(val); }
+      box.querySelector("[data-cancel]").addEventListener("click", function () { finish(false); });
+      overlay.addEventListener("click", function (e) { if (e.target === overlay) finish(false); });
+      box.querySelector("[data-ok]").addEventListener("click", function () {
+        var btn = box.querySelector("[data-ok]");
+        if (typeof opts.onConfirm !== "function") { finish(true); return; }
+        btn.disabled = true;
+        Promise.resolve().then(function () { return opts.onConfirm(); }).then(function () {
+          finish(true);
+        }).catch(function (err) {
+          btn.disabled = false;
+          toast((err && err.message) || String(err), "error");
+        });
+      });
+    });
+  }
+
+  function typeahead(input, opts) {
+    if (!input) return;
+    opts = opts || {};
+    var box = document.createElement("div");
+    box.className = "search-results";
+    box.hidden = true;
+    input.insertAdjacentElement("afterend", box);
+    var timer;
+    input.addEventListener("input", function () {
+      if (typeof opts.onInput === "function") opts.onInput();
+      clearTimeout(timer);
+      var q = input.value.trim();
+      if (q.length < 2 || typeof opts.fetch !== "function") { box.hidden = true; return; }
+      timer = setTimeout(function () {
+        Promise.resolve(opts.fetch(q)).then(function (rows) {
+          rows = rows || [];
+          box._rows = rows;
+          box.hidden = !rows.length;
+          box.innerHTML = rows.map(function (r, i) {
+            return '<button type="button" class="btn btn-sm btn-ghost" data-i="' + i + '">' + escapeHtml(r.label || r.value) + "</button>";
+          }).join("");
+        }).catch(function () { box.hidden = true; });
+      }, 250);
+    });
+    box.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("button");
+      if (!b) return;
+      var row = (box._rows || [])[Number(b.getAttribute("data-i"))];
+      box.hidden = true;
+      if (row && typeof opts.onSelect === "function") opts.onSelect(row);
+    });
+  }
+
+  async function getBlob(path) {
+    var sess = loadSession() || {};
+    var headers = {
+      "Fineract-Platform-TenantId": sess.tenantId || "default",
+      Accept: "*/*"
+    };
+    if (sess.base64EncodedAuthenticationKey) headers.Authorization = "Basic " + sess.base64EncodedAuthenticationKey;
+    var res = await fetch(BASE + path, { headers: headers });
+    if (!res.ok) {
+      var err = new Error("HTTP " + res.status);
+      err.status = res.status;
+      throw err;
+    }
+    var disp = res.headers.get("Content-Disposition") || "";
+    var name = "download";
+    var match = /filename="?([^";]+)"?/.exec(disp);
+    if (match) name = match[1];
+    return { blob: await res.blob(), name: name };
+  }
+
   function statusClass(code) {
     var c = (code || "").toLowerCase();
     if (c.indexOf("active") >= 0 || c === "300") return "active";
@@ -370,12 +544,20 @@
           html += "</select>";
         } else if (f.type === "textarea") {
           html += '<textarea data-k="' + escapeHtml(f.key) + '" rows="2">' + escapeHtml(f.value || "") + "</textarea>";
+        } else if (f.type === "search") {
+          html += '<input data-search-for="' + escapeHtml(f.key) + '" type="search" placeholder="' + escapeHtml(f.placeholder || "Search") + '" autocomplete="off" />';
+          html += '<div class="search-results" data-results="' + escapeHtml(f.key) + '" hidden></div>';
+          html += '<input type="hidden" data-k="' + escapeHtml(f.key) + '" value="' + escapeHtml(f.value || "") + '" />';
+        } else if (f.type === "checkbox") {
+          html += '<label class="check"><input data-k="' + escapeHtml(f.key) + '" type="checkbox"' + (f.value === true || f.value === "true" ? " checked" : "") + " /> " + escapeHtml(f.hint || "") + "</label>";
         } else {
           var extra = "";
           if (f.maxLength) extra += ' maxlength="' + Number(f.maxLength) + '"';
           if (f.placeholder) extra += ' placeholder="' + escapeHtml(f.placeholder) + '"';
           if (f.step) extra += ' step="' + escapeHtml(f.step) + '"';
+          if (f.max) extra += ' max="' + escapeHtml(f.max) + '"';
           if (f.required) extra += " required";
+          if (f.amount) extra += ' data-amount="1" inputmode="decimal"';
           html += '<input data-k="' + escapeHtml(f.key) + '" type="' + escapeHtml(f.type || "text") + '" value="' + escapeHtml(f.value || "") + '"' + extra + " />";
         }
         if (f.hint) html += '<div class="text-muted" style="font-size:12px;margin-top:4px">' + escapeHtml(f.hint) + "</div>";
@@ -390,10 +572,62 @@
         box.querySelectorAll("[data-k]").forEach(function (el) {
           var row = el.closest(".form-row");
           if (row && row.style.display === "none") return;
-          out[el.getAttribute("data-k")] = el.value;
+          var key = el.getAttribute("data-k");
+          if (el.getAttribute("data-amount") === "1") {
+            out[key] = Number(String(el.value).replace(/,/g, ""));
+          } else if (el.type === "checkbox") {
+            out[key] = el.checked ? "true" : "false";
+          } else {
+            out[key] = el.value;
+          }
+        });
+        box.querySelectorAll("[data-search-for]").forEach(function (input) {
+          out[input.getAttribute("data-search-for") + "Label"] = input.getAttribute("data-label") || input.value;
         });
         return out;
       }
+      var searchTimers = {};
+      box.querySelectorAll("[data-search-for]").forEach(function (input) {
+        var key = input.getAttribute("data-search-for");
+        var field = fields.filter(function (f) { return f.key === key; })[0] || {};
+        input.addEventListener("input", function () {
+          var hidden = box.querySelector('input[type="hidden"][data-k="' + key + '"]');
+          if (hidden) hidden.value = "";
+          input.removeAttribute("data-label");
+          clearTimeout(searchTimers[key]);
+          var q = input.value.trim();
+          var results = box.querySelector('[data-results="' + key + '"]');
+          if (q.length < 2 || typeof field.search !== "function") {
+            if (results) results.hidden = true;
+            return;
+          }
+          searchTimers[key] = setTimeout(function () {
+            Promise.resolve(field.search(q)).then(function (rows) {
+              if (!results) return;
+              rows = rows || [];
+              results.hidden = !rows.length;
+              results.innerHTML = rows.map(function (r) {
+                return '<button type="button" class="btn btn-sm btn-ghost" data-pick="' + escapeHtml(r.value) + '" data-label="' + escapeHtml(r.label || r.value) + '">' + escapeHtml(r.label || r.value) + "</button>";
+              }).join("");
+            }).catch(function () { if (results) results.hidden = true; });
+          }, 250);
+        });
+      });
+      box.addEventListener("click", function (e) {
+        var pick = e.target.closest && e.target.closest("[data-pick]");
+        if (!pick || !box.contains(pick)) return;
+        var results = pick.closest("[data-results]");
+        if (!results) return;
+        var key = results.getAttribute("data-results");
+        var hidden = box.querySelector('input[type="hidden"][data-k="' + key + '"]');
+        var input = box.querySelector('[data-search-for="' + key + '"]');
+        if (hidden) hidden.value = pick.getAttribute("data-pick");
+        if (input) {
+          input.value = pick.getAttribute("data-label") || "";
+          input.setAttribute("data-label", input.value);
+        }
+        results.hidden = true;
+      });
       function syncShown() {
         var current = {};
         box.querySelectorAll("[data-k]").forEach(function (el) {
@@ -432,9 +666,7 @@
       }
       box.querySelector("[data-cancel]").addEventListener("click", function () { close(null); });
       overlay.addEventListener("click", function (e) { if (e.target === overlay) close(null); });
-      box.addEventListener("submit", function (e) {
-        e.preventDefault();
-        var out = readValues();
+      function runSubmit(out) {
         if (typeof opts.onSubmit !== "function") { close(out); return; }
         var btn = box.querySelector("button[type=submit]");
         if (btn) btn.disabled = true;
@@ -444,6 +676,22 @@
           if (btn) btn.disabled = false;
           toast((err && err.message) || String(err), "error");
         });
+      }
+      box.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var out = readValues();
+        if (typeof opts.validate === "function") {
+          var msg = opts.validate(out);
+          if (msg) { toast(msg, "error"); return; }
+        }
+        if (typeof opts.confirm === "function") {
+          var spec = opts.confirm(out);
+          if (spec) {
+            confirmDialog(spec).then(function (ok) { if (ok) runSubmit(out); });
+            return;
+          }
+        }
+        runSubmit(out);
       });
       var first = box.querySelector("input, select, textarea");
       if (first) first.focus();
@@ -463,10 +711,27 @@
     getSession: getSession,
     isLoggedIn: isLoggedIn,
     requireAuth: requireAuth,
+    DEFAULT_TENANT: "default",
     formatMoney: formatMoney,
     formatDate: formatDate,
+    formatNumber: formatNumber,
+    isISODate: isISODate,
+    yearStartISO: yearStartISO,
     statusClass: statusClass,
     statusLabel: statusLabel,
+    statusBadge: statusBadge,
+    emptyRow: emptyRow,
+    loadingRow: loadingRow,
+    setStatus: setStatus,
+    clearStatus: clearStatus,
+    can: can,
+    paymentTypes: paymentTypes,
+    searchClients: searchClients,
+    searchLoans: searchLoans,
+    searchSavings: searchSavings,
+    confirmDialog: confirmDialog,
+    typeahead: typeahead,
+    getBlob: getBlob,
     qs: qs,
     setLiveBanner: setLiveBanner,
     markLiveChips: markLiveChips,
