@@ -452,7 +452,52 @@
         await paintDesk();
       });
     });
-    buttonsNamed("Shares").forEach(function (btn) { on(btn, async function () { api.toast("Share purchase is unsupported — no share product on this tenant", "error"); }); });
+    buttonsNamed("Shares").forEach(function (btn) {
+      on(btn, async function () {
+        var W = window.PivotDeskWrites;
+        if (!W) throw new Error("Share helpers did not load");
+        var products = W.asList(await api.get("/products/share"));
+        if (!products.length) throw new Error("No share product yet. Create one under Products & charges.");
+        var clients = await api.get("/clients?limit=100");
+        var people = clients.pageItems || [];
+        if (!people.length) throw new Error("No clients to buy shares for");
+        var chosen = await api.openDialog({
+          title: "Buy shares", submitLabel: "Continue",
+          fields: [
+            { key: "clientId", label: "Client", type: "select", options: people.map(function (c) { return { value: c.id, label: (c.accountNo || c.id) + " · " + (c.displayName || "") }; }) },
+            { key: "productId", label: "Share product", type: "select", options: products.map(function (p) { return { value: p.id, label: p.name }; }) },
+            { key: "requestedShares", label: "Shares", type: "number", value: "1" },
+            { key: "date", label: "Date", type: "date", value: api.todayISO() }
+          ]
+        });
+        if (!chosen) return;
+        var accounts = await api.get("/clients/" + chosen.clientId + "/accounts");
+        var sav = (accounts.savingsAccounts || []).filter(function (s) {
+          var label = (s.status && (s.status.value || s.status.code)) || "";
+          return !/closed|rejected/i.test(String(label));
+        });
+        if (!sav.length) throw new Error("This client needs a savings account to fund the share purchase.");
+        var savingsAccountId = sav[0].id;
+        if (sav.length > 1) {
+          var pick = await api.openDialog({
+            title: "Fund from savings", submitLabel: "Buy",
+            fields: [{ key: "savingsAccountId", label: "Savings account", type: "select", options: sav.map(function (s) { return { value: s.id, label: (s.accountNo || s.id) + " · " + api.formatMoney(s.accountBalance) }; }) }]
+          });
+          if (!pick) return;
+          savingsAccountId = pick.savingsAccountId;
+        }
+        var body = W.shareAccountPayload({
+          clientId: chosen.clientId, productId: chosen.productId, savingsAccountId: savingsAccountId,
+          requestedShares: chosen.requestedShares, date: chosen.date
+        });
+        var created = await api.post("/accounts/share", body);
+        var accountId = created.resourceId || created.savingsId;
+        if (!accountId) throw new Error("Share application did not return an id");
+        await api.post("/accounts/share/" + accountId + "?command=approve", W.shareApprovePayload(chosen.date));
+        await api.post("/accounts/share/" + accountId + "?command=activate", W.shareActivatePayload(chosen.date));
+        api.toast("Shares purchased · account #" + accountId, "success");
+      });
+    });
     buttonsNamed("Search").forEach(function (btn) {
       on(btn, async function () {
         var input = document.querySelector("[data-table-search='#teller-members']");
@@ -941,25 +986,46 @@
     api.claimMocks(["Create rule", "Post via rule"]);
     (async function () {
       var rules = await api.get("/accountingrules");
+      if (!Array.isArray(rules)) rules = [];
       var tb = document.querySelector("table.data tbody");
+      var RW = window.PivotDeskWrites;
+      function sideLabel(list) {
+        var items = Array.isArray(list) ? list : (list ? [list] : []);
+        if (!items.length) return "—";
+        return items.map(function (g) { return ((g.glCode || "") + " " + (g.name || g.id || "")).trim(); }).join(", ");
+      }
       if (tb && Array.isArray(rules)) {
-        tb.innerHTML = rules.map(function (r) { return "<tr><td>" + api.escapeHtml(r.name || "") + "</td><td>" + api.escapeHtml(r.description || "") + "</td><td>" + api.escapeHtml(r.officeName || "All") + "</td></tr>"; }).join("") || '<tr><td colspan="3">No rules</td></tr>';
+        tb.innerHTML = rules.map(function (r) {
+          return "<tr><td>" + api.escapeHtml(r.name || "") + "</td><td>" + api.escapeHtml(sideLabel(r.debitAccounts || r.accountToDebit)) +
+            "</td><td>" + api.escapeHtml(sideLabel(r.creditAccounts || r.accountToCredit)) + "</td></tr>";
+        }).join("") || '<tr><td colspan="3">No rules yet. Create one that debits vault 1110 or teller 1120 and credits a liability or expense.</td></tr>';
       }
       buttonsNamed("Create rule").forEach(function (btn) {
         on(btn, async function () {
           var gls = await api.get("/glaccounts");
-          var opts = (Array.isArray(gls) ? gls : []).filter(function (g) { return g.usage && g.usage.id === 1; }).map(function (g) { return { value: g.id, label: g.glCode + " " + g.name }; });
+          gls = Array.isArray(gls) ? gls : [];
+          var opts = (RW ? RW.glOptions(gls, null) : gls.filter(function (g) { return g.usage && g.usage.id === 1; }).map(function (g) { return { value: g.id, label: g.glCode + " " + g.name }; }));
+          if (!opts.length) throw new Error("Chart of accounts has no GL to post");
           var offices = await loadOffices();
-          var v = await api.openDialog({ title: "Accounting rule", submitLabel: "Create", fields: [
-            { key: "name", label: "Name", value: "" },
-            { key: "officeId", label: "Office", type: "select", options: offices.map(function (o) { return { value: o.id, label: o.name }; }) },
-            { key: "debit", label: "Debit GL", type: "select", options: opts },
-            { key: "credit", label: "Credit GL", type: "select", options: opts }
-          ]});
-          if (!v || !v.name) return;
-          await api.post("/accountingrules", { name: v.name.trim(), officeId: Number(v.officeId), description: v.name.trim(), accountToDebit: Number(v.debit), accountToCredit: Number(v.credit) });
-          api.toast("Rule created", "success");
-          location.reload();
+          var defaults = RW ? RW.accountingRuleDefaults(gls) : { debitId: null, creditId: null };
+          var suggested = rules.length ? "" : "Vault to deposits";
+          await api.openDialog({
+            title: rules.length ? "Accounting rule" : "Create the first accounting rule",
+            submitLabel: "Create",
+            message: rules.length ? "" : "Debit defaults to vault 1110 (or teller 1120). Credit defaults to member deposits.",
+            fields: [
+              { key: "name", label: "Name", value: suggested },
+              { key: "officeId", label: "Office", type: "select", options: offices.map(function (o) { return { value: o.id, label: o.name }; }) },
+              { key: "debit", label: "Debit GL", type: "select", value: defaults.debitId ? String(defaults.debitId) : "", options: opts },
+              { key: "credit", label: "Credit GL", type: "select", value: defaults.creditId ? String(defaults.creditId) : "", options: opts }
+            ],
+            onSubmit: async function (v) {
+              var body = RW ? RW.accountingRulePayload(v) : { name: v.name.trim(), officeId: Number(v.officeId), description: v.name.trim(), accountToDebit: Number(v.debit), accountToCredit: Number(v.credit) };
+              await api.post("/accountingrules", body);
+              api.toast("Rule created", "success");
+              location.reload();
+            }
+          });
         });
       });
       buttonsNamed("Post via rule").forEach(function (btn) { on(btn, async function () { location.href = "journal-entry.html"; }); });
@@ -998,7 +1064,8 @@
     })().catch(function (e) { api.toast(e.message, "error"); });
   }
   if (page === "accruals") {
-    api.claimMocks(["Run accruals", "Create provisioning"]);
+    var W = window.PivotDeskWrites;
+    api.claimMocks(["Run accruals", "Create provisioning", "Create provisioning entry"]);
     buttonsNamed("Run accruals").forEach(function (btn) {
       on(btn, async function () {
         var v = await api.openDialog({ title: "Run accruals", submitLabel: "Run", fields: [{ key: "tillDate", label: "Till date", type: "date", value: api.todayISO() }] });
@@ -1007,15 +1074,63 @@
         api.toast("Accrual run posted", "success");
       });
     });
+    (async function () {
+      var tb = document.getElementById("provisioning-entries");
+      if (!tb) return;
+      var pageData = await api.get("/provisioningentries?limit=20").catch(function () { return { pageItems: [] }; });
+      var items = (pageData && pageData.pageItems) || (Array.isArray(pageData) ? pageData : []);
+      tb.innerHTML = items.map(function (e) {
+        var when = api.formatDate(e.createdDate || e.createdUser || e.date);
+        var journal = e.journalEntry ? "Yes" : "No";
+        return "<tr><td>" + api.escapeHtml(when || ("#" + e.id)) + "</td><td>" + journal + "</td><td>#" + api.escapeHtml(String(e.id || "")) + "</td></tr>";
+      }).join("") || '<tr><td colspan="3">No provisioning entries</td></tr>';
+    })().catch(function (e) { api.toast(e.message, "error"); });
     buttonsNamed("Create provisioning").forEach(function (btn) {
       on(btn, async function () {
-        try {
-          var crit = await api.get("/provisioningcriteria");
-          api.toast("Provisioning criteria: " + (Array.isArray(crit) ? crit.length : "loaded") + ". Full criteria create is a multi-bucket payload and stays manual.", "success");
-        } catch (e) { api.toast("Provisioning create is not a simple POST on this tenant: " + e.message, "error"); }
+        if (!W) throw new Error("Provisioning helpers did not load");
+        var cats = W.asList(await api.get("/provisioningcategory"));
+        if (!cats.length) throw new Error("No provisioning categories are seeded");
+        var gls = W.asList(await api.get("/glaccounts"));
+        var liability = W.glOptions(gls, 2);
+        var expense = W.glOptions(gls, 5);
+        if (!liability.length || !expense.length) throw new Error("Cash provisioning needs a liability GL and an expense GL");
+        await api.openDialog({
+          title: "Create provisioning criteria", submitLabel: "Create", width: "min(640px,100%)",
+          message: "One age bucket is posted so the ranges cannot overlap.",
+          fields: [
+            { key: "criteriaName", label: "Name", value: "Standard" },
+            { key: "categoryId", label: "Category", type: "select", options: cats.map(function (c) { return { value: c.id, label: c.categoryName || c.name || c.id }; }) },
+            { key: "minAge", label: "Min age (days)", type: "number", value: "0" },
+            { key: "maxAge", label: "Max age (days)", type: "number", value: "30" },
+            { key: "provisioningPercentage", label: "Percent", type: "number", value: "5" },
+            { key: "liabilityAccount", label: "Liability GL", type: "select", options: liability },
+            { key: "expenseAccount", label: "Expense GL", type: "select", options: expense }
+          ],
+          onSubmit: async function (v) {
+            await api.post("/provisioningcriteria", W.provisioningCriteriaPayload(v));
+            api.toast("Provisioning criteria created", "success");
+          }
+        });
       });
     });
-    api.setLiveBanner(true, "LIVE — POST /runaccruals");
+    buttonsNamed("Create provisioning entry").forEach(function (btn) {
+      on(btn, async function () {
+        if (!W) throw new Error("Provisioning helpers did not load");
+        await api.openDialog({
+          title: "Create provisioning entry", submitLabel: "Create",
+          fields: [
+            { key: "date", label: "Date", type: "date", value: api.todayISO() },
+            { key: "createjournalentries", label: "Create journal", type: "select", value: "false", options: [{ value: "false", label: "No" }, { value: "true", label: "Yes" }] }
+          ],
+          onSubmit: async function (v) {
+            await api.post("/provisioningentries", W.provisioningEntryPayload(v));
+            api.toast("Provisioning entry created", "success");
+            location.reload();
+          }
+        });
+      });
+    });
+    api.setLiveBanner(true, "LIVE — POST /runaccruals · /provisioningcriteria · /provisioningentries");
   }
   if (page === "client-detail" || page === "onboard") {
     api.claimMocks(["Upload client image", "Update photo", "Close client", "Transfer client", "Open savings", "Edit client", "Add family", "Add address"]);
@@ -1077,12 +1192,47 @@
         api.toast("Transfer proposed", "success");
       });
     });
-    buttonsNamed("Add family").concat(buttonsNamed("Add address")).forEach(function (btn) {
-      on(btn, async function () { api.toast("Family and address datatables are not a single REST create on this tenant.", "error"); });
+    buttonsNamed("Add family").forEach(function (btn) {
+      on(btn, async function () { api.toast("Family records are not a single REST create on this tenant.", "error"); });
+    });
+    buttonsNamed("Add address").forEach(function (btn) {
+      on(btn, async function () {
+        var W = window.PivotDeskWrites;
+        var id = api.qs("id");
+        if (!id) throw new Error("Open a client before adding an address");
+        if (!W) throw new Error("Address helpers did not load");
+        var cfg = await api.get("/configurations/name/enable-address");
+        if (!cfg || !cfg.enabled) {
+          await api.put("/configurations/name/enable-address", { enabled: true });
+        }
+        var template = await api.get("/client/addresses/template");
+        var types = template.addressTypeIdOptions || [];
+        if (!types.length) throw new Error("No address types are configured");
+        var countries = template.countryIdOptions || [];
+        var states = template.stateProvinceIdOptions || [];
+        var fields = [
+          { key: "addressTypeId", label: "Type", type: "select", options: types.map(function (t) { return { value: t.id, label: t.name }; }) },
+          { key: "addressLine1", label: "Address line", value: "" },
+          { key: "city", label: "City", value: "" },
+          { key: "postalCode", label: "Postal code", value: "" }
+        ];
+        if (countries.length) fields.push({ key: "countryId", label: "Country", type: "select", options: countries.map(function (c) { return { value: c.id, label: c.name }; }) });
+        if (states.length) fields.push({ key: "stateProvinceId", label: "State / province", type: "select", options: states.map(function (s) { return { value: s.id, label: s.name }; }) });
+        await api.openDialog({
+          title: "Add address", submitLabel: "Save", fields: fields,
+          onSubmit: async function (v) {
+            var body = W.addressPayload(v);
+            await api.post("/client/" + id + "/addresses?type=" + body.addressTypeId, body);
+            api.toast("Address saved", "success");
+            location.reload();
+          }
+        });
+      });
     });
   }
   if (page === "products") {
-    api.claimMocks(["Create loan product", "Create charge", "Edit rate"]);
+    var W = window.PivotDeskWrites;
+    api.claimMocks(["Create loan product", "Create charge", "Edit rate", "Create floating rate", "Create share product", "Create fixed deposit", "Create recurring deposit"]);
     buttonsNamed("Create loan product").forEach(function (btn) { on(btn, async function () { api.toast("Loan product create needs fund, strategy, and a full GL mapping. List stays live; the wizard is not posted.", "error"); }); });
     buttonsNamed("Create charge").forEach(function (btn) {
       on(btn, async function () {
@@ -1095,7 +1245,167 @@
         api.toast("Charge created", "success");
       });
     });
-    buttonsNamed("Edit rate").forEach(function (btn) { on(btn, async function () { api.toast("No floating-rate chart is seeded. Edit stays unsupported.", "error"); }); });
+    function writes() {
+      if (!W) throw new Error("Product helpers did not load");
+      return W;
+    }
+    async function books() {
+      var pack = await Promise.all([
+        api.get("/glaccounts").catch(function () { return []; }),
+        api.get("/currencies").catch(function () { return {}; })
+      ]);
+      return { gls: writes().asList(pack[0]), currency: writes().currencyPack(pack[1]) };
+    }
+    async function nextRateDate() {
+      var rows = await api.get("/businessdate").catch(function () { return []; });
+      return writes().addDays(writes().businessDateIso(rows, api.todayISO()), 1);
+    }
+    function yesNo(key, label, value) {
+      return { key: key, label: label, type: "select", value: value || "true", options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] };
+    }
+    function productFields(extra, gls, specs, rule) {
+      return extra.concat([writes().accountingField(rule)]).concat(writes().glDialogFields(gls, specs, {}));
+    }
+    buttonsNamed("Create floating rate").forEach(function (btn) {
+      on(btn, async function () {
+        var start = await nextRateDate();
+        await api.openDialog({
+          title: "Create floating rate", submitLabel: "Create", width: "min(640px,100%)",
+          message: "The first period must start after the business date.",
+          fields: [
+            { key: "name", label: "Name", value: "BOU base" },
+            yesNo("isBaseLendingRate", "Base lending rate", "false"),
+            yesNo("isActive", "Active", "true"),
+            { key: "fromDate", label: "From date", type: "date", value: start },
+            { key: "interestRate", label: "Interest rate %", type: "number", value: "10" }
+          ],
+          onSubmit: async function (v) {
+            await api.post("/floatingrates", writes().floatingRatePayload(v));
+            api.toast("Floating rate created", "success");
+            location.reload();
+          }
+        });
+      });
+    });
+    buttonsNamed("Create share product").forEach(function (btn) {
+      on(btn, async function () {
+        var book = await books();
+        var rule = writes().accountingRuleDefault(book.gls, writes().SHARE_CASH_FIELDS);
+        var price = book.currency.code === "UGX" ? "10000" : "10";
+        await api.openDialog({
+          title: "Create share product", submitLabel: "Create", width: "min(720px,100%)",
+          fields: productFields([
+            { key: "name", label: "Name", value: "Member shares" },
+            { key: "shortName", label: "Short name", value: "MSHR", maxLength: 4 },
+            { key: "totalShares", label: "Total shares", type: "number", value: "10000" },
+            { key: "nominalShares", label: "Nominal shares", type: "number", value: "1" },
+            { key: "unitPrice", label: "Unit price", type: "number", value: price }
+          ], book.gls, writes().SHARE_CASH_FIELDS, rule),
+          onSubmit: async function (v) {
+            await api.post("/products/share", writes().shareProductPayload(v, book.currency, book.gls));
+            api.toast("Share product created", "success");
+            location.reload();
+          }
+        });
+      });
+    });
+    function depositDialog(title, path, build) {
+      return async function () {
+        var book = await books();
+        var rule = writes().accountingRuleDefault(book.gls, writes().DEPOSIT_CASH_FIELDS);
+        var amount = book.currency.code === "UGX" ? "500000" : "500";
+        await api.openDialog({
+          title: title, submitLabel: "Create", width: "min(720px,100%)",
+          message: "A 6–24 month chart is posted with the product. Cash uses teller GL 1120 when it is on the chart.",
+          fields: productFields([
+            { key: "name", label: "Name", value: title },
+            { key: "shortName", label: "Short name", value: "", maxLength: 4, hint: "Up to 4 letters. Leave blank to take them from the name." },
+            { key: "interestRate", label: "Annual interest %", type: "number", value: "8" },
+            { key: "depositAmount", label: "Deposit amount", type: "number", value: amount }
+          ], book.gls, writes().DEPOSIT_CASH_FIELDS, rule),
+          onSubmit: async function (v) {
+            await api.post(path, build(v, book.currency, book.gls));
+            api.toast(title + " created", "success");
+            location.reload();
+          }
+        });
+      };
+    }
+    buttonsNamed("Create fixed deposit").forEach(function (btn) {
+      on(btn, depositDialog("Fixed deposit", "/fixeddepositproducts", function (v, ccy, gls) { return writes().fixedDepositPayload(v, ccy, gls); }));
+    });
+    buttonsNamed("Create recurring deposit").forEach(function (btn) {
+      on(btn, depositDialog("Recurring deposit", "/recurringdepositproducts", function (v, ccy, gls) { return writes().recurringDepositPayload(v, ccy, gls); }));
+    });
+    document.addEventListener("click", function (ev) {
+      var rateBtn = ev.target.closest("[data-edit-rate]");
+      var loanBtn = ev.target.closest("[data-edit-loan]");
+      var savBtn = ev.target.closest("[data-edit-savings]");
+      if (!rateBtn && !loanBtn && !savBtn) return;
+      ev.preventDefault();
+      var job = (async function () {
+        if (rateBtn) {
+          var rate = await api.get("/floatingrates/" + rateBtn.getAttribute("data-edit-rate"));
+          var start = await nextRateDate();
+          var current = (rate.ratePeriods && rate.ratePeriods[0] && rate.ratePeriods[0].interestRate) || "";
+          await api.openDialog({
+            title: "Edit floating rate", submitLabel: "Save", width: "min(640px,100%)",
+            message: "Saving adds a future period. Periods that have already started stay as they are.",
+            fields: [
+              { key: "name", label: "Name", value: rate.name || "" },
+              yesNo("isBaseLendingRate", "Base lending rate", rate.isBaseLendingRate ? "true" : "false"),
+              yesNo("isActive", "Active", rate.isActive === false ? "false" : "true"),
+              { key: "fromDate", label: "New period from", type: "date", value: start },
+              { key: "interestRate", label: "Interest rate %", type: "number", value: String(current) }
+            ],
+            onSubmit: async function (v) {
+              await api.put("/floatingrates/" + rate.id, writes().floatingRatePayload(v));
+              api.toast("Floating rate updated", "success");
+              location.reload();
+            }
+          });
+          return;
+        }
+        var book = await books();
+        if (loanBtn) {
+          var loan = await api.get("/loanproducts/" + loanBtn.getAttribute("data-edit-loan"));
+          var loanRule = String(writes().enumId(loan.accountingRule) || writes().accountingRuleDefault(book.gls, writes().LOAN_CASH_FIELDS));
+          await api.openDialog({
+            title: "Edit loan product", submitLabel: "Save", width: "min(720px,100%)",
+            fields: productFields([
+              { key: "name", label: "Name", value: loan.name || "" },
+              { key: "shortName", label: "Short name", value: loan.shortName || "", maxLength: 4 },
+              { key: "principal", label: "Principal", type: "number", value: String(loan.principal || loan.minPrincipal || "") },
+              { key: "numberOfRepayments", label: "Repayments", type: "number", value: String(loan.numberOfRepayments || "") },
+              { key: "interestRatePerPeriod", label: "Interest % per period", type: "number", value: String(loan.interestRatePerPeriod != null ? loan.interestRatePerPeriod : "") }
+            ], book.gls, writes().LOAN_CASH_FIELDS, loanRule),
+            onSubmit: async function (v) {
+              await api.put("/loanproducts/" + loan.id, writes().loanProductUpdate(v, book.gls));
+              api.toast("Loan product updated", "success");
+              location.reload();
+            }
+          });
+          return;
+        }
+        var sav = await api.get("/savingsproducts/" + savBtn.getAttribute("data-edit-savings"));
+        var savRule = String(writes().enumId(sav.accountingRule) || writes().accountingRuleDefault(book.gls, writes().SAVINGS_CASH_FIELDS));
+        await api.openDialog({
+          title: "Edit savings product", submitLabel: "Save", width: "min(720px,100%)",
+          fields: productFields([
+            { key: "name", label: "Name", value: sav.name || "" },
+            { key: "shortName", label: "Short name", value: sav.shortName || "", maxLength: 4 },
+            { key: "description", label: "Description", value: sav.description || sav.name || "" },
+            { key: "nominalAnnualInterestRate", label: "Annual interest %", type: "number", value: String(sav.nominalAnnualInterestRate != null ? sav.nominalAnnualInterestRate : "") }
+          ], book.gls, writes().SAVINGS_CASH_FIELDS, savRule),
+          onSubmit: async function (v) {
+            await api.put("/savingsproducts/" + sav.id, writes().savingsProductUpdate(v, book.gls));
+            api.toast("Savings product updated", "success");
+            location.reload();
+          }
+        });
+      })();
+      job.catch(function (err) { api.toast(err.message || String(err), "error"); });
+    });
   }
   if (page === "clients") {
     api.claimMocks(["Import", "Approve KYC"]);

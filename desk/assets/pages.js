@@ -186,8 +186,28 @@
       }
       // Inject summary card if present
       var cards = document.querySelectorAll(".card-b");
+      var addrBox = document.getElementById("client-addresses");
+      if (addrBox) {
+        try {
+          var cfg = await api.get("/configurations/name/enable-address");
+          if (cfg && cfg.enabled) {
+            var addrs = await api.get("/client/" + id + "/addresses");
+            var list = Array.isArray(addrs) ? addrs : [];
+            addrBox.innerHTML = list.length ? list.map(function (a) {
+              var line = [a.addressLine1, a.city, a.countryName].filter(Boolean).join(", ");
+              return "<div class=\"meta-item\" style=\"margin-bottom:8px\"><div class=\"k\">" +
+                api.escapeHtml(a.addressType || "Address") + "</div><div class=\"v\">" + api.escapeHtml(line || "—") + "</div></div>";
+            }).join("") : "No addresses yet.";
+          } else {
+            addrBox.textContent = "Address module is off. Add address turns it on.";
+          }
+        } catch (e) {
+          addrBox.textContent = "Addresses are not available until enable-address is on.";
+        }
+      }
       cards.forEach(function (card) {
         if (card.querySelector("table")) return;
+        if (card.closest("[data-panel]") || card.querySelector(".profile-head")) return;
         if (card.textContent.length < 800) {
           card.innerHTML =
             "<p><strong>Mobile:</strong> " + api.escapeHtml(client.mobileNo || "—") + "</p>" +
@@ -473,28 +493,62 @@
   /* ---------- PRODUCTS ---------- */
   if (page === "products" || location.pathname.match(/products-loans/)) {
     pageGuard(async function () {
-      var [loans, savings] = await Promise.all([
-        api.get("/loanproducts"),
+      function rowsOf(data) {
+        if (Array.isArray(data)) return data;
+        if (data && Array.isArray(data.pageItems)) return data.pageItems;
+        return [];
+      }
+      function put(id, html, cols) {
+        var tb = document.getElementById(id);
+        if (tb) tb.innerHTML = html || '<tr><td colspan="' + cols + '">None yet</td></tr>';
+      }
+      var pack = await Promise.all([
+        api.get("/loanproducts").catch(function () { return []; }),
         api.get("/savingsproducts").catch(function () { return []; }),
+        api.get("/floatingrates").catch(function () { return []; }),
+        api.get("/products/share").catch(function () { return []; }),
+        api.get("/fixeddepositproducts").catch(function () { return []; }),
+        api.get("/recurringdepositproducts").catch(function () { return []; })
       ]);
-      if (!Array.isArray(loans)) loans = [];
-      if (!Array.isArray(savings)) savings = [];
-      var tables = document.querySelectorAll("table.data tbody");
-      if (tables[0]) {
-        tables[0].innerHTML = loans.map(function (p) {
-          return "<tr><td class=\"mono\">" + p.id + "</td><td class=\"strong\">" + api.escapeHtml(p.name) +
-            "</td><td class=\"mono text-right\">" + api.formatMoney(p.principal || p.minPrincipal) +
-            "</td><td>" + (p.numberOfRepayments || "—") + "</td><td>" +
-            api.escapeHtml((p.status && String(p.status)) || (p.includeInBorrowerCycle ? "Active" : "—")) + "</td></tr>";
-        }).join("") || "<tr><td colspan=\"5\">No loan products</td></tr>";
+      var loans = rowsOf(pack[0]);
+      var savings = rowsOf(pack[1]);
+      var rates = rowsOf(pack[2]);
+      var shares = rowsOf(pack[3]);
+      var fds = rowsOf(pack[4]);
+      var rds = rowsOf(pack[5]);
+      put("loan-products", loans.map(function (p) {
+        return "<tr><td class=\"mono\">" + p.id + "</td><td class=\"strong\">" + api.escapeHtml(p.name) +
+          "</td><td class=\"mono text-right\">" + api.formatMoney(p.principal || p.minPrincipal) +
+          "</td><td>" + (p.numberOfRepayments || "—") + "</td><td>" +
+          api.escapeHtml(p.interestRatePerPeriod != null ? String(p.interestRatePerPeriod) : "—") +
+          '</td><td><button class="btn btn-sm btn-ghost" type="button" data-edit-loan="' + p.id + '">Edit</button></td></tr>';
+      }).join(""), 6);
+      put("savings-products", savings.map(function (p) {
+        return "<tr><td class=\"mono\">" + p.id + "</td><td class=\"strong\">" + api.escapeHtml(p.name) +
+          "</td><td>" + api.escapeHtml(p.shortName || "") +
+          "</td><td class=\"mono text-right\">" + api.formatMoney(p.nominalAnnualInterestRate) +
+          '%</td><td><button class="btn btn-sm btn-ghost" type="button" data-edit-savings="' + p.id + '">Edit</button></td></tr>';
+      }).join(""), 5);
+      var floatBody = document.querySelector("#floating-table tbody");
+      if (floatBody) {
+        floatBody.innerHTML = rates.map(function (r) {
+          return "<tr><td class=\"strong\">" + api.escapeHtml(r.name || "") + "</td><td>" +
+            (r.isBaseLendingRate ? "Base" : "—") + "</td><td>" + (r.isActive === false ? "Inactive" : "Active") +
+            '</td><td><button class="btn btn-sm btn-ghost" type="button" data-edit-rate="' + r.id + '">Edit</button></td></tr>';
+        }).join("") || '<tr><td colspan="4">No floating rates</td></tr>';
       }
-      if (tables[1]) {
-        tables[1].innerHTML = savings.map(function (p) {
-          return "<tr><td class=\"mono\">" + p.id + "</td><td class=\"strong\">" + api.escapeHtml(p.name) +
-            "</td><td>" + api.escapeHtml(p.shortName || "") +
-            "</td><td class=\"mono text-right\">" + api.formatMoney(p.nominalAnnualInterestRate) + "%</td></tr>";
-        }).join("") || "<tr><td colspan=\"4\">No savings products</td></tr>";
+      put("share-products", shares.map(function (p) {
+        return "<tr><td class=\"mono\">" + p.id + "</td><td class=\"strong\">" + api.escapeHtml(p.name) +
+          "</td><td>" + api.escapeHtml(p.shortName || "") +
+          "</td><td class=\"mono text-right\">" + api.formatMoney(p.unitPrice) + "</td></tr>";
+      }).join(""), 4);
+      function depositRow(p) {
+        return "<tr><td class=\"mono\">" + p.id + "</td><td class=\"strong\">" + api.escapeHtml(p.name) +
+          "</td><td>" + api.escapeHtml(p.shortName || "") +
+          "</td><td class=\"mono text-right\">" + api.formatMoney(p.depositAmount || p.minDepositAmount) + "</td></tr>";
       }
+      put("fd-products", fds.map(depositRow).join(""), 4);
+      put("rd-products", rds.map(depositRow).join(""), 4);
     })();
   }
 

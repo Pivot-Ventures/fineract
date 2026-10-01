@@ -316,31 +316,62 @@
       overlay.style.cssText = "position:fixed;inset:0;background:rgba(8,24,28,.45);z-index:80;display:flex;align-items:flex-start;justify-content:center;padding:48px 16px;overflow:auto";
       var box = document.createElement("form");
       box.className = "card";
-      box.style.cssText = "width:min(520px,100%);margin:0;background:#fff";
+      box.style.cssText = "width:" + (opts.width || "min(520px,100%)") + ";margin:0;background:#fff";
       var fields = opts.fields || [];
-      var html = '<div class="card-h"><h2>' + escapeHtml(opts.title || "Action") + '</h2></div><div class="card-b"><div class="form-grid">';
-      fields.forEach(function (f, i) {
-        html += '<div class="form-row' + (f.full ? " full" : "") + '"><label>' + escapeHtml(f.label) + '</label>';
+      var html = '<div class="card-h"><h2>' + escapeHtml(opts.title || "Action") + "</h2></div><div class=\"card-b\">";
+      if (opts.message) html += '<p class="text-muted" style="margin:0 0 12px">' + escapeHtml(opts.message) + "</p>";
+      html += '<div class="form-grid">';
+      fields.forEach(function (f) {
+        var show = "";
+        if (f.showWhen) {
+          show = ' data-show-key="' + escapeHtml(f.showWhen.key) + '" data-show-values="' + escapeHtml((f.showWhen.values || []).join(",")) + '"';
+        }
+        html += '<div class="form-row' + (f.full ? " full" : "") + '"' + show + "><label>" + escapeHtml(f.label) + "</label>";
         if (f.type === "select") {
           html += '<select data-k="' + f.key + '">';
           (f.options || []).forEach(function (o) {
             var val = o.value !== undefined ? o.value : o.id;
             var lab = o.label !== undefined ? o.label : (o.name || val);
             var sel = String(val) === String(f.value) ? " selected" : "";
-            html += '<option value="' + escapeHtml(val) + '"' + sel + '>' + escapeHtml(lab) + '</option>';
+            html += '<option value="' + escapeHtml(val) + '"' + sel + ">" + escapeHtml(lab) + "</option>";
           });
           html += "</select>";
         } else if (f.type === "textarea") {
           html += '<textarea data-k="' + f.key + '" rows="2">' + escapeHtml(f.value || "") + "</textarea>";
         } else {
-          html += '<input data-k="' + f.key + '" type="' + (f.type || "text") + '" value="' + escapeHtml(f.value || "") + '" />';
+          var max = f.maxLength ? ' maxlength="' + Number(f.maxLength) + '"' : "";
+          html += '<input data-k="' + f.key + '" type="' + (f.type || "text") + '" value="' + escapeHtml(f.value || "") + '"' + max + " />";
         }
+        if (f.hint) html += '<div class="text-muted" style="font-size:12px;margin-top:4px">' + escapeHtml(f.hint) + "</div>";
         html += "</div>";
       });
       html += '</div><div class="form-actions"><button type="submit" class="btn btn-amber">' + escapeHtml(opts.submitLabel || "Save") + '</button><button type="button" class="btn btn-ghost" data-cancel>Cancel</button></div></div>';
       box.innerHTML = html;
       overlay.appendChild(box);
       document.body.appendChild(overlay);
+      function readValues() {
+        var out = {};
+        box.querySelectorAll("[data-k]").forEach(function (el) {
+          var row = el.closest(".form-row");
+          if (row && row.style.display === "none") return;
+          out[el.getAttribute("data-k")] = el.value;
+        });
+        return out;
+      }
+      function syncShown() {
+        var current = {};
+        box.querySelectorAll("[data-k]").forEach(function (el) {
+          current[el.getAttribute("data-k")] = el.value;
+        });
+        box.querySelectorAll("[data-show-key]").forEach(function (row) {
+          var key = row.getAttribute("data-show-key");
+          var allowed = (row.getAttribute("data-show-values") || "").split(",");
+          var on = allowed.some(function (v) { return v === String(current[key]); });
+          row.style.display = on ? "" : "none";
+        });
+      }
+      syncShown();
+      box.addEventListener("change", syncShown);
       function close(val) {
         overlay.remove();
         resolve(val);
@@ -349,11 +380,11 @@
       overlay.addEventListener("click", function (e) { if (e.target === overlay) close(null); });
       box.addEventListener("submit", function (e) {
         e.preventDefault();
-        var out = {};
-        box.querySelectorAll("[data-k]").forEach(function (el) {
-          out[el.getAttribute("data-k")] = el.value;
+        var out = readValues();
+        if (typeof opts.onSubmit !== "function") { close(out); return; }
+        Promise.resolve(opts.onSubmit(out)).then(function () { close(out); }, function (err) {
+          toast((err && err.message) || String(err), "error");
         });
-        close(out);
       });
       var first = box.querySelector("input, select, textarea");
       if (first) first.focus();

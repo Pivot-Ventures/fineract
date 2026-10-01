@@ -81,19 +81,28 @@
     <div class="content">
       <div class="page-header">
         <div><h1>Products & charges</h1><p class="page-sub">Ugandan SACCO operations · Currency UGX · Kampala Main</p></div>
-        <div class="api-chip"><span>Fineract</span> /loanproducts · /savingsproducts · /charges · /floatingrates</div>
+        <div class="api-chip"><span>Fineract</span> /loanproducts · /savingsproducts · /floatingrates · /products/share · /fixeddepositproducts</div>
       </div>
 
       <div class="btn-group" style="margin-bottom:14px">
         <button class="btn btn-amber" data-mock="Create loan product">＋ Loan product</button>
         <button class="btn btn-ghost" data-mock="Create charge">＋ Charge</button>
+        <button class="btn btn-ghost" data-mock="Create floating rate">＋ Floating rate</button>
+        <button class="btn btn-ghost" data-mock="Create share product">＋ Share product</button>
+        <button class="btn btn-ghost" data-mock="Create fixed deposit">＋ Fixed deposit</button>
+        <button class="btn btn-ghost" data-mock="Create recurring deposit">＋ Recurring deposit</button>
       </div>
-      <div class="product-grid">
-        <div class="product-card"><h3>Business Growth</h3><div class="rate">2.5% / mo</div><span class="status active">Active</span></div>
-        <div class="product-card"><h3>Agricultural</h3><div class="rate">2.0% / mo</div><span class="status active">Active</span></div>
-        <div class="product-card"><h3>School Fees</h3><div class="rate">1.8% / mo</div><span class="status active">Active</span></div>
-        <div class="product-card"><h3>Emergency</h3><div class="rate">3.0% / mo</div><span class="status active">Active</span></div>
-      </div>
+      <p class="text-muted" style="margin:-6px 0 14px;font-size:13px">Cash accounting uses the seeded chart (vault 1110, teller 1120). Loan and savings create stay on the products PR; edit here can switch a product to cash.</p>
+      <h2 style="font-size:15px;margin:8px 0 10px">Loan products</h2>
+      <div class="card"><div class="card-b table-wrap"><table class="data">
+        <thead><tr><th>ID</th><th>Name</th><th class="text-right">Principal</th><th>Repayments</th><th>Rate</th><th></th></tr></thead>
+        <tbody id="loan-products"><tr><td colspan="6">Loading…</td></tr></tbody>
+      </table></div></div>
+      <h2 style="font-size:15px;margin:22px 0 10px">Savings products</h2>
+      <div class="card"><div class="card-b table-wrap"><table class="data">
+        <thead><tr><th>ID</th><th>Name</th><th>Short</th><th class="text-right">Annual rate</th><th></th></tr></thead>
+        <tbody id="savings-products"><tr><td colspan="5">Loading…</td></tr></tbody>
+      </table></div></div>
       <h2 style="font-size:15px;margin:22px 0 10px" id="charges">Charges</h2>
       <div class="card"><div class="card-b table-wrap"><table class="data">
         <thead><tr><th>Charge</th><th>Applies</th><th class="text-right">Amount</th></tr></thead>
@@ -104,9 +113,24 @@
         </tbody>
       </table></div></div>
       <h2 style="font-size:15px;margin:22px 0 10px">Floating rates</h2>
+      <div class="card"><div class="card-b table-wrap"><table class="data" id="floating-table">
+        <thead><tr><th>Name</th><th>Base</th><th>Active</th><th></th></tr></thead>
+        <tbody><tr><td colspan="4">Loading…</td></tr></tbody>
+      </table></div></div>
+      <h2 style="font-size:15px;margin:22px 0 10px">Share products</h2>
       <div class="card"><div class="card-b table-wrap"><table class="data">
-        <thead><tr><th>Name</th><th>Base</th><th></th></tr></thead>
-        <tbody><tr><td>BOU-linked base</td><td>10.5%</td><td><button class="btn btn-sm btn-ghost" data-mock="Edit rate">Edit</button></td></tr></tbody>
+        <thead><tr><th>ID</th><th>Name</th><th>Short</th><th class="text-right">Unit price</th></tr></thead>
+        <tbody id="share-products"><tr><td colspan="4">Loading…</td></tr></tbody>
+      </table></div></div>
+      <h2 style="font-size:15px;margin:22px 0 10px">Fixed deposits</h2>
+      <div class="card"><div class="card-b table-wrap"><table class="data">
+        <thead><tr><th>ID</th><th>Name</th><th>Short</th><th class="text-right">Deposit</th></tr></thead>
+        <tbody id="fd-products"><tr><td colspan="4">Loading…</td></tr></tbody>
+      </table></div></div>
+      <h2 style="font-size:15px;margin:22px 0 10px">Recurring deposits</h2>
+      <div class="card"><div class="card-b table-wrap"><table class="data">
+        <thead><tr><th>ID</th><th>Name</th><th>Short</th><th class="text-right">Deposit</th></tr></thead>
+        <tbody id="rd-products"><tr><td colspan="4">Loading…</td></tr></tbody>
       </table></div></div>
 
     </div>
@@ -115,6 +139,7 @@
   <script src="assets/api.js"></script>
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
+  <script src="assets/desk-writes.js"></script>
   <script src="assets/actions.js"></script>
 </body>
 </html>

@@ -90,12 +90,16 @@
           <div class="form-row"><label>Till date</label><input type="date" value="2026-09-30" /></div>
           <div class="form-actions"><button class="btn btn-amber" data-mock="Run accruals">Run accruals</button></div>
         </div></div>
-        <div class="card"><div class="card-h"><h2>Provisioning</h2><button class="btn btn-sm btn-ghost" data-mock="Create provisioning">＋ Create</button></div>
+        <div class="card"><div class="card-h"><h2>Provisioning</h2>
+          <div class="btn-group">
+            <button class="btn btn-sm btn-ghost" data-mock="Create provisioning">＋ Criteria</button>
+            <button class="btn btn-sm btn-amber" data-mock="Create provisioning entry">＋ Entry</button>
+          </div>
+        </div>
           <div class="card-b table-wrap"><table class="data">
             <thead><tr><th>Created</th><th>Journal?</th><th>Status</th></tr></thead>
-            <tbody>
-              <tr><td>30 Sep 2026</td><td>Yes</td><td><span class="status approved">Posted</span></td></tr>
-              <tr><td>31 Aug 2026</td><td>Yes</td><td><span class="status closed">Posted</span></td></tr>
+            <tbody id="provisioning-entries">
+              <tr><td colspan="3">Loading…</td></tr>
             </tbody>
           </table></div></div>
       </div>
@@ -106,6 +110,7 @@
   <script src="assets/api.js"></script>
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
+  <script src="assets/desk-writes.js"></script>
   <script src="assets/actions.js"></script>
 </body>
 </html>
