@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Settings · Phaneroo SACCO</title>
+  <link rel="stylesheet" href="assets/app.css" />
+</head>
+<body data-page="settings">
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div class="status-bar" id="status-bar" role="alert" hidden></div>
+<div class="app-shell">
+
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
+  <div class="sidebar-brand">
+    <div class="brand-mark" aria-hidden="true">P</div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
+  </div>
+  <nav class="sidebar-nav" aria-label="Sections">
+    <div class="nav-group"><div class="nav-group-label">Overview</div>
+      <a class="nav-link" data-nav="dashboard" href="dashboard.html"><span class="nav-icon" aria-hidden="true">▣</span> Dashboard</a>
+    </div>
+    <div class="nav-group"><div class="nav-group-label">Front office</div>
+      <a class="nav-link" data-nav="teller" href="teller.html"><span class="nav-icon" aria-hidden="true">💱</span> Teller day desk</a>
+      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon" aria-hidden="true">🖥</span> Tellers &amp; cashiers</a>
+      <a class="nav-link" data-nav="cashier-eod" href="cashier-eod.html"><span class="nav-icon" aria-hidden="true">⚖</span> Cashier EOD / settle</a>
+      <a class="nav-link" data-nav="collections" href="collections.html"><span class="nav-icon" aria-hidden="true">📥</span> Collections / overdue</a>
+    </div>
+    <div class="nav-group"><div class="nav-group-label">Members</div>
+      <a class="nav-link" data-nav="clients" href="clients.html"><span class="nav-icon" aria-hidden="true">👤</span> Clients</a>
+      <a class="nav-link" data-nav="onboard" href="client-onboard.html"><span class="nav-icon" aria-hidden="true">＋</span> Onboard member</a>
+      <a class="nav-link" data-nav="groups" href="groups.html"><span class="nav-icon" aria-hidden="true">👥</span> Groups</a>
+      <a class="nav-link" data-nav="centres" href="centres.html"><span class="nav-icon" aria-hidden="true">⌖</span> Centres</a>
+    </div>
+    <div class="nav-group"><div class="nav-group-label">Portfolio</div>
+      <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
+      <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
+      <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
+      <a class="nav-link" data-nav="recurring-deposits" href="recurring-deposits.html"><span class="nav-icon" aria-hidden="true">↻</span> Recurring deposits</a>
+    </div>
+    <div class="nav-group"><div class="nav-group-label">Products</div>
+      <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
+    </div>
+    <div class="nav-group"><div class="nav-group-label">Accounting</div>
+      <a class="nav-link" data-nav="accounting" href="accounting.html"><span class="nav-icon" aria-hidden="true">📒</span> Chart of accounts</a>
+      <a class="nav-link" data-nav="journals" href="journals.html"><span class="nav-icon" aria-hidden="true">☰</span> Journal entries</a>
+      <a class="nav-link" data-nav="journal" href="journal-entry.html"><span class="nav-icon" aria-hidden="true">✎</span> Create journal</a>
+      <a class="nav-link" data-nav="closing" href="closing-entries.html"><span class="nav-icon" aria-hidden="true">🔒</span> Closing entries</a>
+      <a class="nav-link" data-nav="mappings" href="financial-mappings.html"><span class="nav-icon" aria-hidden="true">↔</span> Financial mappings</a>
+      <a class="nav-link" data-nav="rules" href="accounting-rules.html"><span class="nav-icon" aria-hidden="true">⚙</span> Rules / frequent</a>
+      <a class="nav-link" data-nav="accruals" href="accruals.html"><span class="nav-icon" aria-hidden="true">⏱</span> Accruals / provisioning</a>
+      <a class="nav-link" data-nav="trial" href="trial-balance.html"><span class="nav-icon" aria-hidden="true">⚖</span> Trial balance</a>
+      <a class="nav-link" data-nav="is" href="income-statement.html"><span class="nav-icon" aria-hidden="true">📈</span> Income statement</a>
+      <a class="nav-link" data-nav="bs" href="balance-sheet.html"><span class="nav-icon" aria-hidden="true">📊</span> Balance sheet</a>
+    </div>
+    <div class="nav-group"><div class="nav-group-label">Organization</div>
+      <a class="nav-link" data-nav="offices" href="offices.html"><span class="nav-icon" aria-hidden="true">🏢</span> Offices / staff</a>
+    </div>
+    <div class="nav-group"><div class="nav-group-label">Reports</div>
+      <a class="nav-link" data-nav="reports" href="reports.html"><span class="nav-icon" aria-hidden="true">📊</span> Report catalog</a>
+      <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
+    </div>
+    <div class="nav-group"><div class="nav-group-label">Admin</div>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
+      <a class="nav-link" data-nav="settings" href="settings.html"><span class="nav-icon" aria-hidden="true">⚙</span> Settings</a>
+      <a class="nav-link" data-nav="system" href="system.html"><span class="nav-icon" aria-hidden="true">⏲</span> System</a>
+    </div>
+  </nav>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
+</aside>
+
+  <div class="main">
+
+<header class="topbar">
+  <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Open menu" aria-controls="sidebar">☰</button>
+  <div class="topbar-search" role="search"><span class="search-ico" aria-hidden="true">⌕</span>
+    <label for="global-search" class="sr-only">Search members, loans and savings</label>
+    <input id="global-search" type="search" placeholder="Search member, account no, phone…" /></div>
+  <span class="chip" id="office-chip" hidden></span>
+  <div class="topbar-right">
+    <span class="user-name" id="user-name"></span>
+    <div class="avatar" id="user-avatar" aria-hidden="true">?</div>
+    <button type="button" class="btn btn-sm btn-ghost" id="logout-btn">Log out</button>
+  </div>
+</header>
+
+    <main class="content" id="main-content">
+      <div class="page-header">
+        <div><h1>Settings</h1><p class="page-sub">Organisation configuration stored in Fineract. Changes are saved with PUT/POST on the matching API.</p></div>
+      </div>
+      <div data-tabs>
+        <div class="tabs" role="tablist">
+          <button class="tab active" type="button" data-tab="config">Configurations</button>
+          <button class="tab" type="button" data-tab="currencies">Currencies</button>
+          <button class="tab" type="button" data-tab="payments">Payment types</button>
+          <button class="tab" type="button" data-tab="funds">Funds</button>
+          <button class="tab" type="button" data-tab="holidays">Holidays</button>
+          <button class="tab" type="button" data-tab="days">Working days</button>
+          <button class="tab" type="button" data-tab="taxes">Taxes</button>
+          <button class="tab" type="button" data-tab="delinquency">Delinquency</button>
+        </div>
+        <div class="tab-panel active" data-panel="config">
+          <div class="card"><div class="card-h"><h2>Global configurations</h2>
+            <input id="cfg-search" type="search" placeholder="Filter, e.g. address, maker" /></div>
+            <div class="card-b table-wrap"><table class="data" id="cfg-table">
+              <thead><tr><th>Name</th><th>Description</th><th>State</th><th>Value</th><th></th></tr></thead>
+              <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+            </table></div>
+            <p class="card-note">Enable address here (<span class="mono">enable-address</span>) before client addresses can be saved.</p>
+          </div>
+        </div>
+        <div class="tab-panel" data-panel="currencies">
+          <div class="card"><div class="card-h"><h2>Currencies</h2>
+            <button type="button" class="btn btn-sm btn-amber" id="ccy-save">Save currencies</button></div>
+            <div class="card-b currency-list" id="currency-list">Loading…</div></div>
+        </div>
+        <div class="tab-panel" data-panel="payments">
+          <div class="btn-group page-actions"><button type="button" class="btn btn-amber" id="pay-add">＋ Payment type</button></div>
+          <div class="card"><div class="card-b table-wrap"><table class="data" id="pay-table">
+            <thead><tr><th>Name</th><th>Description</th><th>Kind</th><th>Position</th><th></th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+          </table></div></div>
+        </div>
+        <div class="tab-panel" data-panel="funds">
+          <div class="btn-group page-actions"><button type="button" class="btn btn-amber" id="fund-add">＋ Fund</button></div>
+          <div class="card"><div class="card-b table-wrap"><table class="data" id="fund-table">
+            <thead><tr><th>Name</th><th>External id</th><th></th><th></th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
+          </table></div></div>
+        </div>
+        <div class="tab-panel" data-panel="holidays">
+          <div class="btn-group page-actions"><button type="button" class="btn btn-amber" id="holiday-add">＋ Holiday</button></div>
+          <div class="card"><div class="card-b table-wrap"><table class="data" id="holiday-table">
+            <thead><tr><th>Name</th><th>From</th><th>To</th><th>Status</th><th></th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+          </table></div></div>
+        </div>
+        <div class="tab-panel" data-panel="days">
+          <div class="card"><div class="card-h"><h2>Working days</h2>
+            <button type="button" class="btn btn-sm btn-amber" id="wd-save">Save working days</button></div>
+            <div class="card-b">
+              <div class="day-list">
+                <label class="check"><input type="checkbox" data-day="MO" /> Monday</label>
+                <label class="check"><input type="checkbox" data-day="TU" /> Tuesday</label>
+                <label class="check"><input type="checkbox" data-day="WE" /> Wednesday</label>
+                <label class="check"><input type="checkbox" data-day="TH" /> Thursday</label>
+                <label class="check"><input type="checkbox" data-day="FR" /> Friday</label>
+                <label class="check"><input type="checkbox" data-day="SA" /> Saturday</label>
+                <label class="check"><input type="checkbox" data-day="SU" /> Sunday</label>
+              </div>
+              <div class="form-grid" style="margin-top:14px">
+                <div class="form-row"><label for="wd-resched">If a repayment falls on a non-working day</label>
+                  <select id="wd-resched">
+                    <option value="1">Same day</option>
+                    <option value="2">Next working day</option>
+                    <option value="3">Next repayment meeting day</option>
+                    <option value="4">Previous working day</option>
+                  </select></div>
+                <div class="form-row"><label class="check" for="wd-extend"><input type="checkbox" id="wd-extend" /> Extend the term for daily repayments</label></div>
+              </div>
+            </div></div>
+        </div>
+        <div class="tab-panel" data-panel="taxes">
+          <p class="callout" id="tax-note">Tax components credit a liability or expense GL. Groups bundle components onto charges.</p>
+          <div class="btn-group page-actions">
+            <button type="button" class="btn btn-amber" id="tax-add">＋ Tax component</button>
+            <button type="button" class="btn" id="tax-group-add">＋ Tax group</button>
+          </div>
+          <div class="card"><div class="card-h"><h2>Components</h2></div>
+            <div class="card-b table-wrap"><table class="data" id="tax-components">
+              <thead><tr><th>Name</th><th class="text-right">Percent</th><th>Start</th><th></th></tr></thead>
+              <tbody><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
+            </table></div></div>
+          <div class="card"><div class="card-h"><h2>Groups</h2></div>
+            <div class="card-b table-wrap"><table class="data" id="tax-groups">
+              <thead><tr><th>Name</th><th>Components</th><th></th></tr></thead>
+              <tbody><tr class="loading-row"><td colspan="3">Loading…</td></tr></tbody>
+            </table></div></div>
+        </div>
+        <div class="tab-panel" data-panel="delinquency">
+          <p class="callout" id="delinq-note">Ranges are overdue day bands. A bucket groups ranges for loan products. If this Fineract build has no delinquency API, the tables say so and nothing is saved.</p>
+          <div class="btn-group page-actions">
+            <button type="button" class="btn btn-amber" id="delinq-add">＋ Range</button>
+            <button type="button" class="btn" id="delinq-bucket-add">＋ Bucket</button>
+          </div>
+          <div class="card"><div class="card-h"><h2>Ranges</h2></div>
+            <div class="card-b table-wrap"><table class="data" id="delinq-ranges">
+              <thead><tr><th>Classification</th><th>Age (days)</th><th></th></tr></thead>
+              <tbody><tr class="loading-row"><td colspan="3">Loading…</td></tr></tbody>
+            </table></div></div>
+          <div class="card"><div class="card-h"><h2>Buckets</h2></div>
+            <div class="card-b table-wrap"><table class="data" id="delinq-buckets">
+              <thead><tr><th>Name</th><th>Ranges</th></tr></thead>
+              <tbody><tr class="loading-row"><td colspan="2">Loading…</td></tr></tbody>
+            </table></div></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+  <script src="assets/pages.js"></script>
+  <script src="assets/desk-writes.js"></script>
+  <script src="assets/desk-remaining.js"></script>
+</body>
+</html>

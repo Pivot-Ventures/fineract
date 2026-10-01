@@ -462,6 +462,298 @@
     return { debitId: glId(debit), creditId: glId(credit) };
   }
 
+  var DATE_BITS = { locale: "en", dateFormat: "yyyy-MM-dd" };
+
+  function withDates(body) {
+    return Object.assign({}, DATE_BITS, body);
+  }
+
+  function idList(value) {
+    if (Array.isArray(value)) return value.map(Number).filter(function (n) { return n; });
+    return String(value || "").split(",").map(function (s) { return Number(String(s).trim()); }).filter(function (n) { return n; });
+  }
+
+  function recurringDepositAccountPayload(form) {
+    if (!form.clientId || !form.productId) throw new Error("Client and product are required");
+    var body = {
+      clientId: Number(form.clientId),
+      productId: Number(form.productId),
+      submittedOnDate: requireText(form.submittedOnDate, "Submitted on"),
+      depositAmount: requirePositive(form.depositAmount, "Deposit amount"),
+      depositPeriod: requirePositive(form.depositPeriod, "Deposit period"),
+      depositPeriodFrequencyId: Number(form.depositPeriodFrequencyId) || 2,
+      mandatoryRecommendedDepositAmount: requirePositive(form.mandatoryRecommendedDepositAmount || form.depositAmount, "Installment amount")
+    };
+    if (form.linkAccountId) body.linkAccountId = Number(form.linkAccountId);
+    return withDates(body);
+  }
+
+  function recurringDepositApprovePayload(date) {
+    return withDates({ approvedOnDate: requireText(date, "Date") });
+  }
+
+  function recurringDepositActivatePayload(date) {
+    return withDates({ activatedOnDate: requireText(date, "Date") });
+  }
+
+  function recurringDepositTxnPayload(form) {
+    var body = {
+      transactionDate: requireText(form.date, "Date"),
+      transactionAmount: requirePositive(form.amount, "Amount")
+    };
+    if (form.paymentTypeId) body.paymentTypeId = Number(form.paymentTypeId);
+    if (form.note) body.note = String(form.note).trim();
+    return withDates(body);
+  }
+
+  function recurringDepositClosePayload(form) {
+    var body = { closedOnDate: requireText(form.date, "Date") };
+    if (form.onAccountClosureId) body.onAccountClosureId = Number(form.onAccountClosureId);
+    if (form.toSavingsAccountId) body.toSavingsAccountId = Number(form.toSavingsAccountId);
+    if (form.paymentTypeId) body.paymentTypeId = Number(form.paymentTypeId);
+    if (form.note) body.note = String(form.note).trim();
+    return withDates(body);
+  }
+
+  function configurationUpdatePayload(form) {
+    var body = {};
+    if (form.enabled !== undefined && form.enabled !== "") body.enabled = boolOf(form.enabled);
+    if (form.value !== undefined && String(form.value).trim() !== "") {
+      var raw = String(form.value).trim();
+      body.value = /^-?\d+(\.\d+)?$/.test(raw) ? Number(raw) : raw;
+    }
+    if (!("enabled" in body) && !("value" in body)) throw new Error("Provide enabled or a value");
+    return body;
+  }
+
+  function currenciesUpdatePayload(codes) {
+    var seen = {};
+    var list = (codes || []).map(function (c) { return String(c).trim().toUpperCase(); }).filter(function (c) {
+      if (!/^[A-Z]{3}$/.test(c) || seen[c]) return false;
+      seen[c] = 1;
+      return true;
+    });
+    if (!list.length) throw new Error("Select at least one currency");
+    return { currencies: list };
+  }
+
+  function paymentTypePayload(form) {
+    var position = form.position === "" || form.position == null ? 1 : Number(form.position);
+    if (isNaN(position)) throw new Error("Position must be a number");
+    return {
+      name: requireText(form.name, "Name"),
+      description: String(form.description || form.name || "").trim(),
+      isCashPayment: boolOf(form.isCashPayment),
+      position: position
+    };
+  }
+
+  function fundPayload(form) {
+    var body = { name: requireText(form.name, "Name") };
+    if (form.externalId) body.externalId = String(form.externalId).trim();
+    return body;
+  }
+
+  function holidayPayload(form) {
+    if (!form.officeId) throw new Error("Pick an office");
+    var from = requireText(form.fromDate, "From date");
+    var to = requireText(form.toDate || form.fromDate, "To date");
+    if (to < from) throw new Error("To date must be on or after from date");
+    var type = Number(form.reschedulingType) || 1;
+    var body = {
+      name: requireText(form.name, "Name"),
+      description: String(form.description || form.name).trim(),
+      fromDate: from,
+      toDate: to,
+      reschedulingType: type,
+      offices: [{ officeId: Number(form.officeId) }]
+    };
+    if (type === 2) body.repaymentsRescheduledTo = requireText(form.repaymentsRescheduledTo, "Reschedule to");
+    return withDates(body);
+  }
+
+  function workingDaysPayload(form) {
+    var days = Array.isArray(form.days) ? form.days : String(form.days || "").split(",");
+    var allowed = { MO: 1, TU: 1, WE: 1, TH: 1, FR: 1, SA: 1, SU: 1 };
+    var byday = [];
+    days.forEach(function (d) {
+      var code = String(d).trim().toUpperCase();
+      if (allowed[code] && byday.indexOf(code) < 0) byday.push(code);
+    });
+    if (!byday.length) throw new Error("Pick at least one working day");
+    var type = Number(form.repaymentRescheduleType);
+    if (!(type >= 1 && type <= 4)) throw new Error("Repayment reschedule type must be 1 to 4");
+    return {
+      recurrence: "FREQ=WEEKLY;INTERVAL=1;BYDAY=" + byday.join(","),
+      repaymentRescheduleType: type,
+      extendTermForDailyRepayments: boolOf(form.extendTermForDailyRepayments),
+      locale: "en"
+    };
+  }
+
+  function standingInstructionPayload(form) {
+    if (!form.fromClientId || !form.fromAccountId || !form.toAccountId) {
+      throw new Error("From client, from account, and to account are required");
+    }
+    if (!form.fromOfficeId) throw new Error("From office is required");
+    var body = {
+      name: requireText(form.name, "Name"),
+      fromOfficeId: Number(form.fromOfficeId),
+      fromClientId: Number(form.fromClientId),
+      fromAccountType: Number(form.fromAccountType) || 2,
+      fromAccountId: Number(form.fromAccountId),
+      toOfficeId: Number(form.toOfficeId || form.fromOfficeId),
+      toClientId: Number(form.toClientId || form.fromClientId),
+      toAccountType: Number(form.toAccountType) || 2,
+      toAccountId: Number(form.toAccountId),
+      transferType: Number(form.transferType) || 1,
+      amount: requirePositive(form.amount, "Amount"),
+      priority: Number(form.priority) || 2,
+      status: Number(form.status) || 1,
+      instructionType: Number(form.instructionType) || 1,
+      recurrenceType: Number(form.recurrenceType) || 1,
+      recurrenceFrequency: Number(form.recurrenceFrequency) || 2,
+      recurrenceInterval: Number(form.recurrenceInterval) || 1,
+      validFrom: requireText(form.validFrom, "Valid from")
+    };
+    if (form.validTill) body.validTill = form.validTill;
+    if (body.recurrenceFrequency === 2 && form.recurrenceOnMonthDay) {
+      body.recurrenceOnMonthDay = form.recurrenceOnMonthDay;
+      body.monthDayFormat = "dd MMMM";
+    }
+    return withDates(body);
+  }
+
+  function loanReschedulePayload(form) {
+    if (!form.loanId) throw new Error("Loan is required");
+    if (!form.rescheduleReasonId) throw new Error("Pick a reschedule reason");
+    var from = requireText(form.rescheduleFromDate, "Reschedule from");
+    var body = {
+      loanId: Number(form.loanId),
+      rescheduleFromDate: from,
+      submittedOnDate: requireText(form.submittedOnDate || from, "Submitted on"),
+      rescheduleReasonId: Number(form.rescheduleReasonId),
+      rescheduleReasonComment: String(form.rescheduleReasonComment || "").trim(),
+      locale: "en",
+      dateFormat: "yyyy-MM-dd"
+    };
+    if (form.adjustedDueDate) {
+      if (form.adjustedDueDate < from) throw new Error("Adjusted due date cannot be before the reschedule from date");
+      body.adjustedDueDate = form.adjustedDueDate;
+    }
+    if (form.extraTerms) body.extraTerms = Number(form.extraTerms);
+    if (form.newInterestRate !== undefined && form.newInterestRate !== "") body.newInterestRate = num(form.newInterestRate);
+    if (form.graceOnPrincipal) body.graceOnPrincipal = Number(form.graceOnPrincipal);
+    if (form.graceOnInterest) body.graceOnInterest = Number(form.graceOnInterest);
+    return body;
+  }
+
+  function shareDividendPayload(form) {
+    var start = requireText(form.dividendPeriodStartDate, "Period start");
+    var end = requireText(form.dividendPeriodEndDate, "Period end");
+    if (end < start) throw new Error("Period end must be on or after period start");
+    return {
+      dividendPeriodStartDate: start,
+      dividendPeriodEndDate: end,
+      dividendAmount: requirePositive(form.dividendAmount, "Dividend amount"),
+      dateFormat: "yyyy-MM-dd",
+      locale: "en"
+    };
+  }
+
+  function taxComponentPayload(form) {
+    var pct = num(form.percentage);
+    if (isNaN(pct) || pct < 0) throw new Error("Percentage must be zero or greater");
+    if (!form.creditAccountId && !form.debitAccountId) throw new Error("Pick a credit or debit GL");
+    var body = {
+      name: requireText(form.name, "Name"),
+      percentage: pct,
+      startDate: requireText(form.startDate, "Start date"),
+      dateFormat: "yyyy-MM-dd",
+      locale: "en"
+    };
+    if (form.creditAccountId) {
+      body.creditAccountId = Number(form.creditAccountId);
+      body.creditAccountType = Number(form.creditAccountType) || 2;
+    }
+    if (form.debitAccountId) {
+      body.debitAccountId = Number(form.debitAccountId);
+      body.debitAccountType = Number(form.debitAccountType) || 2;
+    }
+    return body;
+  }
+
+  function taxGroupPayload(form) {
+    if (!form.taxComponentId) throw new Error("Pick a tax component");
+    return {
+      name: requireText(form.name, "Name"),
+      taxComponents: [{
+        taxComponentId: Number(form.taxComponentId),
+        startDate: requireText(form.startDate, "Start date")
+      }],
+      dateFormat: "yyyy-MM-dd",
+      locale: "en"
+    };
+  }
+
+  function delinquencyRangePayload(form) {
+    var minAge = num(form.minimumAgeDays);
+    var maxAge = num(form.maximumAgeDays);
+    if (isNaN(minAge) || minAge < 1) throw new Error("Minimum age must be at least 1 day");
+    if (!(maxAge > minAge)) throw new Error("Maximum age must be greater than minimum age");
+    return {
+      classification: requireText(form.classification, "Classification"),
+      minimumAgeDays: minAge,
+      maximumAgeDays: maxAge,
+      locale: "en"
+    };
+  }
+
+  function delinquencyBucketPayload(form) {
+    var ranges = idList(form.ranges);
+    if (!ranges.length) throw new Error("Pick at least one range");
+    return { name: requireText(form.name, "Name"), ranges: ranges };
+  }
+
+  function staffPayload(form) {
+    if (!form.officeId) throw new Error("Pick an office");
+    var body = {
+      officeId: Number(form.officeId),
+      firstname: requireText(form.firstname, "First name"),
+      lastname: requireText(form.lastname, "Last name"),
+      isLoanOfficer: boolOf(form.isLoanOfficer),
+      joiningDate: requireText(form.joiningDate, "Joining date"),
+      locale: "en",
+      dateFormat: "yyyy-MM-dd"
+    };
+    if (form.mobileNo) body.mobileNo = String(form.mobileNo).trim();
+    return body;
+  }
+
+  function userPayload(form, isUpdate) {
+    if (!form.officeId) throw new Error("Pick an office");
+    var roles = idList(form.roles);
+    if (!roles.length) throw new Error("Pick at least one role");
+    var body = {
+      username: requireText(form.username, "Username"),
+      firstname: requireText(form.firstname, "First name"),
+      lastname: requireText(form.lastname, "Last name"),
+      email: requireText(form.email, "Email"),
+      officeId: Number(form.officeId),
+      roles: roles,
+      sendPasswordToEmail: false
+    };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) throw new Error("Enter a valid email");
+    if (form.staffId) body.staffId = Number(form.staffId);
+    if (!isUpdate || form.password) {
+      var pw = requireText(form.password, "Password");
+      if (pw !== String(form.repeatPassword || "")) throw new Error("Passwords do not match");
+      body.password = pw;
+      body.repeatPassword = pw;
+    }
+    return body;
+  }
+
   return {
     LOAN_CASH_FIELDS: LOAN_CASH_FIELDS,
     DEPOSIT_CASH_FIELDS: DEPOSIT_CASH_FIELDS,
@@ -493,6 +785,26 @@
     shareApprovePayload: shareApprovePayload,
     shareActivatePayload: shareActivatePayload,
     accountingRulePayload: accountingRulePayload,
-    accountingRuleDefaults: accountingRuleDefaults
+    accountingRuleDefaults: accountingRuleDefaults,
+    recurringDepositAccountPayload: recurringDepositAccountPayload,
+    recurringDepositApprovePayload: recurringDepositApprovePayload,
+    recurringDepositActivatePayload: recurringDepositActivatePayload,
+    recurringDepositTxnPayload: recurringDepositTxnPayload,
+    recurringDepositClosePayload: recurringDepositClosePayload,
+    configurationUpdatePayload: configurationUpdatePayload,
+    currenciesUpdatePayload: currenciesUpdatePayload,
+    paymentTypePayload: paymentTypePayload,
+    fundPayload: fundPayload,
+    holidayPayload: holidayPayload,
+    workingDaysPayload: workingDaysPayload,
+    standingInstructionPayload: standingInstructionPayload,
+    loanReschedulePayload: loanReschedulePayload,
+    shareDividendPayload: shareDividendPayload,
+    taxComponentPayload: taxComponentPayload,
+    taxGroupPayload: taxGroupPayload,
+    delinquencyRangePayload: delinquencyRangePayload,
+    delinquencyBucketPayload: delinquencyBucketPayload,
+    staffPayload: staffPayload,
+    userPayload: userPayload
   };
 });

@@ -1,0 +1,13 @@
+/* Roles page extras. Colors come from app.css tokens (Phaneroo green/cream). */
+.fo-notice { border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: var(--teal-soft); color: var(--navy); }
+.fo-notice.ok { background: var(--success-soft); color: var(--success); }
+.perm-toolbar, .perm-sticky { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.perm-toolbar input[type="search"] { min-width: 220px; }
+.perm-sticky { position: sticky; bottom: 0; background: var(--surface); padding: 10px 0; border-top: 1px solid var(--border); }
+.perm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; margin: 8px 0 16px; }
+.perm-item { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
+.perm-name { display: block; }
+.perm-code { display: block; color: var(--muted); font-size: 11px; }
+.perm-group-actions { margin: 8px 0; }
+details[data-group] { border-bottom: 1px solid var(--border); padding: 8px 0; }
+details[data-group] summary { cursor: pointer; }

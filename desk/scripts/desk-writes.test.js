@@ -182,3 +182,126 @@ test("provisioning, address, share purchase, and accounting rule payloads", func
   assert.equal(rule.accountToCredit, 4);
   assert.throws(function () { W.accountingRulePayload({ name: "Same", debit: "1", credit: "1" }); }, /different/);
 });
+
+test("recurring deposit account and lifecycle payloads", function () {
+  const open = W.recurringDepositAccountPayload({
+    clientId: "8", productId: "3", submittedOnDate: "2026-10-01",
+    depositAmount: "20000", depositPeriod: "12", linkAccountId: "15"
+  });
+  assert.equal(open.clientId, 8);
+  assert.equal(open.productId, 3);
+  assert.equal(open.depositPeriodFrequencyId, 2);
+  assert.equal(open.mandatoryRecommendedDepositAmount, 20000);
+  assert.equal(open.linkAccountId, 15);
+  assert.equal(open.locale, "en");
+  assert.equal(open.dateFormat, "yyyy-MM-dd");
+  assert.throws(function () { W.recurringDepositAccountPayload({ productId: "3", submittedOnDate: "2026-10-01", depositAmount: "1", depositPeriod: "1" }); }, /Client/);
+
+  assert.equal(W.recurringDepositApprovePayload("2026-10-02").approvedOnDate, "2026-10-02");
+  assert.equal(W.recurringDepositActivatePayload("2026-10-03").activatedOnDate, "2026-10-03");
+  const txn = W.recurringDepositTxnPayload({ date: "2026-10-04", amount: "20000", paymentTypeId: "4", note: "cash" });
+  assert.equal(txn.transactionAmount, 20000);
+  assert.equal(txn.paymentTypeId, 4);
+  const close = W.recurringDepositClosePayload({ date: "2027-10-01", onAccountClosureId: "100", toSavingsAccountId: "15" });
+  assert.equal(close.onAccountClosureId, 100);
+  assert.equal(close.toSavingsAccountId, 15);
+});
+
+test("settings payloads: configuration, currencies, payment type, fund, holiday, working days", function () {
+  assert.deepEqual(W.configurationUpdatePayload({ enabled: "false" }), { enabled: false });
+  assert.equal(W.configurationUpdatePayload({ value: "12" }).value, 12);
+  assert.equal(W.configurationUpdatePayload({ value: "enable-address" }).value, "enable-address");
+  assert.throws(function () { W.configurationUpdatePayload({}); }, /enabled or a value/);
+
+  assert.deepEqual(W.currenciesUpdatePayload(["ugx", "UGX", "usd"]), { currencies: ["UGX", "USD"] });
+  assert.throws(function () { W.currenciesUpdatePayload(["xx"]); }, /at least one/);
+
+  const pay = W.paymentTypePayload({ name: "Mobile money", description: "MTN", isCashPayment: "false", position: "2" });
+  assert.equal(pay.isCashPayment, false);
+  assert.equal(pay.position, 2);
+  assert.deepEqual(W.fundPayload({ name: "Member fund", externalId: "MF-1" }), { name: "Member fund", externalId: "MF-1" });
+
+  const holiday = W.holidayPayload({
+    name: "Independence", officeId: "1", fromDate: "2026-10-09", toDate: "2026-10-09", reschedulingType: "2", repaymentsRescheduledTo: "2026-10-12"
+  });
+  assert.equal(holiday.reschedulingType, 2);
+  assert.equal(holiday.offices[0].officeId, 1);
+  assert.equal(holiday.repaymentsRescheduledTo, "2026-10-12");
+  assert.throws(function () {
+    W.holidayPayload({ name: "Bad", officeId: "1", fromDate: "2026-10-10", toDate: "2026-10-01" });
+  }, /To date/);
+  assert.throws(function () {
+    W.holidayPayload({ name: "Specific", officeId: "1", fromDate: "2026-10-09", reschedulingType: "2" });
+  }, /Reschedule to/);
+
+  const days = W.workingDaysPayload({ days: ["MO", "tu", "MO"], repaymentRescheduleType: "2", extendTermForDailyRepayments: "true" });
+  assert.equal(days.recurrence, "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,TU");
+  assert.equal(days.repaymentRescheduleType, 2);
+  assert.equal(days.extendTermForDailyRepayments, true);
+  assert.throws(function () { W.workingDaysPayload({ days: ["MO"], repaymentRescheduleType: "9" }); }, /1 to 4/);
+});
+
+test("account extras: standing instruction, reschedule, dividend, tax, delinquency, staff, user", function () {
+  const si = W.standingInstructionPayload({
+    name: "Monthly transfer", fromOfficeId: "1", fromClientId: "8", fromAccountId: "15", toAccountId: "16",
+    amount: "5000", validFrom: "2026-10-01", recurrenceFrequency: "2", recurrenceOnMonthDay: "01 October"
+  });
+  assert.equal(si.fromAccountType, 2);
+  assert.equal(si.transferType, 1);
+  assert.equal(si.recurrenceFrequency, 2);
+  assert.equal(si.monthDayFormat, "dd MMMM");
+  assert.throws(function () { W.standingInstructionPayload({ name: "x", fromAccountId: "1", toAccountId: "2", amount: "1", validFrom: "2026-10-01" }); }, /from account/);
+  assert.throws(function () {
+    W.standingInstructionPayload({ name: "x", fromClientId: "1", fromAccountId: "1", toAccountId: "2", amount: "1", validFrom: "2026-10-01" });
+  }, /From office/);
+
+  const rs = W.loanReschedulePayload({
+    loanId: "9", rescheduleFromDate: "2026-11-01", rescheduleReasonId: "4", extraTerms: "2", adjustedDueDate: "2026-11-15"
+  });
+  assert.equal(rs.loanId, 9);
+  assert.equal(rs.submittedOnDate, "2026-11-01");
+  assert.equal(rs.extraTerms, 2);
+  assert.throws(function () {
+    W.loanReschedulePayload({ loanId: "9", rescheduleFromDate: "2026-11-01", rescheduleReasonId: "4", adjustedDueDate: "2026-10-01" });
+  }, /before the reschedule/);
+
+  const div = W.shareDividendPayload({ dividendPeriodStartDate: "2026-01-01", dividendPeriodEndDate: "2026-10-01", dividendAmount: "100000" });
+  assert.equal(div.dividendAmount, 100000);
+  assert.throws(function () {
+    W.shareDividendPayload({ dividendPeriodStartDate: "2026-10-01", dividendPeriodEndDate: "2026-01-01", dividendAmount: "1" });
+  }, /Period end/);
+
+  const tax = W.taxComponentPayload({ name: "WHT", percentage: "10", startDate: "2026-10-01", creditAccountId: "4" });
+  assert.equal(tax.creditAccountType, 2);
+  assert.equal(tax.percentage, 10);
+  assert.throws(function () { W.taxComponentPayload({ name: "WHT", percentage: "10", startDate: "2026-10-01" }); }, /credit or debit/);
+  const group = W.taxGroupPayload({ name: "Standard", taxComponentId: "3", startDate: "2026-10-01" });
+  assert.equal(group.taxComponents[0].taxComponentId, 3);
+
+  const range = W.delinquencyRangePayload({ classification: "Watch", minimumAgeDays: "1", maximumAgeDays: "30" });
+  assert.equal(range.minimumAgeDays, 1);
+  assert.throws(function () { W.delinquencyRangePayload({ classification: "Bad", minimumAgeDays: "30", maximumAgeDays: "30" }); }, /greater than minimum/);
+  assert.deepEqual(W.delinquencyBucketPayload({ name: "Standard", ranges: "1, 2" }), { name: "Standard", ranges: [1, 2] });
+
+  const staff = W.staffPayload({ officeId: "1", firstname: "Mary", lastname: "N", isLoanOfficer: "true", joiningDate: "2026-10-01", mobileNo: "0700" });
+  assert.equal(staff.isLoanOfficer, true);
+  assert.equal(staff.mobileNo, "0700");
+
+  const user = W.userPayload({
+    username: "teller1", firstname: "Mary", lastname: "N", email: "mary@example.com",
+    officeId: "1", roles: "2", password: "secret", repeatPassword: "secret", staffId: "5"
+  });
+  assert.deepEqual(user.roles, [2]);
+  assert.equal(user.sendPasswordToEmail, false);
+  assert.equal(user.staffId, 5);
+  const updated = W.userPayload({
+    username: "teller1", firstname: "Mary", lastname: "N", email: "mary@example.com", officeId: "1", roles: [2]
+  }, true);
+  assert.equal(updated.password, undefined);
+  assert.throws(function () {
+    W.userPayload({ username: "a", firstname: "b", lastname: "c", email: "mary@example.com", officeId: "1", roles: "2", password: "a", repeatPassword: "b" });
+  }, /do not match/);
+  assert.throws(function () {
+    W.userPayload({ username: "a", firstname: "b", lastname: "c", email: "not-an-email", officeId: "1", roles: "2", password: "a", repeatPassword: "a" });
+  }, /valid email/);
+});

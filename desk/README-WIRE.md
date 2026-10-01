@@ -123,11 +123,25 @@ Live inventory used here: 39 GL accounts and 7 financial-activity mappings, with
 - **Accounting rule** — when none exist, the create dialog debits vault 1110 (else teller 1120) and credits a liability.
 - **Buy shares** — teller desk, only after a share product exists. POST `/accounts/share`, then `command=approve` and `command=activate`. The client must already have a savings account.
 
+### Desk screens added for existing Fineract APIs (2026-10-01)
+These call the live REST API. A failed call stays a toast. Nothing here is a mock success.
+
+- **Recurring deposits** — `recurring-deposits.html`, `rd-detail.html`. POST/PUT `/recurringdepositproducts`. POST `/recurringdepositaccounts`, then `command=approve`, `command=activate`, `transactions?command=deposit`, `command=prematureClose`, `command=close`.
+- **Settings** — `settings.html`. GET/PUT `/configurations` (including `enable-address`). GET/PUT `/currencies`. GET/POST/PUT `/paymenttypes`. GET/POST/PUT `/funds`. GET/POST `/holidays` and `command=activate`. GET/PUT `/workingdays`. GET/POST `/taxes/component` and `/taxes/group`. GET/POST `/delinquency/ranges` and `/delinquency/buckets` when that API exists; a 404 disables create and says so.
+- **System** — `system.html`. GET `/jobs`, POST `/jobs/{id}?command=executeJob`, GET `/jobs/{id}/runhistory`. GET `/audits` with action, entity, and maker date filters. GET `/makercheckers`, POST `/makercheckers/{auditId}?command=approve|reject`. POST `/scheduler?command=start|stop`. PUT `/caches`. GET `/hooks` is list-only.
+- **Staff and users** — `staff.html` GET/POST/PUT `/staff`. `users.html` GET/POST/PUT `/users` using `/users/template`. `roles.html` stays on the roles and permissions APIs.
+- **Shares and fixed deposits** — `shares.html`, `share-detail.html`, `fixed-deposits.html`, `fd-detail.html` are in git (they were droplet-only). Dividends: POST `/shareproduct/{id}/dividend` and `command=approve`.
+- **Standing instructions** — savings and client detail. GET/POST `/standinginstructions`, PUT `?command=delete` to cancel.
+- **Loan reschedule** — loan detail. POST `/rescheduleloans`, then `command=approve` or `command=reject`. Reasons come from code `LoanRescheduleReason`.
+- **Member import** — Clients. GET `/clients/downloadtemplate?legalFormType=CLIENTS_PERSON`, POST multipart `/clients/uploadtemplate`, GET `/imports?entityType=client`. A `.csv` file is refused and is not uploaded. A successful upload reports the import id only. Desk does not claim members were created.
+
+Portfolio at Risk stays a Desk calculation over loan data. The SQL report still throws BadSqlGrammar on this database, and Collections does not depend on it.
+
 ### Still not a working write (labeled in the UI)
-- Portfolio at Risk `/runreports` — report exists but SQL throws BadSqlGrammar on this database. Collections lists loans instead.
-- CSV import, KYC queue, family datatable, reversing the old mock journal refs, global settings screen.
+- KYC queue, family datatable, reversing the old mock journal refs.
 - New loan and savings products are created with accounting NONE. Edit can switch an existing product to cash when the chart is seeded.
 - Cash in/out will **not** hit a cashier whose staff is not the logged-in user. Joseph's drawer is the one tied to `mifos`.
+- Hook create is not posted. The hooks list is the whole screen.
 
 Smoke (already run): POST teller #2, POST cashier #2 (Mary), POST allocate 50,000 on cashier #1, savings deposit 25,000 shows as Cash In, POST settle 1,000. Drawer net after that was UGX 574,000.
 
