@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements. See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership. The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License. You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied. See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
+    <!--
+        PostgreSQL-only fixes for the stretchy (SQL) loan reports.
+
+        ReadReportingServiceImpl strips the quotes around '${param}' placeholders and binds them as JDBC parameters,
+        typed from stretchy_parameter.parameter_FormatType. currencyIdSelectAll was declared "number", so
+        "l.currency_code = '${currencyId}'" became "l.currency_code = ?" bound as bigint, which PostgreSQL rejects
+        (operator does not exist: character varying = bigint), and a real currency code (e.g. UGX) was rejected as
+        "not a valid number" before reaching the database. MySQL coerces silently, so MySQL is left untouched.
+
+        All statements are idempotent (guarded by the WHERE clause), so re-running on an already fixed tenant is a no-op.
+    -->
+
+    <!-- 1. currency_code = '${currencyId}'  ->  currency_code = CAST(${currencyId} AS VARCHAR) (reports + product lookup) -->
+    <changeSet author="fineract" id="0255-1-report-currency-code-cast" dbms="postgresql">
+        <sql splitStatements="false"><![CDATA[
+UPDATE stretchy_report
+   SET report_sql = regexp_replace(report_sql, '(\w+)\.currency_code\s*=\s*''\$\{currencyId\}''',
+                                   '\1.currency_code = CAST(${currencyId} AS VARCHAR)', 'g')
+ WHERE report_sql ~ '\w+\.currency_code\s*=\s*''\$\{currencyId\}''';
+        ]]></sql>
+    </changeSet>
+    <changeSet author="fineract" id="0255-2-parameter-currency-code-cast" dbms="postgresql">
+        <sql splitStatements="false"><![CDATA[
+UPDATE stretchy_parameter
+   SET parameter_sql = regexp_replace(parameter_sql, '(\w+)\.currency_code\s*=\s*''\$\{currencyId\}''',
+                                      '\1.currency_code = CAST(${currencyId} AS VARCHAR)', 'g')
+ WHERE parameter_sql ~ '\w+\.currency_code\s*=\s*''\$\{currencyId\}''';
+        ]]></sql>
+    </changeSet>
+
+    <!-- 2. currencyId is a 3-letter ISO code: bind it as a string so a specific currency can be selected
+            ('-1' = ? and currency_code = CAST(? AS VARCHAR) both work with a varchar bind). -->
+    <changeSet author="fineract" id="0255-3-currency-parameter-string-format" dbms="postgresql">
+        <sql splitStatements="false"><![CDATA[
+UPDATE stretchy_parameter
+   SET "parameter_FormatType" = 'string'
+ WHERE parameter_name = 'currencyIdSelectAll'
+   AND parameter_variable = 'currencyId'
+   AND "parameter_FormatType" <> 'string';
+        ]]></sql>
+    </changeSet>
+
+    <!-- 3. CAST(x AS CHAR) is char(1) on PostgreSQL and truncated PAR percentages / transaction type names to one
+            character. -->
+    <changeSet author="fineract" id="0255-4-report-cast-as-char-to-varchar" dbms="postgresql">
+        <sql splitStatements="false"><![CDATA[
+UPDATE stretchy_report
+   SET report_sql = regexp_replace(report_sql, 'AS\s+CHAR\s*\)', 'AS VARCHAR)', 'gi')
+ WHERE report_sql ~* 'AS\s+CHAR\s*\)';
+        ]]></sql>
+    </changeSet>
+
+    <!-- 4. "DATE ${startDate}" becomes "DATE ?" after binding, which is a syntax error (TxnRunningBalances). -->
+    <changeSet author="fineract" id="0255-5-report-date-literal-placeholder" dbms="postgresql">
+        <sql splitStatements="false"><![CDATA[
+UPDATE stretchy_report
+   SET report_sql = regexp_replace(report_sql, '\yDATE\s+''?\$\{(\w+)\}''?', 'CAST(${\1} AS DATE)', 'gi')
+ WHERE report_sql ~* '\yDATE\s+''?\$\{\w+\}';
+        ]]></sql>
+    </changeSet>
+</databaseChangeLog>
