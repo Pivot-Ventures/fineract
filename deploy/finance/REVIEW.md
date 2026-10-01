@@ -9,6 +9,7 @@ Accounting: **accrual (periodic)** for loans, savings and fixed deposits; cash f
 | Product | Amount (UGX) | Term (months) | Interest | Fees | Guarantee | Portfolio GL / income GL | ✔ |
 |---|---|---|---|---|---|---|---|
 | Business / Development Loan | 500,000–20,000,000 (default 2,000,000) | 3–36 | 2% per month reducing (allowed 1.5–2.5%) | Loan processing fee 2%, Late repayment penalty | 50% (25% own savings + 25% guarantors) | 1210 / 4110 | ☐ |
+| Business / Development Loan (migrated) | 10,000–100,000,000 (default 2,000,000) | 1–60 | 2% per month reducing (allowed 0.5–5%) | Late repayment penalty | none | 1210 / 4110 | ☐ |
 | Emergency Loan | 100,000–2,000,000 (default 500,000) | 1–3 | 3% per month reducing (allowed 3–3%) | Loan processing fee 1%, Late repayment penalty | none | 1220 / 4120 | ☐ |
 | School Fees Loan | 200,000–10,000,000 (default 1,000,000) | 3–12 | 2% per month reducing (allowed 1.5–2%) | Loan processing fee 1.5%, Late repayment penalty | none | 1230 / 4130 | ☐ |
 | Salary / Check-off Loan | 500,000–30,000,000 (default 3,000,000) | 3–36 | 1.8% per month reducing (allowed 1.5–2%) | Loan processing fee 1.5%, Late repayment penalty | none | 1240 / 4140 | ☐ |
@@ -38,6 +39,7 @@ All loans: equal monthly instalments, amounts in multiples of UGX 1,000, non-per
 | Loan processing fee 1.5% | loan | 1.5% | 4210 Loan processing fees | ☐ |
 | Loan processing fee 1% | loan | 1% | 4210 Loan processing fees | ☐ |
 | Late repayment penalty | loan | 1% | 4240 Penalty income | ☐ |
+| Migrated arrears (interest and fees) | loan | set per loan (migration only) | 4900 Migration income adjustment | ☐ |
 | Savings withdrawal fee | savings | UGX 1,000 | 4230 Savings account fees | ☐ |
 
 ## Loan loss provisioning
@@ -130,6 +132,7 @@ All loans: equal monthly instalments, amounts in multiples of UGX 1,000, non-per
 | 4310 | Interest on bank deposits and investments | Income |
 | 4320 | Recoveries of written-off loans | Income |
 | 4330 | Miscellaneous income | Income |
+| 4900 | Migration income adjustment | Income |
 | 5000 | **EXPENSES** | Expense |
 | 5100 | **Interest expense** | Expense |
 | 5110 | Interest on savings | Expense |
@@ -166,6 +169,7 @@ All loans: equal monthly instalments, amounts in multiples of UGX 1,000, non-per
 - **Children and Youth Savings**: 4% p.a.; minimum balance UGX 5,000; withdrawals blocked for the first 3 months; no withdrawal fee.
 - **Fixed Deposit**: 3–24 months in 3-month steps; minimum UGX 500,000; 6% (3–5 m), 8% (6–11 m), 10% (12–24 m) p.a.; early closure loses 2% of the rate.
 - **Business / Development Loan**: UGX 500k–20M, 3–36 months, 2% per month reducing balance (range 1.5–2.5%), 2% processing fee, 50% of the loan must be guaranteed (25% own savings + 25% guarantors).
+- **Business / Development Loan (migrated)**: holds legacy business loans at their existing terms. Same ledger accounts as the main business loan. It has no guarantee hold because legacy guarantor records are not migrated, and this Fineract build cannot switch the rule off and back on during the load.
 - **Emergency Loan**: UGX 100k–2M, 1–3 months, 3% per month reducing balance, 1% processing fee, no guarantee requirement.
 - **School Fees Loan**: UGX 200k–10M, 3–12 months, 2% per month reducing balance, 1.5% processing fee.
 - **Salary / Check-off Loan**: UGX 500k–30M, 3–36 months, 1.8% per month reducing balance, 1.5% processing fee; requires an employer check-off agreement (tracked outside Fineract).

@@ -382,7 +382,7 @@ class Applier:
                 self.log(f"  = {lp['name']}")
                 continue
             g = {**d["gl"], **lp["gl"]}
-            fees, penalties = self.fee_mappings(lp["charges"])
+            fees, penalties = self.fee_mappings(lp["charges"] + d.get("extraFeeMappings", []))
             body = {
                 "name": lp["name"], "shortName": lp["shortName"], "description": lp["description"],
                 "currencyCode": self.cfg["currency"]["code"], "digitsAfterDecimal": 0,
@@ -534,6 +534,8 @@ def review(cfg: dict) -> str:
             "", "## Fees and penalties", "", "| Charge | Applies to | Amount | Income GL | ✔ |", "|---|---|---|---|---|"]
     for c in cfg["charges"]:
         amt = f"{c['amount']}%" if c["calculationType"] != 1 else f"UGX {c['amount']:,}"
+        if c.get("_note", "").startswith("Migration only"):
+            amt = "set per loan (migration only)"
         out.append(f"| {c['name']} | {c['appliesTo']} | {amt} | {c['incomeGl']} {gl[c['incomeGl']]} | ☐ |")
     pv = cfg["provisioning"]
     out += ["", "## Loan loss provisioning", "", "| Category | Days in arrears | Provision | ✔ |", "|---|---|---|---|"]

@@ -68,7 +68,8 @@ These were found in testing on the `fineract:latest` 1.16.0-SNAPSHOT image.
 2. **Client-level charges never store their income account**, on create or update, so paying one posts no journal entry. The entrance fee is therefore a *specified-due-date* charge on Voluntary Savings, collected from the member's first deposits.
 3. **Minimum opening balance is booked as an automatic cash deposit on activation.** All savings products set it to 0. The first deposit is taken as a normal deposit, and the minimum balance is still enforced. Otherwise every migrated account would gain a phantom deposit.
 4. **Fees due at disbursement are booked as cash received at the till** (Dr 1120), whatever payment type the loan went out on. This is flagged in `REVIEW.md`. If fees are deducted from savings instead, switch those charges to payment mode *account transfer*.
-5. **Deposit accounts need a liability** for "transfers in suspense" (2340); loans use an asset (1910). **Fixed-deposit interest charts must start at period 1.**
+5. **Editing a loan product crashes** (HTTP 500, NPE on `getLoanProductRelatedDetail`). Get products right before members hold loans. Legacy business loans therefore load into a separate *(migrated)* product, rather than temporarily lifting the guarantee rule (see `deploy/migration`).
+6. **Deposit accounts need a liability** for "transfers in suspense" (2340); loans use an asset (1910). **Fixed-deposit interest charts must start at period 1.**
 
 ## Migration
 

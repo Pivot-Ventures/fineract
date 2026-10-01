@@ -714,7 +714,8 @@
 
     (async function () {
       var products = await api.get("/loanproducts");
-      la.products = Array.isArray(products) ? products : [];
+      /* "(migrated)" products only hold loans loaded from the legacy system; never offer them for new lending. */
+      la.products = (Array.isArray(products) ? products : []).filter(function (p) { return !/\(migrated\)\s*$/i.test(p.name || ""); });
       productSel.innerHTML = '<option value="">— Select product —</option>' + la.products.map(function (p) {
         return '<option value="' + esc(p.id) + '">' + esc(p.name) + "</option>";
       }).join("");

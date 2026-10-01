@@ -107,6 +107,7 @@
     { "code": "4310", "name": "Interest on bank deposits and investments", "type": "INCOME", "parent": "4300" },
     { "code": "4320", "name": "Recoveries of written-off loans", "type": "INCOME", "parent": "4300" },
     { "code": "4330", "name": "Miscellaneous income", "type": "INCOME", "parent": "4300" },
+    { "code": "4900", "name": "Migration income adjustment", "type": "INCOME", "parent": "4000", "_note": "Contra for arrears interest/fees loaded from the legacy system (already recognised there). Nets to zero against the opening journal." },
 
     { "code": "5000", "name": "EXPENSES", "type": "EXPENSE", "usage": "HEADER" },
     { "code": "5100", "name": "Interest expense", "type": "EXPENSE", "usage": "HEADER", "parent": "5000" },
@@ -158,6 +159,7 @@
     { "key": "processingFee1_5", "name": "Loan processing fee 1.5%", "appliesTo": "loan", "timeType": 1, "calculationType": 2, "amount": 1.5, "incomeGl": "4210" },
     { "key": "processingFee1", "name": "Loan processing fee 1%", "appliesTo": "loan", "timeType": 1, "calculationType": 2, "amount": 1, "incomeGl": "4210" },
     { "key": "latePenalty", "name": "Late repayment penalty", "appliesTo": "loan", "timeType": 9, "calculationType": 3, "amount": 1, "penalty": true, "feeInterval": 1, "feeFrequency": 2, "incomeGl": "4240", "_review": "REVIEW: 1% per month of the overdue instalment (principal + interest)" },
+    { "key": "migratedArrears", "name": "Migrated arrears (interest and fees)", "appliesTo": "loan", "timeType": 2, "calculationType": 1, "amount": 1, "incomeGl": "4900", "_note": "Migration only: legacy unpaid interest/fees at cutover. Amount is set per loan by the migration loader. Never a product default." },
     { "key": "withdrawalFee", "name": "Savings withdrawal fee", "appliesTo": "savings", "timeType": 5, "calculationType": 1, "amount": 1000, "incomeGl": "4230", "_review": "REVIEW: UGX 1,000 per over-the-counter withdrawal" }
   ],
 
@@ -231,6 +233,7 @@
     "graceOnArrearsAgeing": 0, "inArrearsTolerance": 0,
     "includeInBorrowerCycle": true,
     "charges": ["latePenalty"],
+    "extraFeeMappings": ["migratedArrears"],
     "gl": {
       "interestReceivable": "1310", "feesReceivable": "1320", "penaltiesReceivable": "1330",
       "transfersSuspense": "1910", "incomeFromFees": "4210", "incomeFromPenalties": "4240",
@@ -249,6 +252,18 @@
       "holdGuaranteeFunds": true, "mandatoryGuarantee": 50, "minimumGuaranteeFromOwnFunds": 25, "minimumGuaranteeFromGuarantor": 25,
       "gl": { "portfolio": "1210", "interestIncome": "4110" },
       "_review": "REVIEW: UGX 500k–20M, 3–36 months, 2% per month reducing balance (range 1.5–2.5%), 2% processing fee, 50% of the loan must be guaranteed (25% own savings + 25% guarantors)."
+    },
+    {
+      "name": "Business / Development Loan (migrated)", "shortName": "BDM",
+      "description": "Legacy business loans loaded at cutover. Not for new lending (hidden in Desk).",
+      "migrates": "Business / Development Loan",
+      "principal": 2000000, "minPrincipal": 10000, "maxPrincipal": 100000000,
+      "numberOfRepayments": 12, "minNumberOfRepayments": 1, "maxNumberOfRepayments": 60,
+      "interestRatePerPeriod": 2, "minInterestRatePerPeriod": 0.5, "maxInterestRatePerPeriod": 5,
+      "charges": ["latePenalty"],
+      "holdGuaranteeFunds": false,
+      "gl": { "portfolio": "1210", "interestIncome": "4110" },
+      "_review": "REVIEW: holds legacy business loans at their existing terms. Same ledger accounts as the main business loan. It has no guarantee hold because legacy guarantor records are not migrated, and this Fineract build cannot switch the rule off and back on during the load."
     },
     {
       "name": "Emergency Loan", "shortName": "EML",

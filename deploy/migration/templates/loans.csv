@@ -1,0 +1,2 @@
+loan_no,member_no,product,original_disbursed_date,outstanding_principal,monthly_rate,remaining_installments,next_due_date,arrears_interest_and_fees
+PS00001-L1,PS00001,Salary / Check-off Loan,2026-03-15,2400000,1.8,8,2026-10-15,0
