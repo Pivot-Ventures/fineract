@@ -186,8 +186,28 @@
       }
       // Inject summary card if present
       var cards = document.querySelectorAll(".card-b");
+      var addrBox = document.getElementById("client-addresses");
+      if (addrBox) {
+        try {
+          var cfg = await api.get("/configurations/name/enable-address");
+          if (cfg && cfg.enabled) {
+            var addrs = await api.get("/client/" + id + "/addresses");
+            var list = Array.isArray(addrs) ? addrs : [];
+            addrBox.innerHTML = list.length ? list.map(function (a) {
+              var line = [a.addressLine1, a.city, a.countryName].filter(Boolean).join(", ");
+              return "<div class=\"meta-item\" style=\"margin-bottom:8px\"><div class=\"k\">" +
+                api.escapeHtml(a.addressType || "Address") + "</div><div class=\"v\">" + api.escapeHtml(line || "—") + "</div></div>";
+            }).join("") : "No addresses yet.";
+          } else {
+            addrBox.textContent = "Address module is off. Add address turns it on.";
+          }
+        } catch (e) {
+          addrBox.textContent = "Addresses are not available until enable-address is on.";
+        }
+      }
       cards.forEach(function (card) {
         if (card.querySelector("table")) return;
+        if (card.closest("[data-panel]") || card.querySelector(".profile-head")) return;
         if (card.textContent.length < 800) {
           card.innerHTML =
             "<p><strong>Mobile:</strong> " + api.escapeHtml(client.mobileNo || "—") + "</p>" +
@@ -514,7 +534,9 @@
           '<div class="rate">' + api.escapeHtml(String(rate)) + "</div>" +
           "<div>Principal " + api.formatMoney(p.principal, code || "UGX") + "</div>" +
           '<div class="text-muted" style="margin-top:6px;font-size:12px">' +
-          api.escapeHtml(String(p.numberOfRepayments || "—")) + " repayments</div></div>";
+          api.escapeHtml(String(p.numberOfRepayments || "—")) + " repayments</div>" +
+          '<div style="margin-top:10px"><button class="btn btn-sm btn-ghost" type="button" data-edit-loan="' +
+          api.escapeHtml(p.id) + '">Edit</button></div></div>';
       }).join("");
     }
     function renderSavingsProducts(savings) {
@@ -524,8 +546,9 @@
         return "<tr><td class=\"strong\">" + api.escapeHtml(p.name) + "</td><td class=\"mono\">" +
           api.escapeHtml(p.shortName || "—") + "</td><td>" + api.escapeHtml(currencyCode(p) || "—") +
           '</td><td class="mono text-right">' + api.escapeHtml(String(p.nominalAnnualInterestRate != null ? p.nominalAnnualInterestRate : "—")) +
-          "%</td></tr>";
-      }).join("") || '<tr><td colspan="4">No savings products yet. Use ＋ Savings product.</td></tr>';
+          '%</td><td><button class="btn btn-sm btn-ghost" type="button" data-edit-savings="' + api.escapeHtml(p.id) +
+          '">Edit</button></td></tr>';
+      }).join("") || '<tr><td colspan="5">No savings products yet. Use ＋ Savings product.</td></tr>';
     }
     function renderCharges(charges) {
       var tbody = document.querySelector("#charges-table tbody");
@@ -547,26 +570,47 @@
       var tbody = document.querySelector("#floating-table tbody");
       if (!tbody) return;
       if (rates === null) {
-        tbody.innerHTML = '<tr><td colspan="3">Floating rates could not be loaded. Edit stays unsupported.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4">Floating rates could not be loaded.</td></tr>';
         return;
       }
       tbody.innerHTML = rates.map(function (r) {
-        var base = r.isBaseLendingRate ? "Yes" : (r.rate != null ? String(r.rate) + "%" : "—");
-        return "<tr><td>" + api.escapeHtml(r.name || "—") + "</td><td>" + api.escapeHtml(base) +
-          '</td><td><button type="button" class="btn btn-sm btn-ghost" data-mock="Edit rate">Edit</button></td></tr>';
-      }).join("") || '<tr><td colspan="3">No floating rates. Edit stays unsupported.</td></tr>';
+        return "<tr><td class=\"strong\">" + api.escapeHtml(r.name || "") + "</td><td>" +
+          (r.isBaseLendingRate ? "Base" : "—") + "</td><td>" + (r.isActive === false ? "Inactive" : "Active") +
+          '</td><td><button class="btn btn-sm btn-ghost" type="button" data-edit-rate="' + api.escapeHtml(r.id) +
+          '">Edit</button></td></tr>';
+      }).join("") || '<tr><td colspan="4">No floating rates</td></tr>';
+    }
+    function putRows(id, html, cols) {
+      var tb = document.getElementById(id);
+      if (tb) tb.innerHTML = html || '<tr><td colspan="' + cols + '">None yet</td></tr>';
+    }
+    function depositRow(p) {
+      return "<tr><td class=\"mono\">" + api.escapeHtml(p.id) + "</td><td class=\"strong\">" + api.escapeHtml(p.name) +
+        "</td><td>" + api.escapeHtml(p.shortName || "") +
+        "</td><td class=\"mono text-right\">" + api.formatMoney(p.depositAmount || p.minDepositAmount) + "</td></tr>";
     }
     async function loadProductScreen() {
       var results = await Promise.all([
         api.get("/loanproducts"),
         api.get("/savingsproducts").catch(function () { return []; }),
         api.get("/charges").catch(function () { return []; }),
-        api.get("/floatingrates").catch(function () { return null; })
+        api.get("/floatingrates").catch(function () { return null; }),
+        api.get("/products/share").catch(function () { return []; }),
+        api.get("/fixeddepositproducts").catch(function () { return []; }),
+        api.get("/recurringdepositproducts").catch(function () { return []; })
       ]);
       renderLoanProducts(asList(results[0]));
       renderSavingsProducts(asList(results[1]));
       renderCharges(asList(results[2]));
       renderFloating(results[3] === null ? null : asList(results[3]));
+      var shares = asList(results[4]);
+      putRows("share-products", shares.map(function (p) {
+        return "<tr><td class=\"mono\">" + api.escapeHtml(p.id) + "</td><td class=\"strong\">" + api.escapeHtml(p.name) +
+          "</td><td>" + api.escapeHtml(p.shortName || "") +
+          "</td><td class=\"mono text-right\">" + api.formatMoney(p.unitPrice) + "</td></tr>";
+      }).join(""), 4);
+      putRows("fd-products", asList(results[5]).map(depositRow).join(""), 4);
+      putRows("rd-products", asList(results[6]).map(depositRow).join(""), 4);
     }
     window.PivotProducts = {
       reload: loadProductScreen,

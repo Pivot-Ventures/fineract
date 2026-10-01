@@ -338,10 +338,13 @@
       overlay.style.cssText = "position:fixed;inset:0;background:rgba(8,24,28,.45);z-index:80;display:flex;align-items:flex-start;justify-content:center;padding:48px 16px;overflow:auto";
       var box = document.createElement("form");
       box.className = "card";
-      box.style.cssText = "width:min(" + (opts.width || 520) + "px,100%);margin:0;background:#fff";
+      var width = opts.width;
+      if (width == null || width === "") width = "min(520px,100%)";
+      else if (typeof width === "number") width = "min(" + width + "px,100%)";
+      box.style.cssText = "width:" + width + ";margin:0;background:#fff";
       var fields = opts.fields || [];
       var depends = {};
-      var html = '<div class="card-h"><h2>' + escapeHtml(opts.title || "Action") + '</h2></div><div class="card-b">';
+      var html = '<div class="card-h"><h2>' + escapeHtml(opts.title || "Action") + "</h2></div><div class=\"card-b\">";
       if (opts.message) html += '<p class="text-muted" style="margin:0 0 12px;font-size:13px">' + escapeHtml(opts.message) + "</p>";
       html += '<div class="form-grid">';
       fields.forEach(function (f) {
@@ -349,7 +352,11 @@
           html += '<div class="form-row full"><p class="text-muted" style="margin:0;font-size:12px">' + escapeHtml(f.label) + "</p></div>";
           return;
         }
-        html += '<div class="form-row' + (f.full ? " full" : "") + '"><label>' + escapeHtml(f.label) + "</label>";
+        var show = "";
+        if (f.showWhen) {
+          show = ' data-show-key="' + escapeHtml(f.showWhen.key) + '" data-show-values="' + escapeHtml((f.showWhen.values || []).join(",")) + '"';
+        }
+        html += '<div class="form-row' + (f.full ? " full" : "") + '"' + show + "><label>" + escapeHtml(f.label) + "</label>";
         if (f.type === "select") {
           if (f.dependsOn && f.optionsBy) depends[f.key] = f;
           html += '<select data-k="' + escapeHtml(f.key) + '"' + (f.dependsOn ? ' data-depends="' + escapeHtml(f.dependsOn) + '"' : "") + ">";
@@ -371,13 +378,34 @@
           if (f.required) extra += " required";
           html += '<input data-k="' + escapeHtml(f.key) + '" type="' + escapeHtml(f.type || "text") + '" value="' + escapeHtml(f.value || "") + '"' + extra + " />";
         }
-        if (f.hint) html += '<div class="text-muted" style="font-size:12px">' + escapeHtml(f.hint) + "</div>";
+        if (f.hint) html += '<div class="text-muted" style="font-size:12px;margin-top:4px">' + escapeHtml(f.hint) + "</div>";
         html += "</div>";
       });
       html += '</div><div class="form-actions"><button type="submit" class="btn btn-amber">' + escapeHtml(opts.submitLabel || "Save") + '</button><button type="button" class="btn btn-ghost" data-cancel>Cancel</button></div></div>';
       box.innerHTML = html;
       overlay.appendChild(box);
       document.body.appendChild(overlay);
+      function readValues() {
+        var out = {};
+        box.querySelectorAll("[data-k]").forEach(function (el) {
+          var row = el.closest(".form-row");
+          if (row && row.style.display === "none") return;
+          out[el.getAttribute("data-k")] = el.value;
+        });
+        return out;
+      }
+      function syncShown() {
+        var current = {};
+        box.querySelectorAll("[data-k]").forEach(function (el) {
+          current[el.getAttribute("data-k")] = el.value;
+        });
+        box.querySelectorAll("[data-show-key]").forEach(function (row) {
+          var key = row.getAttribute("data-show-key");
+          var allowed = (row.getAttribute("data-show-values") || "").split(",");
+          var on = allowed.some(function (v) { return v === String(current[key]); });
+          row.style.display = on ? "" : "none";
+        });
+      }
       function syncDepends() {
         Object.keys(depends).forEach(function (key) {
           var f = depends[key];
@@ -389,29 +417,25 @@
         });
       }
       syncDepends();
+      syncShown();
       box.addEventListener("change", function (e) {
         var key = e.target && e.target.getAttribute && e.target.getAttribute("data-k");
-        if (!key) return;
-        var drives = Object.keys(depends).some(function (child) { return depends[child].dependsOn === key; });
-        if (drives) syncDepends();
+        if (key) {
+          var drives = Object.keys(depends).some(function (child) { return depends[child].dependsOn === key; });
+          if (drives) syncDepends();
+        }
+        syncShown();
       });
       function close(val) {
         overlay.remove();
         resolve(val);
-      }
-      function readValues() {
-        var out = {};
-        box.querySelectorAll("[data-k]").forEach(function (el) {
-          out[el.getAttribute("data-k")] = el.value;
-        });
-        return out;
       }
       box.querySelector("[data-cancel]").addEventListener("click", function () { close(null); });
       overlay.addEventListener("click", function (e) { if (e.target === overlay) close(null); });
       box.addEventListener("submit", function (e) {
         e.preventDefault();
         var out = readValues();
-        if (!opts.onSubmit) { close(out); return; }
+        if (typeof opts.onSubmit !== "function") { close(out); return; }
         var btn = box.querySelector("button[type=submit]");
         if (btn) btn.disabled = true;
         Promise.resolve().then(function () { return opts.onSubmit(out); }).then(function (res) {

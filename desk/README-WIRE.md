@@ -110,11 +110,23 @@ Do **not** use `python -m http.server` — it has no API proxy and browsers will
 - **Create loan product** — POST `/loanproducts` with `accountingRule: 1` (NONE) and `transactionProcessingStrategyCode: mifos-standard-strategy`. Fields follow the NONE retry in `scripts/seed-fineract.py` (principal min/default/max, repayments, monthly interest, no GL account ids). The loan product grid reloads after a successful save.
 - **Create savings product** — POST `/savingsproducts` with the voluntary savings NONE fallback (`accountingRule: 1`, monthly compounding and posting, daily balance, 365-day year, no GL account ids).
 
+### LIVE writes added 2026-10-01 (follow-up, chart seeded)
+Live inventory used here: 39 GL accounts and 7 financial-activity mappings, with activity 101 on vault `1110` and activity 102 on teller `1120`. Cash product dialogs prefer those codes, then the first GL of the right type.
+
+- **Floating rates** — `products-loans.html` POST/PUT `/floatingrates`. The period date must be after the business date (`GET /businessdate`). Edit adds one future period; past periods are left alone.
+- **Share product** — POST `/products/share`. Accounting None, or Cash with `shareReferenceId` (1120), `shareSuspenseId`, `shareEquityId`, `incomeFromFeeAccountId`.
+- **Fixed deposit** — POST `/fixeddepositproducts` with a 6–24 month chart, `interestPostingPeriodType` 4, and `depositAmount`. Cash uses the savings reference/control set (reference defaults to 1120).
+- **Recurring deposit** — POST `/recurringdepositproducts` with the same chart plus monthly `recurringFrequency`.
+- **Edit loan / savings product** — PUT `/loanproducts/{id}` and PUT `/savingsproducts/{id}`. Accounting can stay None or switch to Cash (rule 2) with GL pickers. Create still posts accounting NONE; cash is chosen on edit.
+- **Provisioning** — `accruals.html` POST `/provisioningcriteria` (one age bucket) and POST `/provisioningentries`.
+- **Client address** — `client-detail.html` turns on `configurations/name/enable-address` when it is off, then POST `/client/{id}/addresses?type=`. Family stays unwired.
+- **Accounting rule** — when none exist, the create dialog debits vault 1110 (else teller 1120) and credits a liability.
+- **Buy shares** — teller desk, only after a share product exists. POST `/accounts/share`, then `command=approve` and `command=activate`. The client must already have a savings account.
+
 ### Still not a working write (labeled in the UI)
-- Buy shares — no share product.
 - Portfolio at Risk `/runreports` — report exists but SQL throws BadSqlGrammar on this database. Collections lists loans instead.
-- Floating rate edit, CSV import, KYC queue, family/address datatables, provisioning criteria create, reversing the old mock journal refs, global settings screen.
-- Cash-based loan or savings products (accounting rule 2) — those need a seeded chart of accounts. Desk create stays on NONE.
+- CSV import, KYC queue, family datatable, reversing the old mock journal refs, global settings screen.
+- New loan and savings products are created with accounting NONE. Edit can switch an existing product to cash when the chart is seeded.
 - Cash in/out will **not** hit a cashier whose staff is not the logged-in user. Joseph's drawer is the one tied to `mifos`.
 
 Smoke (already run): POST teller #2, POST cashier #2 (Mary), POST allocate 50,000 on cashier #1, savings deposit 25,000 shows as Cash In, POST settle 1,000. Drawer net after that was UGX 574,000.
