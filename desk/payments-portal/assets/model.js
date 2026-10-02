@@ -438,6 +438,130 @@
     return lines.join("\n") + "\n";
   }
 
+  var PORTAL_QUERY_KEYS = [
+    "channel", "direction", "status", "product", "partnerId", "from", "to", "q", "limit", "offset"
+  ];
+
+  function portalQuery(filters) {
+    var params = new URLSearchParams();
+    filters = filters || {};
+    PORTAL_QUERY_KEYS.forEach(function (key) {
+      if (filters[key] == null || filters[key] === "") return;
+      params.set(key, String(filters[key]));
+    });
+    return params.toString();
+  }
+
+  function num(value) {
+    var n = Number(value);
+    return isFinite(n) ? n : 0;
+  }
+
+  function asPercent(value) {
+    if (value == null || value === "") return null;
+    var n = Number(value);
+    if (!isFinite(n)) return null;
+    if (n >= 0 && n <= 1) return n * 100;
+    return n;
+  }
+
+  function timelineState(step) {
+    var raw = String((step && (step.state || step.status)) || "").toLowerCase();
+    if (["done", "completed", "complete", "ok", "success", "posted"].indexOf(raw) >= 0) return "done";
+    if (["failed", "fail", "error", "declined", "rejected"].indexOf(raw) >= 0) return "failed";
+    if (["current", "active", "pending", "in_progress", "running"].indexOf(raw) >= 0) return "current";
+    return "upcoming";
+  }
+
+  function normalizeTimeline(raw) {
+    var steps = raw;
+    if (raw && !Array.isArray(raw)) steps = raw.steps || raw.events || raw.items || null;
+    if (!Array.isArray(steps) || !steps.length) return null;
+    return steps.map(function (step, index) {
+      step = step || {};
+      return {
+        label: textOrEmpty(step.label || step.title || step.step || step.name || ("Step " + (index + 1))),
+        detail: textOrEmpty(step.detail || step.message || step.meta || step.description),
+        state: timelineState(step),
+        at: textOrEmpty(step.at || step.occurredAt || step.timestamp),
+        code: textOrEmpty(step.code || step.ref)
+      };
+    });
+  }
+
+  function intentFromPortal(row) {
+    row = row || {};
+    var source = row.intent && typeof row.intent === "object" ? row.intent : row;
+    var intent = normalizeIntent(source);
+    var timeline = normalizeTimeline(row.timeline || row.events || source.timeline || source.events);
+    if (timeline) intent.timeline = timeline;
+    return intent;
+  }
+
+  function normalizePortalList(body) {
+    var items = normalizeList(body).map(intentFromPortal);
+    var total = items.length;
+    if (body && typeof body === "object" && !Array.isArray(body)) {
+      var raw = body.total != null ? body.total : (body.totalCount != null ? body.totalCount : body.count);
+      if (raw != null && isFinite(Number(raw))) total = Number(raw);
+    }
+    return { items: items, total: total };
+  }
+
+  function blankChannel(id) {
+    return { id: id, label: channelLabel(id), count: 0, volume: 0, posted: 0, failed: 0 };
+  }
+
+  function applyChannel(channels, id, row) {
+    if (!id) return;
+    if (!channels[id]) channels[id] = blankChannel(id);
+    row = row || {};
+    var target = channels[id];
+    target.count = num(row.count != null ? row.count : (row.txns != null ? row.txns : row.total));
+    target.volume = num(row.volume != null ? row.volume : (row.grossVolume != null ? row.grossVolume : row.amount));
+    if (row.posted != null || row.postedCount != null || row.successCount != null) {
+      target.posted = num(row.posted != null ? row.posted : (row.postedCount != null ? row.postedCount : row.successCount));
+    } else {
+      var rate = asPercent(row.successRate);
+      target.posted = rate != null && target.count ? Math.round((rate / 100) * target.count) : 0;
+    }
+    target.failed = num(row.failed != null ? row.failed : row.failedCount);
+  }
+
+  function normalizeSummary(body) {
+    if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+    var channels = {};
+    CHANNELS.forEach(function (ch) { channels[ch.id] = blankChannel(ch.id); });
+    var src = body.byChannel || body.channels || body.channelMix || [];
+    if (Array.isArray(src)) {
+      src.forEach(function (row) {
+        applyChannel(channels, row && (row.channel || row.id || row.channelId), row);
+      });
+    } else if (src && typeof src === "object") {
+      Object.keys(src).forEach(function (id) { applyChannel(channels, id, src[id]); });
+    }
+    var volumePosted = num(body.volumePosted != null ? body.volumePosted : (body.settledVolume != null ? body.settledVolume : (body.settledToCore != null ? body.settledToCore : body.settled)));
+    var volumeAll = num(body.volumeAll != null ? body.volumeAll : (body.grossVolume != null ? body.grossVolume : (body.volume != null ? body.volume : body.gross)));
+    var inflight = num(body.inflightVolume != null ? body.inflightVolume : body.inFlightVolume);
+    if (!volumeAll && (volumePosted || inflight)) volumeAll = volumePosted + inflight;
+    var count = num(body.count != null ? body.count : (body.total != null ? body.total : body.txnCount));
+    var posted = num(body.posted != null ? body.posted : (body.postedCount != null ? body.postedCount : body.successCount));
+    var rate = asPercent(body.successRate);
+    return {
+      count: count,
+      posted: posted,
+      pending: num(body.pending != null ? body.pending : (body.pendingCount != null ? body.pendingCount : body.inflightCount)),
+      failed: num(body.failed != null ? body.failed : body.failedCount),
+      volumePosted: volumePosted,
+      volumeAll: volumeAll,
+      collect: num(body.collect != null ? body.collect : body.collections),
+      disburse: num(body.disburse != null ? body.disburse : body.disbursements),
+      successRate: rate != null ? rate : (count ? (posted / count) * 100 : 0),
+      byChannel: channels,
+      byDay: body.byDay || {}
+    };
+  }
+
   return {
     FAILED: FAILED,
     PENDING: PENDING,
@@ -464,6 +588,11 @@
     formatUgx: formatUgx,
     normalizeList: normalizeList,
     normalizeIntent: normalizeIntent,
+    portalQuery: portalQuery,
+    normalizeTimeline: normalizeTimeline,
+    intentFromPortal: intentFromPortal,
+    normalizePortalList: normalizePortalList,
+    normalizeSummary: normalizeSummary,
     displayName: displayName,
     timeline: timeline,
     canRetry: canRetry,

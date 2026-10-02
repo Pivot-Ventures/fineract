@@ -5,8 +5,10 @@
   var model = window.PaymentsModel;
   var KEY = "paymentsPortal.internalKey";
   var PARTNER = "paymentsPortal.partnerKey";
+  var DEMO = "paymentsPortal.demoReadKey";
   var OVERRIDES = "paymentsPortal.overrides";
   var EXTRA = "paymentsPortal.created";
+  var DEMO_PARTNER = "demo-portal";
   var PAGE_SIZE = 8;
   var page = document.body.getAttribute("data-page") || "overview";
   var book = null;
@@ -73,8 +75,31 @@
       from: params.get("from") || "",
       to: params.get("to") || "",
       page: params.get("page") || "",
-      id: params.get("id") || ""
+      id: params.get("id") || "",
+      product: params.get("product") || "",
+      partner: params.get("partner") || ""
     };
+  }
+
+  function portalHeaders() {
+    var headers = { accept: "application/json" };
+    if (readStore(DEMO)) headers["X-Demo-Read-Key"] = readStore(DEMO);
+    if (readStore(PARTNER)) headers["X-Api-Key"] = readStore(PARTNER);
+    if (readStore(KEY)) headers["X-Internal-Api-Key"] = readStore(KEY);
+    return headers;
+  }
+
+  function hasGatewayKey() {
+    return !!(readStore(DEMO) || readStore(PARTNER) || readStore(KEY));
+  }
+
+  function partnerId() {
+    return query().partner || DEMO_PARTNER;
+  }
+
+  function reloadAfterQuery() {
+    if (book && book.remote) boot();
+    else paint();
   }
 
   function writeQuery(next) {
@@ -101,7 +126,7 @@
     }
     var keyBtn = document.getElementById("gateway-key-btn");
     if (keyBtn) {
-      keyBtn.textContent = readStore(KEY) ? "Gateway key saved" : "Operator key";
+      keyBtn.textContent = hasGatewayKey() ? "Gateway key saved" : "Operator key";
       keyBtn.addEventListener("click", openKeyDialog);
     }
     var search = document.getElementById("top-search");
@@ -117,7 +142,7 @@
           current.text = value;
           current.page = "";
           writeQuery(current);
-          paint();
+          reloadAfterQuery();
         } else {
           location.href = "payments.html" + (value ? "?q=" + encodeURIComponent(value) : "");
         }
@@ -128,17 +153,20 @@
   function openKeyDialog() {
     var existing = document.getElementById("key-dialog");
     if (existing) existing.remove();
+    var demo = h("input", { id: "demo-read-key-input", type: "password", autocomplete: "off", placeholder: "X-Demo-Read-Key" });
     var internal = h("input", { id: "gateway-key-input", type: "password", autocomplete: "off", placeholder: "X-Internal-Api-Key" });
-    var partner = h("input", { id: "partner-key-input", type: "password", autocomplete: "off", placeholder: "X-Api-Key for initiate" });
+    var partner = h("input", { id: "partner-key-input", type: "password", autocomplete: "off", placeholder: "X-Api-Key" });
     var dialog = h("dialog", { id: "key-dialog", class: "pay-dialog" }, [
       h("form", {}, [
         h("h2", { text: "Payments gateway" }),
-        h("p", { text: "The internal key reads /payments/internal/intents. The partner key is only used to initiate a payment. Both stay in this browser session." }),
+        h("p", { text: "Portal reads accept a demo read key, a partner key, or an internal key. The partner key also initiates a payment. The internal key retries a failed run. Keys stay in this browser session." }),
+        h("div", { class: "field" }, [h("label", { for: "demo-read-key-input", text: "Demo read key" }), demo]),
         h("div", { class: "field" }, [h("label", { for: "gateway-key-input", text: "Internal API key" }), internal]),
         h("div", { class: "field" }, [h("label", { for: "partner-key-input", text: "Partner API key" }), partner]),
         h("div", { class: "form-actions" }, [
           h("button", { class: "btn", type: "submit", text: "Save" }),
           h("button", { class: "btn btn-ghost", type: "button", text: "Use demo book", onclick: function () {
+            writeStore(DEMO, "");
             writeStore(KEY, "");
             writeStore(PARTNER, "");
             dialog.close();
@@ -150,6 +178,7 @@
     ]);
     dialog.querySelector("form").addEventListener("submit", function (event) {
       event.preventDefault();
+      if (demo.value.trim()) writeStore(DEMO, demo.value.trim());
       if (internal.value.trim()) writeStore(KEY, internal.value.trim());
       if (partner.value.trim()) writeStore(PARTNER, partner.value.trim());
       dialog.close();
@@ -159,6 +188,70 @@
     dialog.showModal();
   }
 
+  function portalFilters(extra) {
+    var q = query();
+    var filters = {
+      channel: q.channel,
+      direction: q.direction,
+      status: q.status,
+      product: q.product,
+      partnerId: partnerId(),
+      from: q.from,
+      to: q.to,
+      q: q.text
+    };
+    if (extra) Object.keys(extra).forEach(function (key) { filters[key] = extra[key]; });
+    return filters;
+  }
+
+  async function readBody(response) {
+    var text = "";
+    try { text = await response.text(); } catch (e) { text = ""; }
+    var body = null;
+    try { body = text ? JSON.parse(text) : null; } catch (e) { body = null; }
+    return { text: text, body: body };
+  }
+
+  function missingRoute(response, parsed) {
+    if (response.status !== 404) return false;
+    var message = parsed && parsed.body ? String(parsed.body.message || "") : "";
+    var text = (parsed && parsed.text) || "";
+    if (/Cannot GET/i.test(text) || /Cannot GET/i.test(message)) return true;
+    if (!parsed || !parsed.body) return true;
+    return false;
+  }
+
+  async function fetchPortal(path) {
+    var response = await fetch(path, { headers: portalHeaders() });
+    var parsed = await readBody(response);
+    return { response: response, parsed: parsed };
+  }
+
+  function portalFailure(response) {
+    if (response.status === 401 || response.status === 403) {
+      return "Portal read was refused. Save a demo read key, partner key, or internal key. Showing the demo book.";
+    }
+    if (response.status === 404) {
+      return "This gateway has no portal read route yet. Showing the demo book.";
+    }
+    return "Portal read returned " + response.status + ". Showing the demo book.";
+  }
+
+  async function loadFixture() {
+    var fixtureResponse = await fetch("fixtures/intents.json");
+    if (!fixtureResponse.ok) throw new Error("Demo book failed to load");
+    var fixture = await fixtureResponse.json();
+    var local = overrides();
+    var intents = model.normalizeList(fixture).map(function (row) {
+      return model.normalizeIntent(Object.assign({}, row, local[row.intentId] || {}));
+    });
+    extras().forEach(function (row) {
+      intents.push(model.normalizeIntent(Object.assign({}, row, local[row.intentId] || {})));
+    });
+    intents.sort(model.byNewest);
+    return intents;
+  }
+
   async function loadBook() {
     var health = null;
     try {
@@ -166,43 +259,70 @@
       if (healthResponse.ok) health = await healthResponse.json();
     } catch (e) { health = null; }
 
-    var key = readStore(KEY);
+    var q = query();
+    var pageNo = Math.max(parseInt(q.page || "1", 10) || 1, 1);
     var gatewayError = "";
-    var source = "fixture";
+    var remote = false;
     var intents = null;
-    if (key) {
-      try {
-        var response = await fetch("/payments/internal/intents?limit=200", {
-          headers: { accept: "application/json", "X-Internal-Api-Key": key }
-        });
-        if (response.status === 401) gatewayError = "The internal key was rejected. Showing the demo book.";
-        else if (!response.ok) gatewayError = "Gateway list returned " + response.status + ". Showing the demo book.";
-        else {
-          var list = model.normalizeList(await response.json()).map(model.normalizeIntent);
-          if (list.length) {
-            intents = list.sort(model.byNewest);
-            source = "gateway";
-          } else gatewayError = "The gateway book is empty. Showing the demo book.";
+    var total = 0;
+    var summary = null;
+
+    try {
+      if (page === "payment" && q.id) {
+        var detail = await fetchPortal("/payments/v1/portal/intents/" + encodeURIComponent(q.id));
+        if (detail.response.ok && detail.parsed.body) {
+          intents = [model.intentFromPortal(detail.parsed.body)];
+          total = 1;
+          remote = true;
+        } else if (detail.response.status === 404 && !missingRoute(detail.response, detail.parsed)) {
+          intents = [];
+          total = 0;
+          remote = true;
+          gatewayError = "This intent is not in the portal book.";
+        } else {
+          gatewayError = portalFailure(detail.response);
         }
-      } catch (e) {
-        gatewayError = "The payments gateway could not be reached. Showing the demo book.";
+      } else {
+        var listFilters = portalFilters({
+          limit: page === "payments" ? PAGE_SIZE : 200,
+          offset: page === "payments" ? (pageNo - 1) * PAGE_SIZE : 0
+        });
+        var list = await fetchPortal("/payments/v1/portal/intents?" + model.portalQuery(listFilters));
+        if (list.response.ok) {
+          var parsedList = model.normalizePortalList(list.parsed.body);
+          intents = parsedList.items;
+          if (page !== "payments") intents.sort(model.byNewest);
+          total = parsedList.total;
+          remote = true;
+          if (page === "reports") {
+            var summaryCall = await fetchPortal("/payments/v1/portal/reports/summary?" + model.portalQuery(portalFilters()));
+            if (summaryCall.response.ok) summary = model.normalizeSummary(summaryCall.parsed.body);
+          }
+        } else {
+          gatewayError = portalFailure(list.response);
+        }
       }
+    } catch (e) {
+      gatewayError = "The payments gateway could not be reached. Showing the demo book.";
+      remote = false;
+      intents = null;
     }
-    if (!intents) {
-      var fixtureResponse = await fetch("fixtures/intents.json");
-      if (!fixtureResponse.ok) throw new Error("Demo book failed to load");
-      var fixture = await fixtureResponse.json();
-      var local = overrides();
-      intents = model.normalizeList(fixture).map(function (row) {
-        return model.normalizeIntent(Object.assign({}, row, local[row.intentId] || {}));
-      });
-      extras().forEach(function (row) {
-        intents.push(model.normalizeIntent(Object.assign({}, row, local[row.intentId] || {})));
-      });
-      intents.sort(model.byNewest);
-      source = "fixture";
+
+    if (!remote) {
+      intents = await loadFixture();
+      total = intents.length;
+      summary = null;
     }
-    return { health: health, intents: intents, source: source, gatewayError: gatewayError };
+    return {
+      health: health,
+      intents: intents,
+      source: remote ? "portal" : "fixture",
+      gatewayError: gatewayError,
+      total: total,
+      remote: remote,
+      summary: summary,
+      partnerId: partnerId()
+    };
   }
 
   function fillChrome() {
@@ -220,9 +340,9 @@
       var day = model.latestDay(book.intents);
       chips.push(h("span", { class: "chip amber", text: day ? "Today · " + model.formatDay(day) : "Today" }));
     } else if (page === "payments") {
-      chips.push(h("span", { class: "chip", text: book.intents.length + " intents" }));
+      chips.push(h("span", { class: "chip", text: (book.remote ? book.total : book.intents.length) + " intents" }));
     } else if (page === "reports") {
-      chips.push(h("span", { class: "chip amber", text: "Settlements · " + (book.source === "gateway" ? "gateway" : "demo") }));
+      chips.push(h("span", { class: "chip amber", text: "Settlements · " + (book.remote ? "gateway" : "demo") }));
     } else if (page === "channels") {
       chips.push(h("span", { class: "chip green", text: "4 channels registered" }));
     } else if (page === "payment") {
@@ -230,7 +350,7 @@
     }
     chips.forEach(function (node) { host.insertBefore(node, avatar); });
     var keyBtn = document.getElementById("gateway-key-btn");
-    if (keyBtn) keyBtn.textContent = readStore(KEY) ? "Gateway key saved" : "Operator key";
+    if (keyBtn) keyBtn.textContent = hasGatewayKey() ? "Gateway key saved" : "Operator key";
   }
 
   function kpi(label, value, meta, tone, metaTone) {
@@ -336,9 +456,7 @@
         ])
       ]));
     });
-    var note = book.gatewayError ? h("div", { class: "notice", text: book.gatewayError }) : null;
     return [
-      note,
       h("div", { class: "page-head" }, [
         h("div", {}, [
           h("h1", { class: "page-title", text: "Payments overview" }),
@@ -378,17 +496,21 @@
 
   function renderPayments() {
     var q = query();
-    var window = model.bookWindow(book.intents);
-    if (!q.from && !q.to && !new URLSearchParams(location.search).has("from")) {
-      q.from = window.from;
-      q.to = window.to;
+    if (!book.remote) {
+      var window = model.bookWindow(book.intents);
+      if (!q.from && !q.to && !new URLSearchParams(location.search).has("from")) {
+        q.from = window.from;
+        q.to = window.to;
+      }
     }
-    var rows = model.filterIntents(book.intents, q);
+    var filtered = book.remote ? book.intents : model.filterIntents(book.intents, q);
+    var serverPage = book.remote && filtered.length <= PAGE_SIZE;
     var pageNo = Math.max(parseInt(q.page || "1", 10) || 1, 1);
-    var pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+    var total = serverPage ? book.total : filtered.length;
+    var pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
     if (pageNo > pages) pageNo = pages;
-    var slice = rows.slice((pageNo - 1) * PAGE_SIZE, pageNo * PAGE_SIZE);
-    var from = (pageNo - 1) * PAGE_SIZE + (rows.length ? 1 : 0);
+    var slice = serverPage ? filtered : filtered.slice((pageNo - 1) * PAGE_SIZE, pageNo * PAGE_SIZE);
+    var from = total ? (pageNo - 1) * PAGE_SIZE + 1 : 0;
     var to = (pageNo - 1) * PAGE_SIZE + slice.length;
 
     var channel = h("select", { name: "channel", "aria-label": "Channel" }, selectOptions([
@@ -429,9 +551,12 @@
         direction: direction.value,
         status: status.value,
         from: fromInput.value,
-        to: toInput.value
+        to: toInput.value,
+        product: q.product,
+        partner: q.partner,
+        page: ""
       });
-      paint();
+      reloadAfterQuery();
     });
 
     var body = h("tbody");
@@ -458,7 +583,7 @@
       if (!current.from) current.from = fromInput.value;
       if (!current.to) current.to = toInput.value;
       writeQuery(current);
-      paint();
+      reloadAfterQuery();
     }
 
     return [
@@ -468,7 +593,7 @@
           h("p", { class: "page-sub", text: "Filterable payment intents from the aggregator gateway (collect / disburse)." })
         ]),
         h("div", { class: "page-actions" }, [
-          h("button", { class: "btn btn-ghost", type: "button", text: "Export CSV", onclick: function () { exportCsv(rows); } }),
+          h("button", { class: "btn btn-ghost", type: "button", text: "Export CSV", onclick: function () { exportPayments(filtered); } }),
           h("button", { class: "btn", type: "button", text: "+ Initiate (mock)", onclick: openInitiate })
         ])
       ]),
@@ -483,7 +608,7 @@
           ])
         ]),
         h("div", { class: "table-foot" }, [
-          h("span", { text: "Showing " + from + "–" + to + " of " + rows.length }),
+          h("span", { text: "Showing " + from + "–" + to + " of " + total }),
           h("span", { class: "pager" }, [
             h("button", { class: "btn btn-ghost btn-sm", type: "button", text: "← Prev", disabled: pageNo <= 1, onclick: function () { go(pageNo - 1); } }),
             h("button", { class: "btn btn-ghost btn-sm", type: "button", text: "Next →", disabled: pageNo >= pages, onclick: function () { go(pageNo + 1); } })
@@ -525,7 +650,8 @@
         ])
       ];
     }
-    var steps = model.timeline(intent);
+    var apiSteps = intent.timeline && intent.timeline.length ? intent.timeline : null;
+    var steps = apiSteps || model.timeline(intent);
     var codes = [
       "idempotency-key: " + (intent.idempotencyKey || "—") + " · clientRef: " + (intent.externalReference || "—"),
       "providerStatus: " + (intent.providerStatus || "—") + (intent.msisdn ? " · MSISDN " + intent.msisdn : ""),
@@ -540,11 +666,14 @@
     ];
     var list = h("div", { class: "timeline" });
     steps.forEach(function (step, index) {
+      var title = apiSteps ? step.label : (titles[index] || step.label);
+      var meta = apiSteps ? (step.detail || (step.at ? model.formatWhen(step.at) : "")) : step.detail;
+      var code = apiSteps ? (step.code || (step.at && step.detail ? model.formatWhen(step.at) : "")) : codes[index];
       list.appendChild(h("div", { class: "tl-item " + tlClass(step.state) }, [
         h("div", { class: "tl-dot", text: tlMark(step.state) }),
-        h("div", { class: "tl-title", text: titles[index] || step.label }),
-        h("div", { class: "tl-meta", text: step.detail }),
-        h("div", { class: "tl-code", text: codes[index] })
+        h("div", { class: "tl-title", text: title }),
+        h("div", { class: "tl-meta", text: meta }),
+        code ? h("div", { class: "tl-code", text: code }) : null
       ]));
     });
     function meta(label, value) {
@@ -655,7 +784,11 @@
       toast("Confirm the earlier attempt did not post.", "error");
       return;
     }
-    if (book.source === "gateway") {
+    if (book.remote) {
+      if (!readStore(KEY)) {
+        toast("Retry on the gateway needs the internal operator key.", "error");
+        return;
+      }
       try {
         var response = await fetch("/payments/internal/intents/" + encodeURIComponent(intent.intentId) + "/resolve", {
           method: "POST",
@@ -799,13 +932,15 @@
 
   function renderReports() {
     var q = query();
-    var window = model.bookWindow(book.intents);
-    if (!q.from && !q.to && !new URLSearchParams(location.search).has("from")) {
-      q.from = window.from;
-      q.to = window.to;
+    if (!book.remote) {
+      var window = model.bookWindow(book.intents);
+      if (!q.from && !q.to && !new URLSearchParams(location.search).has("from")) {
+        q.from = window.from;
+        q.to = window.to;
+      }
     }
-    var rows = model.filterIntents(book.intents, q);
-    var summary = model.summarize(rows);
+    var rows = book.remote ? book.intents : model.filterIntents(book.intents, q);
+    var summary = book.summary || model.summarize(rows);
     var from = h("input", { type: "date", value: q.from, "aria-label": "Date from" });
     var to = h("input", { type: "date", value: q.to, "aria-label": "Date to" });
     var channel = h("select", { "aria-label": "Channel" }, selectOptions([
@@ -826,8 +961,15 @@
     ]);
     form.addEventListener("submit", function (event) {
       event.preventDefault();
-      writeQuery({ from: from.value, to: to.value, channel: channel.value, direction: direction.value });
-      paint();
+      writeQuery({
+        from: from.value,
+        to: to.value,
+        channel: channel.value,
+        direction: direction.value,
+        product: q.product,
+        partner: q.partner
+      });
+      reloadAfterQuery();
     });
     var maxVol = 1;
     model.CHANNELS.forEach(function (ch) { maxVol = Math.max(maxVol, summary.byChannel[ch.id].volume); });
@@ -907,6 +1049,19 @@
         ])
       ])
     ];
+  }
+
+  async function exportPayments(rows) {
+    if (book.remote) {
+      try {
+        var list = await fetchPortal("/payments/v1/portal/intents?" + model.portalQuery(portalFilters({ limit: 200, offset: 0 })));
+        if (list.response.ok) {
+          exportCsv(model.normalizePortalList(list.parsed.body).items);
+          return;
+        }
+      } catch (e) { /* export the rows on screen */ }
+    }
+    exportCsv(rows);
   }
 
   function exportCsv(rows) {
@@ -1019,6 +1174,7 @@
     fillChrome();
     var root = document.getElementById("portal-root");
     root.textContent = "";
+    if (book.gatewayError) root.appendChild(h("div", { class: "notice", text: book.gatewayError }));
     var nodes = [];
     if (page === "overview") nodes = renderOverview();
     else if (page === "payments") nodes = renderPayments();
@@ -1037,20 +1193,6 @@
     if (root) root.textContent = "Loading payments…";
     try {
       book = await loadBook();
-      if (page === "payment" && book.source === "gateway" && query().id && readStore(KEY)) {
-        var response = await fetch("/payments/internal/intents/" + encodeURIComponent(query().id), {
-          headers: { accept: "application/json", "X-Internal-Api-Key": readStore(KEY) }
-        });
-        if (response.ok) {
-          var fresh = model.normalizeIntent(await response.json());
-          var found = false;
-          book.intents = book.intents.map(function (row) {
-            if (row.intentId === fresh.intentId) { found = true; return fresh; }
-            return row;
-          });
-          if (!found) book.intents.unshift(fresh);
-        }
-      }
       paint();
     } catch (e) {
       if (root) {

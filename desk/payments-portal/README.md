@@ -18,11 +18,14 @@ Open a payment from the table (`payment.html?id=pi_0001`).
 
 ## Data
 
-1. `GET /payments/health` (no key) drives the mock / sandbox / live badges.
-2. If this browser session has an internal operator key, `GET /payments/internal/intents` fills the book. The key is kept in `sessionStorage` only.
-3. Otherwise the portal reads `fixtures/intents.json` (100 intents). An empty gateway book also falls back to that file.
+The portal reads the gateway mock book first, for partner `demo-portal` (override with `?partner=`):
 
-Retry on a failed demo row updates the timeline for this session. Retry against the gateway calls `POST /payments/internal/intents/{id}/resolve` with `allow_single_retry`.
+1. `GET /payments/health` (no key) drives the mock / sandbox / live badges.
+2. `GET /payments/v1/portal/intents` with `channel`, `direction`, `status`, `product`, `partnerId`, `from`, `to`, `q`, `limit`, and `offset`. The payments table asks for 8 rows per page.
+3. `GET /payments/v1/portal/intents/:id` fills the run screen, including the timeline when the payload has one.
+4. `GET /payments/v1/portal/reports/summary` fills the report totals. Settlement packs still come from the intent list.
+
+Mock auth sends whichever of these this browser session has stored: `X-Demo-Read-Key`, `X-Api-Key`, `X-Internal-Api-Key`. The values stay in `sessionStorage` (`paymentsPortal.demoReadKey`, `paymentsPortal.partnerKey`, `paymentsPortal.internalKey`). The page still calls the portal routes when no key is saved, so an open mock can answer. A 401, 403, or missing route falls back to `fixtures/intents.json` (100 intents) and shows a notice. The partner key still initiates `POST /payments/v1/payments/initiate`. Retry on a live portal book calls `POST /payments/internal/intents/{id}/resolve` with `allow_single_retry` and needs the internal key. Retry on the demo book updates the timeline for this session only.
 
 ## Seed
 
@@ -45,7 +48,16 @@ PAYMENTS_API_KEY='partner-key' \
 python3 desk/payments-portal/scripts/seed_gateway.py --apply
 ```
 
-The default is a dry-run. `--apply` posts `/payments/v1/payments/initiate` with each row's idempotency key. After the gateway list returns rows, the portal shows those instead of the fixture.
+The default is a dry-run. `--apply` posts `/payments/v1/payments/initiate` with each row's idempotency key.
+
+The gateway repository seeds the portal read book (about 100 rows, partner `demo-portal`) with either of:
+
+```bash
+npm run seed:demo
+docker compose -f docker-compose.demo.yml --profile seed run --rm --build seed
+```
+
+Those commands run in the payments gateway repo. This desk ships the fixture so the screens still render before that seed is deployed.
 
 ## Deploy
 

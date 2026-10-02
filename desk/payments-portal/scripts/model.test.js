@@ -82,6 +82,69 @@ assert.strictEqual(model.statusTone("AMBIGUOUS"), "ambiguous");
 assert.strictEqual(model.statusTone("POSTED"), "posted");
 assert.strictEqual(model.channelVisual("CARD").slug, "card");
 
+var qs = model.portalQuery({
+  channel: "MTN_MOMO",
+  direction: "",
+  status: "POSTED",
+  product: "SAVINGS_DEPOSIT",
+  partnerId: "demo-portal",
+  from: "2026-09-01",
+  to: "2026-10-02",
+  q: "Nakato",
+  limit: 8,
+  offset: 0
+});
+assert.ok(qs.indexOf("channel=MTN_MOMO") >= 0);
+assert.ok(qs.indexOf("direction=") === -1);
+assert.ok(qs.indexOf("partnerId=demo-portal") >= 0);
+assert.ok(qs.indexOf("limit=8") >= 0);
+assert.ok(qs.indexOf("offset=0") >= 0);
+assert.ok(qs.indexOf("q=Nakato") >= 0);
+
+var portalList = model.normalizePortalList({
+  items: [{
+    intentId: "pi_1",
+    amount: "100",
+    timeline: [{ label: "Initiated", status: "completed", at: "2026-10-02T10:00:00Z" }]
+  }],
+  total: 42
+});
+assert.strictEqual(portalList.total, 42);
+assert.strictEqual(portalList.items[0].intentId, "pi_1");
+assert.strictEqual(portalList.items[0].timeline[0].state, "done");
+assert.strictEqual(model.normalizePortalList([{ intentId: "pi_2", amount: 5 }]).total, 1);
+
+var hookStep = model.normalizeTimeline({
+  steps: [{ title: "Webhook", state: "failed", message: "declined", code: "E1" }]
+});
+assert.strictEqual(hookStep[0].label, "Webhook");
+assert.strictEqual(hookStep[0].state, "failed");
+assert.strictEqual(hookStep[0].code, "E1");
+
+var fromWrap = model.intentFromPortal({
+  intent: { intentId: "pi_9", amount: "1", channel: "MTN_MOMO" },
+  timeline: { events: [{ name: "Fineract posted", status: "POSTED" }] }
+});
+assert.strictEqual(fromWrap.intentId, "pi_9");
+assert.strictEqual(fromWrap.timeline[0].state, "done");
+
+var summaryApi = model.normalizeSummary({
+  grossVolume: 1000,
+  successRate: 0.62,
+  settledVolume: 800,
+  posted: 62,
+  pending: 20,
+  failed: 18,
+  channels: [{ channel: "MTN_MOMO", volume: 400, count: 30, successRate: 0.8 }]
+});
+assert.strictEqual(summaryApi.volumeAll, 1000);
+assert.strictEqual(summaryApi.volumePosted, 800);
+assert.ok(Math.abs(summaryApi.successRate - 62) < 0.01);
+assert.strictEqual(summaryApi.byChannel.MTN_MOMO.volume, 400);
+assert.strictEqual(summaryApi.byChannel.MTN_MOMO.posted, 24);
+assert.strictEqual(summaryApi.byChannel.CARD.count, 0);
+assert.strictEqual(model.normalizeSummary(null), null);
+
 var css = fs.readFileSync(path.join(__dirname, "..", "assets", "portal.css"), "utf8");
 assert.ok(css.indexOf("#1F3A0E") >= 0, "forest green");
 assert.ok(css.indexOf("#F8A11B") >= 0, "amber");
