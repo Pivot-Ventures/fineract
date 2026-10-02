@@ -36,6 +36,9 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
+      <a class="nav-link" data-nav="recurring-deposits" href="recurring-deposits.html"><span class="nav-icon" aria-hidden="true">↻</span> Recurring deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon">🏷</span> Products &amp; charges</a>
@@ -61,7 +64,11 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon">⚙</span> Users &amp; settings</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
+      <a class="nav-link" data-nav="settings" href="settings.html"><span class="nav-icon" aria-hidden="true">⚙</span> Settings</a>
+      <a class="nav-link" data-nav="system" href="system.html"><span class="nav-icon" aria-hidden="true">⏲</span> System</a>
     </div>
   </nav>
   <div class="sidebar-foot"><span class="mock-badge">MOCK UI</span><div style="margin-top:6px">Tenant: default · env: local</div></div>
@@ -81,21 +88,25 @@
     <div class="content">
       <div class="page-header">
         <div><h1>Products & charges</h1><p class="page-sub">Ugandan SACCO operations · Currency UGX · Kampala Main</p></div>
-        <div class="api-chip"><span>Fineract</span> /loanproducts · /savingsproducts · /charges · /floatingrates</div>
+        <div class="api-chip"><span>Fineract</span> /loanproducts · /savingsproducts · /floatingrates · /products/share · /fixeddepositproducts</div>
       </div>
 
       <div class="btn-group" style="margin-bottom:8px">
         <button class="btn btn-amber" type="button" data-mock="Create loan product">＋ Loan product</button>
         <button class="btn btn-amber" type="button" data-mock="Create savings product">＋ Savings product</button>
         <button class="btn btn-ghost" type="button" data-mock="Create charge">＋ Charge</button>
+        <button class="btn btn-ghost" type="button" data-mock="Create floating rate">＋ Floating rate</button>
+        <button class="btn btn-ghost" type="button" data-mock="Create share product">＋ Share product</button>
+        <button class="btn btn-ghost" type="button" data-mock="Create fixed deposit">＋ Fixed deposit</button>
+        <button class="btn btn-ghost" type="button" data-mock="Create recurring deposit">＋ Recurring deposit</button>
       </div>
-      <p class="text-muted" style="margin:0 0 14px;font-size:12px">New products use accounting NONE, so no general-ledger accounts are required. Currency defaults to UGX when the organisation has it selected.</p>
+      <p class="text-muted" style="margin:0 0 14px;font-size:12px">New loan and savings products use accounting NONE, so no general-ledger accounts are required. Edit can switch a product to cash using the seeded chart (vault 1110, teller 1120). Currency defaults to UGX when the organisation has it selected.</p>
       <h2 style="font-size:15px;margin:8px 0 10px">Loan products</h2>
       <div class="product-grid" id="loan-products"><p class="empty-hint">Loading…</p></div>
       <h2 style="font-size:15px;margin:22px 0 10px">Savings products</h2>
       <div class="card"><div class="card-b table-wrap"><table class="data" id="savings-products">
-        <thead><tr><th>Product</th><th>Short name</th><th>Currency</th><th class="text-right">Nominal annual interest</th></tr></thead>
-        <tbody><tr><td colspan="4">Loading…</td></tr></tbody>
+        <thead><tr><th>Product</th><th>Short name</th><th>Currency</th><th class="text-right">Nominal annual interest</th><th></th></tr></thead>
+        <tbody><tr><td colspan="5">Loading…</td></tr></tbody>
       </table></div></div>
       <h2 style="font-size:15px;margin:22px 0 10px" id="charges">Charges</h2>
       <div class="card"><div class="card-b table-wrap"><table class="data" id="charges-table">
@@ -104,8 +115,23 @@
       </table></div></div>
       <h2 style="font-size:15px;margin:22px 0 10px">Floating rates</h2>
       <div class="card"><div class="card-b table-wrap"><table class="data" id="floating-table">
-        <thead><tr><th>Name</th><th>Base</th><th></th></tr></thead>
-        <tbody><tr><td colspan="3">Loading…</td></tr></tbody>
+        <thead><tr><th>Name</th><th>Base</th><th>Active</th><th></th></tr></thead>
+        <tbody><tr><td colspan="4">Loading…</td></tr></tbody>
+      </table></div></div>
+      <h2 style="font-size:15px;margin:22px 0 10px">Share products</h2>
+      <div class="card"><div class="card-b table-wrap"><table class="data">
+        <thead><tr><th>ID</th><th>Name</th><th>Short</th><th class="text-right">Unit price</th></tr></thead>
+        <tbody id="share-products"><tr><td colspan="4">Loading…</td></tr></tbody>
+      </table></div></div>
+      <h2 style="font-size:15px;margin:22px 0 10px">Fixed deposits</h2>
+      <div class="card"><div class="card-b table-wrap"><table class="data">
+        <thead><tr><th>ID</th><th>Name</th><th>Short</th><th class="text-right">Deposit</th></tr></thead>
+        <tbody id="fd-products"><tr><td colspan="4">Loading…</td></tr></tbody>
+      </table></div></div>
+      <h2 style="font-size:15px;margin:22px 0 10px">Recurring deposits</h2>
+      <div class="card"><div class="card-b table-wrap"><table class="data">
+        <thead><tr><th>ID</th><th>Name</th><th>Short</th><th class="text-right">Deposit</th></tr></thead>
+        <tbody id="rd-products"><tr><td colspan="4">Loading…</td></tr></tbody>
       </table></div></div>
 
     </div>
@@ -115,6 +141,7 @@
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
   <script src="assets/product-forms.js"></script>
+  <script src="assets/desk-writes.js"></script>
   <script src="assets/actions.js"></script>
 </body>
 </html>

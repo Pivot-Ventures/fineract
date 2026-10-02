@@ -34,6 +34,18 @@ python3 -m http.server 5173
 
 **http://127.0.0.1:5173/**
 
+## Deploy
+
+Desk ships from `main` only. Rebase the pull request onto `main` and merge (rebase or squash). GitHub Actions runs **Deploy SACCO Desk** (`.github/workflows/deploy-desk.yml`) and rsyncs `desk/` to the droplet. That workflow is the ship path. A direct droplet rsync from a laptop or an SSH session is outside it.
+
+- **Runs when** `main` changes `desk/**` or `.github/workflows/deploy-desk.yml`. `workflow_dispatch` on `main` syncs the current tree. The manual button is listed once this file is on the repository default branch (`develop`); pushes to `main` deploy either way.
+- **Remote directory** is the `SACCO_DESK_PATH` secret, or `/opt/pivot-sacco/desk` when that secret is empty.
+- **Sync** is `rsync` over SSH **without** `--delete`. Pages that exist only on the server (shares, fixed deposits, users, and similar) stay in place.
+- **Not copied:** `README.md`, `README-WIRE.md`, `server.py`, `start-desk.sh`, `scripts/`, `.gitignore`.
+- **Fineract and Caddy stay up.** This job copies static HTML and JS only.
+
+Secrets: `SACCO_DESK_HOST`, `SACCO_DESK_USER`, `SACCO_DESK_SSH_KEY` (unencrypted PEM or OpenSSH private key), `SACCO_DESK_PATH`. The droplet must accept SSH from GitHub-hosted runners.
+
 ## Screens
 
 ### Core
