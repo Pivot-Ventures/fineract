@@ -19,6 +19,20 @@
   window.pivotToast = toast;
 
   var page = document.body.getAttribute("data-page");
+  var sidebarNav = document.querySelector(".sidebar-nav");
+  if (sidebarNav && !sidebarNav.querySelector("[data-nav='payments']")) {
+    var overview = sidebarNav.querySelector(".nav-group");
+    if (overview) {
+      var paymentsLink = document.createElement("a");
+      paymentsLink.className = "nav-link";
+      paymentsLink.setAttribute("data-nav", "payments");
+      paymentsLink.href = "/payments/docs";
+      paymentsLink.target = "_blank";
+      paymentsLink.rel = "noopener";
+      paymentsLink.innerHTML = "<span class=\"nav-icon\">💳</span> Payments middleware";
+      overview.appendChild(paymentsLink);
+    }
+  }
   if (page) {
     document.querySelectorAll(".nav-link[data-nav]").forEach(function (a) {
       if (a.getAttribute("data-nav") === page) a.classList.add("active");
