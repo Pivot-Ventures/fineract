@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Loan · Pivot SACCO Desk</title>
+  <title>Loan · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
 </head>
 <body data-page="loan-detail">
@@ -14,7 +14,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +36,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +62,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -87,31 +91,65 @@
       </div>
 
       <div class="card"><div class="card-b"><div class="profile-head">
-        <div class="grow"><h2 class="profile-title"><span id="loan-product">—</span> <span id="loan-status"></span></h2>
+        <div class="grow"><h2 class="profile-title"><span id="loan-product">—</span> <span id="loan-status"></span> <span id="loan-arrears-badge"></span></h2>
           <div class="text-muted"><span id="loan-account">—</span> · <a id="loan-client" href="clients.html">—</a></div></div>
         <div class="btn-group" id="loan-actions"></div>
       </div>
+      <div class="btn-group loan-more-actions" id="loan-more-actions"></div>
       <div class="meta-list">
         <div class="meta-item"><div class="k">Principal</div><div class="v mono" id="loan-principal">—</div></div>
         <div class="meta-item"><div class="k">Outstanding</div><div class="v mono" id="loan-outstanding">—</div></div>
         <div class="meta-item"><div class="k">Overdue</div><div class="v mono" id="loan-overdue">—</div></div>
+        <div class="meta-item"><div class="k">Days overdue</div><div class="v" id="loan-days-overdue">—</div></div>
         <div class="meta-item"><div class="k">Next due</div><div class="v" id="loan-next-due">—</div></div>
         <div class="meta-item"><div class="k">Interest</div><div class="v" id="loan-interest">—</div></div>
         <div class="meta-item"><div class="k">Expected disbursement</div><div class="v" id="loan-expected-disb">—</div></div>
-      </div></div></div>
+        <div class="meta-item"><div class="k">Purpose</div><div class="v" id="loan-purpose">—</div></div>
+        <div class="meta-item"><div class="k">Loan officer</div><div class="v" id="loan-officer">—</div></div>
+        <div class="meta-item"><div class="k">Linked savings</div><div class="v" id="loan-linked-savings">—</div></div>
+      </div>
+      <div class="recon-box warn loan-guarantee-box" id="loan-guarantee-box" hidden></div>
+      </div></div>
       <div data-tabs>
         <div class="tabs">
           <button class="tab active" data-tab="schedule" type="button">Schedule</button>
           <button class="tab" data-tab="tx" type="button">Transactions</button>
+          <button class="tab" data-tab="charges" type="button">Charges</button>
+          <button class="tab" data-tab="guarantors" type="button">Guarantors</button>
+          <button class="tab" data-tab="collateral" type="button">Collateral</button>
         </div>
         <div class="tab-panel active" data-panel="schedule"><div class="card"><div class="card-b table-wrap"><table class="data" id="loan-schedule">
+          <caption class="sr-only">Repayment schedule</caption>
           <thead><tr><th>#</th><th>Due</th><th class="text-right">Principal</th><th class="text-right">Interest</th><th class="text-right">Total due</th><th class="text-right">Outstanding</th></tr></thead>
           <tbody><tr class="loading-row"><td colspan="6">Loading…</td></tr></tbody>
         </table></div></div></div>
         <div class="tab-panel" data-panel="tx"><div class="card"><div class="card-b table-wrap"><table class="data" id="loan-txns">
+          <caption class="sr-only">Loan transactions</caption>
           <thead><tr><th>Date</th><th>Type</th><th class="text-right">Amount</th></tr></thead>
           <tbody><tr class="loading-row"><td colspan="3">Loading…</td></tr></tbody>
         </table></div></div></div>
+        <div class="tab-panel" data-panel="charges"><div class="card">
+          <div class="card-h"><h2>Charges</h2><div class="btn-group" id="loan-charge-actions"></div></div>
+          <div class="card-b table-wrap"><table class="data" id="loan-charges">
+          <caption class="sr-only">Loan charges</caption>
+          <thead><tr><th>Charge</th><th>Collected</th><th>Due</th><th class="text-right">Amount</th><th class="text-right">Paid</th><th class="text-right">Waived</th><th class="text-right">Outstanding</th><th><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody><tr class="loading-row"><td colspan="8">Loading…</td></tr></tbody>
+        </table></div></div></div>
+        <div class="tab-panel" data-panel="guarantors"><div class="card">
+          <div class="card-h"><h2>Guarantors</h2><div class="btn-group" id="loan-guarantor-actions"></div></div>
+          <div class="card-b"><div id="loan-coverage"></div><div class="table-wrap"><table class="data" id="loan-guarantors">
+          <caption class="sr-only">Guarantors</caption>
+          <thead><tr><th>Guarantor</th><th>Type</th><th>Relationship</th><th class="text-right">Guaranteed</th><th class="text-right">Still held</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
+        </table></div></div></div></div>
+        <div class="tab-panel" data-panel="collateral"><div class="card">
+          <div class="card-h"><h2>Collateral</h2><div class="btn-group" id="loan-collateral-actions"></div></div>
+          <div class="card-b table-wrap"><table class="data" id="loan-collateral">
+          <caption class="sr-only">Collateral</caption>
+          <thead><tr><th>Type</th><th class="text-right">Value</th><th>Description</th><th><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
+        </table></div>
+          <p class="text-muted small-note card-note">Collateral can be recorded while the loan is pending approval.</p></div></div>
       </div>
     </main>
   </div>
@@ -120,5 +158,6 @@
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
   <script src="assets/actions.js"></script>
+  <script src="assets/loans.js"></script>
 </body>
 </html>

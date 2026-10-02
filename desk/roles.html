@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Journal entries · Phaneroo SACCO</title>
+  <title>Roles · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
-  <link rel="stylesheet" href="assets/accounting.css" />
+  <link rel="stylesheet" href="assets/frontoffice.css" />
 </head>
-<body data-page="journals">
+<body data-page="roles">
 <a class="skip-link" href="#main-content">Skip to content</a>
 <div class="status-bar" id="status-bar" role="alert" hidden></div>
 <div class="app-shell">
@@ -88,44 +88,41 @@
 
     <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Journal entries</h1><p class="page-sub">General ledger postings. Open a transaction to see all its legs, print the voucher or reverse it.</p></div>
+        <div><h1>Roles &amp; permissions</h1><p class="page-sub">A role is a set of Fineract permissions. Give each user the roles for their job on the <a href="users.html">Users</a> page.</p></div>
       </div>
-
+      <div id="roles-notice" class="fo-notice" role="status" hidden></div>
       <div class="btn-group page-actions">
-        <a class="btn btn-amber" href="journal-entry.html" data-perm="CREATE_JOURNALENTRY">＋ Manual journal</a>
-        <a class="btn btn-ghost" href="accounting-rules.html">Frequent postings</a>
-        <button type="button" class="btn btn-ghost" id="je-csv">Export CSV</button>
+        <button type="button" class="btn btn-amber" data-action="create-role" data-perm="CREATE_ROLE">＋ Create role</button>
+        <button type="button" class="btn" data-action="create-standard-roles" data-perm="CREATE_ROLE">Create standard SACCO roles</button>
+        <a class="btn btn-ghost" href="users.html" data-perm="READ_USER">Users</a>
       </div>
-      <div class="card"><div class="card-h"><h2>Search journals</h2></div>
+      <div class="card"><div class="card-h"><h2>Roles</h2></div>
+        <div class="card-b table-wrap"><table class="data" id="roles-table">
+          <thead><tr><th scope="col">Role</th><th scope="col">Description</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
+        </table></div></div>
+      <section class="card" id="perm-editor" hidden aria-labelledby="perm-title"><div class="card-h"><h2 id="perm-title" tabindex="-1">Permissions</h2><span class="chip" id="perm-count"></span></div>
         <div class="card-b">
-          <form class="filters" id="je-filter" novalidate>
-            <label for="je-from">From</label><input id="je-from" type="date" />
-            <label for="je-to">To</label><input id="je-to" type="date" />
-            <label for="je-office" class="sr-only">Office</label>
-            <select id="je-office"><option value="">All offices</option></select>
-            <label for="je-gl" class="sr-only">GL account</label>
-            <select id="je-gl"><option value="">All GL accounts</option></select>
-            <label for="je-manual" class="sr-only">Entry type</label>
-            <select id="je-manual"><option value="">All entries</option><option value="true">Manual only</option></select>
-            <label for="je-txn" class="sr-only">Transaction ID</label>
-            <input id="je-txn" type="search" placeholder="Transaction ID" />
-            <button type="submit" class="btn btn-sm">Search</button>
-            <button type="button" class="btn btn-sm btn-ghost" id="je-reset">Clear</button>
-          </form>
-        </div>
-        <div class="card-b"><label for="je-quick" class="sr-only">Filter this page by reference, narration or account</label>
-          <input id="je-quick" type="search" placeholder="Filter this page: reference, narration, account…" /></div>
-        <div class="card-b table-wrap"><table class="data" id="je-table">
-          <thead><tr><th scope="col">Date</th><th scope="col">Transaction</th><th scope="col">Office</th><th scope="col">GL account</th><th scope="col" class="text-right">Debit</th><th scope="col" class="text-right">Credit</th><th scope="col">Reference</th><th scope="col">Narration</th><th scope="col">Source</th><th scope="col">By</th></tr></thead>
-          <tbody><tr class="loading-row"><td colspan="10">Loading…</td></tr></tbody>
-        </table></div>
-        <p class="page-totals" id="je-page-totals"></p>
-        <div class="pager" id="je-pager"></div></div>
+          <div class="perm-toolbar">
+            <label for="perm-filter" class="sr-only">Filter permissions</label>
+            <input id="perm-filter" type="search" placeholder="Filter, e.g. deposit, loan, teller, report…" />
+            <label class="check" for="perm-only-selected"><input type="checkbox" id="perm-only-selected" /> Granted only</label>
+            <label class="check" for="perm-show-checker"><input type="checkbox" id="perm-show-checker" /> Show maker-checker approvals</label>
+          </div>
+          <div id="perm-groups"></div>
+          <div class="perm-sticky">
+            <button type="button" class="btn btn-amber" id="perm-save" data-perm="PERMISSIONS_ROLE" disabled>Save permissions</button>
+            <button type="button" class="btn btn-ghost" id="perm-cancel">Close</button>
+            <span class="text-muted small-note">Changes apply when the user next signs in.</span>
+          </div>
+        </div></section>
     </main>
   </div>
 </div>
   <script src="assets/api.js"></script>
   <script src="assets/app.js"></script>
-  <script src="assets/accounting.js"></script>
+  <script src="assets/pages.js"></script>
+  <script src="assets/actions.js"></script>
+  <script src="assets/frontoffice.js"></script>
 </body>
 </html>

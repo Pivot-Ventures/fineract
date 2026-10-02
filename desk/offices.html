@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Offices &amp; staff · Pivot SACCO Desk</title>
+  <title>Offices &amp; staff · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
+  <link rel="stylesheet" href="assets/frontoffice.css" />
 </head>
 <body data-page="offices">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -14,7 +15,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +37,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +63,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -83,20 +88,31 @@
 
     <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Offices &amp; staff</h1><p class="page-sub">Office hierarchy and staff in Fineract.</p></div>
+        <div><h1>Offices &amp; staff</h1><p class="page-sub">Branches (offices), their staff, holidays and working days. Select an office to filter.</p></div>
       </div>
-
+      <div class="btn-group page-actions">
+        <button type="button" class="btn btn-amber" data-action="create-office" data-perm="CREATE_OFFICE">＋ Create office (branch)</button>
+        <a class="btn btn-ghost" href="staff.html" data-perm="READ_STAFF">Manage staff</a>
+        <a class="btn btn-ghost" href="tellers.html">Manage tellers</a>
+      </div>
       <div class="grid-2">
         <div class="card"><div class="card-h"><h2>Office tree</h2></div><div class="card-b" id="office-tree">
           <p class="text-muted">Loading…</p>
         </div></div>
-        <div class="card" id="staff"><div class="card-h"><h2>Staff</h2></div>
+        <div class="card" id="staff"><div class="card-h"><h2 id="staff-title">Staff</h2></div>
           <div class="card-b table-wrap"><table class="data" id="staff-table">
-            <thead><tr><th>Name</th><th>Office</th><th>Loan officer</th><th>Status</th></tr></thead>
+            <thead><tr><th scope="col">Name</th><th scope="col">Office</th><th scope="col">Loan officer</th><th scope="col">Status</th></tr></thead>
             <tbody><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
           </table></div>
-          <p class="card-note"><a href="tellers.html">Manage tellers →</a></p>
         </div>
+      </div>
+      <div class="grid-2">
+        <div class="card"><div class="card-h"><h2>Holidays</h2></div>
+          <div class="card-b table-wrap"><table class="data" id="holidays-table">
+            <thead><tr><th scope="col">Holiday</th><th scope="col">Dates</th><th scope="col">Repayments moved to</th><th scope="col">Status</th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
+          </table></div></div>
+        <div class="card"><div class="card-h"><h2>Working days</h2></div><div class="card-b" id="working-days"><p class="text-muted">Loading…</p></div></div>
       </div>
     </main>
   </div>
@@ -105,5 +121,6 @@
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
   <script src="assets/actions.js"></script>
+  <script src="assets/frontoffice.js"></script>
 </body>
 </html>

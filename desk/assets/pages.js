@@ -191,141 +191,9 @@
   if (!api.isLoggedIn()) return;
   var sess = api.getSession() || {};
 
-  /* =================================================================== DASHBOARD */
-  if (page === "dashboard") {
-    run(async function () {
-      setText("page-sub", "Currency UGX" + (sess.officeName ? " · " + sess.officeName : ""));
-      var res = await Promise.all([
-        api.get("/clients?status=active&limit=1&offset=0"),
-        api.get("/loans?status=300&limit=1&offset=0"),
-        api.get("/loans?status=100&limit=1&offset=0"),
-        api.get("/loans?status=200&limit=1&offset=0"),
-        api.get("/savingsaccounts?limit=1&offset=0"),
-      ]);
-      setText("kpi-active-members", api.formatNumber(count(res[0])));
-      setText("kpi-active-loans", api.formatNumber(count(res[1])));
-      setText("kpi-pending-loans", api.formatNumber(count(res[2])));
-      setText("kpi-approved-loans", api.formatNumber(count(res[3])));
-      setText("kpi-savings-accounts", api.formatNumber(count(res[4])));
-      var recent = await api.get("/clients?limit=8&offset=0&orderBy=id&sortOrder=DESC");
-      var items = (recent && recent.pageItems) || [];
-      var tbody = document.querySelector("#recent-members tbody");
-      if (!tbody) return;
-      tbody.innerHTML = items.map(function (c) {
-        var t = c.timeline || {};
-        return "<tr><td class=\"mono\">" + esc(api.formatDate(t.activatedOnDate || t.submittedOnDate)) +
-          "</td><td><a href=\"client-detail.html?id=" + encodeURIComponent(c.id) + "\">" + esc(fullName(c)) +
-          "</a></td><td>" + esc(c.officeName || "—") + "</td><td class=\"mono text-right\">" + esc(c.accountNo || c.id) + "</td></tr>";
-      }).join("") || api.emptyRow(4, "No members yet");
-    });
-  }
+  /* Dashboard and offices live in assets/frontoffice.js. */
 
-  /* =================================================================== CLIENTS */
-  if (page === "clients") {
-    var clientSearch = $("clients-search");
-    var clientStatus = $("clients-status");
-    if (clientSearch && api.qs("q")) clientSearch.value = api.qs("q");
-    var clientList = pagedList({
-      tbody: document.querySelector("#clients-table tbody"), pager: $("clients-pager"), cols: 7,
-      empty: "No members found",
-      fetch: async function (offset, limit) {
-        var q = "/clients?offset=" + offset + "&limit=" + limit + "&orderBy=id&sortOrder=DESC";
-        var name = clientSearch ? clientSearch.value.trim() : "";
-        if (name) q += "&displayName=" + encodeURIComponent(name);
-        var st = clientStatus ? clientStatus.value : "all";
-        if (st && st !== "all") q += "&status=" + encodeURIComponent(st);
-        var data = await api.get(q);
-        return { items: data.pageItems || [], total: count(data) };
-      },
-      row: function (c) {
-        var name = fullName(c);
-        var href = "client-detail.html?id=" + encodeURIComponent(c.id);
-        return "<tr>" +
-          "<td><div class=\"photo-frame sm has-photo\" aria-hidden=\"true\">" + esc(api.initials(name)) + "</div></td>" +
-          "<td class=\"mono\">" + esc(c.accountNo || c.id) + "</td>" +
-          "<td class=\"strong\"><a href=\"" + href + "\">" + esc(name) + "</a></td>" +
-          "<td>" + esc(c.mobileNo || "—") + "</td>" +
-          "<td>" + esc(c.officeName || "—") + "</td>" +
-          "<td>" + api.statusBadge(c.status) + "</td>" +
-          "<td><a class=\"btn btn-sm btn-ghost\" href=\"" + href + "\">View</a></td>" +
-          "</tr>";
-      }
-    });
-    var cf = $("clients-filter");
-    if (cf) cf.addEventListener("submit", function (e) { e.preventDefault(); run(clientList.reset); });
-    if (clientStatus) clientStatus.addEventListener("change", function () { run(clientList.reset); });
-    run(clientList.reset);
-  }
-
-  /* =================================================================== CLIENT DETAIL */
-  if (page === "client-detail") {
-    var clientId = api.qs("id");
-    var paintClient = async function () {
-      if (!clientId) {
-        setText("page-sub", "No member selected.");
-        throw new Error("Open a member from the Clients list.");
-      }
-      var enc = encodeURIComponent(clientId);
-      var res = await Promise.all([
-        api.get("/clients/" + enc),
-        api.get("/clients/" + enc + "/accounts").catch(function () { return {}; }),
-        api.get("/clients/" + enc + "/identifiers").catch(function () { return []; }),
-      ]);
-      var client = res[0], accounts = res[1] || {}, ids = Array.isArray(res[2]) ? res[2] : [];
-      var name = fullName(client);
-      document.title = name + " · Pivot SACCO Desk";
-      setText("client-title", name);
-      setText("client-name", name);
-      setHtml("client-status", api.statusBadge(client.status));
-      setText("page-sub", "Client #" + (client.accountNo || client.id) + " · " + (client.officeName || ""));
-      setText("client-avatar", api.initials(name));
-      var bits = ["#" + (client.accountNo || client.id)];
-      if (client.gender && client.gender.name) bits.push(client.gender.name);
-      if (client.dateOfBirth) bits.push("DOB " + api.formatDate(client.dateOfBirth));
-      if (client.officeName) bits.push(client.officeName);
-      if (client.staffName) bits.push("Staff: " + client.staffName);
-      setText("client-summary", bits.join(" · "));
-      setText("client-mobile", client.mobileNo);
-      setText("client-external", client.externalId);
-      setText("client-office", client.officeName);
-      var tl = client.timeline || {};
-      setText("client-activation", tl.activatedOnDate ? api.formatDate(tl.activatedOnDate) : "Not activated");
-      var firstId = ids[0];
-      setText("client-identifier", firstId ? ((firstId.documentType && firstId.documentType.name) || "ID") + " · " + (firstId.documentKey || "") : "");
-      var loans = accounts.loanAccounts || [];
-      var savs = accounts.savingsAccounts || [];
-      var total = savs.reduce(function (sum, s) {
-        return sum + (s.status && s.status.active ? Number(s.accountBalance || 0) : 0);
-      }, 0);
-      setText("client-savings-total", savs.length ? api.formatMoney(total) : "");
-      var lb = document.querySelector("#client-loans tbody");
-      if (lb) {
-        lb.innerHTML = loans.map(function (l) {
-          var href = "loan-detail.html?id=" + encodeURIComponent(l.id);
-          var bal = l.loanBalance !== undefined && l.loanBalance !== null ? api.formatMoney(l.loanBalance) : "—";
-          return "<tr><td class=\"mono\"><a href=\"" + href + "\">" + esc(l.accountNo || l.id) + "</a></td><td>" +
-            esc(l.productName || "") + "</td><td>" + api.statusBadge(l.status) + "</td><td class=\"mono text-right\">" + bal +
-            "</td><td><a class=\"btn btn-sm btn-ghost\" href=\"" + href + "\">Open</a></td></tr>";
-        }).join("") || api.emptyRow(5, "No loans");
-      }
-      var sb = document.querySelector("#client-savings tbody");
-      if (sb) {
-        sb.innerHTML = savs.map(function (s) {
-          var href = "savings-detail.html?id=" + encodeURIComponent(s.id);
-          return "<tr><td class=\"mono\"><a href=\"" + href + "\">" + esc(s.accountNo || s.id) + "</a></td><td>" +
-            esc(s.productName || "") + "</td><td>" + api.statusBadge(s.status) + "</td><td class=\"mono text-right\">" +
-            api.formatMoney(s.accountBalance) + "</td><td><a class=\"btn btn-sm btn-ghost\" href=\"" + href + "\">Open</a></td></tr>";
-        }).join("") || api.emptyRow(5, "No savings accounts");
-      }
-      var st = $("link-statement");
-      if (st) st.href = "member-statement.html?clientId=" + enc;
-      var nl = $("link-new-loan");
-      if (nl) nl.href = "loan-apply.html?clientId=" + enc;
-      emit("desk:client", client);
-    };
-    onRefresh(paintClient);
-    run(paintClient);
-  }
+  /* CLIENTS and CLIENT DETAIL pages are wired in assets/members.js. */
 
   /* =================================================================== LOANS */
   if (page === "loans") {
@@ -393,8 +261,8 @@
         setText("page-sub", "No loan selected.");
         throw new Error("Open a loan from the Loans list.");
       }
-      var loan = await api.get("/loans/" + encodeURIComponent(loanId) + "?associations=repaymentSchedule,transactions");
-      document.title = "Loan " + (loan.accountNo || loanId) + " · Pivot SACCO Desk";
+      var loan = await api.get("/loans/" + encodeURIComponent(loanId) + "?associations=all");
+      document.title = "Loan " + (loan.accountNo || loanId) + " · Phaneroo SACCO";
       setText("loan-title", "Loan " + (loan.accountNo || loanId));
       setText("page-sub", (loan.clientName || "") + " · " + api.statusLabel(loan.status));
       setText("loan-product", loan.loanProductName);
@@ -443,151 +311,11 @@
     run(paintLoan);
   }
 
-  /* =================================================================== SAVINGS */
-  if (page === "savings") {
-    var savSearch = $("savings-search");
-    var savList = pagedList({
-      tbody: document.querySelector("#savings-table tbody"), pager: $("savings-pager"), cols: 6,
-      empty: "No savings accounts found",
-      fetch: async function (offset, limit) {
-        var q = savSearch ? savSearch.value.trim() : "";
-        if (q) {
-          var hits = await api.searchEntities(q, "savings");
-          hits = hits.filter(function (h) { return /^SAVING/.test(String(h.entityType || "")); });
-          return {
-            paged: false, total: hits.length,
-            items: hits.map(function (h) {
-              return { id: h.entityId, accountNo: h.entityAccountNo, clientName: h.parentName, clientId: h.parentId, savingsProductName: h.entityName, status: h.entityStatus };
-            })
-          };
-        }
-        var data = await api.get("/savingsaccounts?offset=" + offset + "&limit=" + limit + "&orderBy=id&sortOrder=DESC");
-        return { items: data.pageItems || [], total: count(data) };
-      },
-      row: function (s) {
-        var href = "savings-detail.html?id=" + encodeURIComponent(s.id);
-        var bal = s.summary && s.summary.accountBalance !== undefined ? s.summary.accountBalance : s.accountBalance;
-        return "<tr>" +
-          "<td class=\"mono\"><a href=\"" + href + "\">" + esc(s.accountNo || s.id) + "</a></td>" +
-          "<td>" + (s.clientId ? "<a href=\"client-detail.html?id=" + encodeURIComponent(s.clientId) + "\">" + esc(s.clientName || "—") + "</a>" : esc(s.clientName || "—")) + "</td>" +
-          "<td>" + esc(s.savingsProductName || "") + "</td>" +
-          "<td class=\"mono text-right\">" + (bal !== undefined ? api.formatMoney(bal) : "—") + "</td>" +
-          "<td>" + api.statusBadge(s.status) + "</td>" +
-          "<td><a class=\"btn btn-sm btn-ghost\" href=\"" + href + "\">View</a></td>" +
-          "</tr>";
-      }
-    });
-    var sf = $("savings-filter");
-    if (sf) sf.addEventListener("submit", function (e) { e.preventDefault(); run(savList.reset); });
-    onRefresh(savList.current);
-    run(savList.reset);
-  }
+  /* SAVINGS, SAVINGS DETAIL, SHARES and FIXED DEPOSITS pages are wired in assets/deposits.js. */
 
-  /* =================================================================== SAVINGS DETAIL */
-  if (page === "savings-detail") {
-    var savId = api.qs("id");
-    var paintSavings = async function () {
-      if (!savId) {
-        setText("page-sub", "No account selected.");
-        throw new Error("Open a savings account from the list.");
-      }
-      var sav = await api.get("/savingsaccounts/" + encodeURIComponent(savId) + "?associations=transactions");
-      var sum = sav.summary || {};
-      document.title = "Savings " + (sav.accountNo || savId) + " · Pivot SACCO Desk";
-      setText("sav-title", "Savings " + (sav.accountNo || savId));
-      setText("page-sub", (sav.clientName || "") + " · " + (sav.savingsProductName || ""));
-      setText("sav-product", sav.savingsProductName);
-      setHtml("sav-status", api.statusBadge(sav.status));
-      setText("sav-account", "#" + (sav.accountNo || savId));
-      var link = $("sav-client");
-      if (link) {
-        link.textContent = sav.clientName || "—";
-        link.href = "client-detail.html?id=" + encodeURIComponent(sav.clientId || "");
-      }
-      var stl = $("sav-statement");
-      if (stl) stl.href = "member-statement.html?clientId=" + encodeURIComponent(sav.clientId || "");
-      setText("sav-balance", api.formatMoney(sum.accountBalance));
-      setText("sav-available", sum.availableBalance !== undefined ? api.formatMoney(sum.availableBalance) : "");
-      setText("sav-interest", sav.nominalAnnualInterestRate !== undefined ? sav.nominalAnnualInterestRate + "% p.a." : "");
-      var tl = sav.timeline || {};
-      setText("sav-opened", api.formatDate(tl.activatedOnDate || tl.submittedOnDate));
-      var tb = document.querySelector("#sav-txns tbody");
-      if (tb) {
-        tb.innerHTML = (sav.transactions || []).map(function (t) {
-          var type = (t.transactionType && t.transactionType.value) || "";
-          if (t.reversed) type += " (reversed)";
-          return "<tr><td>" + esc(api.formatDate(t.date)) + "</td><td>" + esc(type) +
-            "</td><td class=\"mono text-right\">" + api.formatMoney(t.amount) +
-            "</td><td class=\"mono text-right\">" + api.formatMoney(t.runningBalance) + "</td></tr>";
-        }).join("") || api.emptyRow(4, "No transactions");
-      }
-      emit("desk:savings", sav);
-    };
-    onRefresh(paintSavings);
-    run(paintSavings);
-  }
+  /* GROUPS and CENTRES pages are wired in assets/members.js. */
 
-  /* =================================================================== GROUPS / CENTRES */
-  function groupLike(kind) {
-    var isGroup = kind === "groups";
-    var search = $(kind + "-search");
-    var list = pagedList({
-      tbody: document.querySelector("#" + kind + "-table tbody"), pager: $(kind + "-pager"), cols: 4,
-      empty: isGroup ? "No groups" : "No centres",
-      fetch: async function (offset, limit) {
-        var url = (isGroup ? "/groups" : "/centers") + "?paged=true&offset=" + offset + "&limit=" + limit + "&orderBy=id&sortOrder=DESC";
-        var q = search ? search.value.trim() : "";
-        if (q) url += "&name=" + encodeURIComponent(q);
-        var data = await api.get(url);
-        if (Array.isArray(data)) return { items: data, total: data.length, paged: false };
-        return { items: data.pageItems || [], total: count(data) };
-      },
-      row: function (g) {
-        return "<tr><td class=\"strong\">" + esc(g.name || "") + "</td><td>" + esc(g.officeName || "") + "</td><td>" +
-          esc((isGroup ? g.centerName : g.staffName) || "—") + "</td><td>" + api.statusBadge(g.status) + "</td></tr>";
-      }
-    });
-    var form = $(kind + "-filter");
-    if (form) form.addEventListener("submit", function (e) { e.preventDefault(); run(list.reset); });
-    onRefresh(list.current);
-    run(list.reset);
-  }
-  if (page === "groups") groupLike("groups");
-  if (page === "centres") groupLike("centres");
-
-  /* =================================================================== COLLECTIONS */
-  if (page === "collections") {
-    run(async function () {
-      var tbody = document.querySelector("#collections-table tbody");
-      var CHUNK = 200, MAX = 2000;
-      var all = [], total = 0, offset = 0;
-      do {
-        var data = await api.get("/loans?status=300&offset=" + offset + "&limit=" + CHUNK + "&orderBy=id&sortOrder=ASC");
-        total = count(data);
-        all = all.concat(data.pageItems || []);
-        offset += CHUNK;
-      } while (offset < total && offset < MAX);
-      var overdue = all.filter(function (l) {
-        return l.inArrears || (l.summary && Number(l.summary.totalOverdue) > 0);
-      });
-      var amount = overdue.reduce(function (s, l) { return s + Number((l.summary && l.summary.totalOverdue) || 0); }, 0);
-      setText("kpi-overdue-count", api.formatNumber(overdue.length));
-      setText("kpi-overdue-amount", api.formatMoney(amount));
-      setText("kpi-checked", api.formatNumber(all.length));
-      setText("collections-note", all.length < total ?
-        "Checked the first " + api.formatNumber(all.length) + " of " + api.formatNumber(total) + " active loans." :
-        "Checked all " + api.formatNumber(total) + " active loans.");
-      tbody.innerHTML = overdue.map(function (l) {
-        var sum = l.summary || {};
-        return "<tr><td><a href=\"client-detail.html?id=" + encodeURIComponent(l.clientId || "") + "\">" + esc(l.clientName || "") +
-          "</a></td><td class=\"mono\">" + esc(l.accountNo || "") + "</td><td>" + api.statusBadge("In arrears") +
-          "</td><td class=\"mono text-right\">" + api.formatMoney(sum.totalOverdue) +
-          "</td><td class=\"mono text-right\">" + api.formatMoney(sum.totalOutstanding) +
-          "</td><td>" + esc(l.loanOfficerName || "—") +
-          "</td><td><a class=\"btn btn-sm\" href=\"loan-detail.html?id=" + encodeURIComponent(l.id) + "\">Open loan</a></td></tr>";
-      }).join("") || api.emptyRow(7, "No active loans are in arrears.");
-    });
-  }
+  /* =================================================================== COLLECTIONS — see loans.js */
 
   /* =================================================================== ACCOUNTING — COA */
   if (page === "accounting") {
@@ -724,33 +452,6 @@
   }
 
   /* =================================================================== OFFICES */
-  if (page === "offices") {
-    run(async function () {
-      var res = await Promise.all([loadOffices(), api.get("/staff?status=all").catch(function () { return []; })]);
-      var offices = res[0];
-      var staff = Array.isArray(res[1]) ? res[1] : (res[1].pageItems || []);
-      var byParent = {};
-      offices.forEach(function (o) {
-        var k = o.parentId || 0;
-        (byParent[k] = byParent[k] || []).push(o);
-      });
-      function branch(pid) {
-        var kids = byParent[pid] || [];
-        if (!kids.length) return "";
-        return "<ul" + (pid ? "" : " class=\"tree\"") + ">" + kids.map(function (o) {
-          return "<li><div class=\"node\"><strong>" + esc(o.name) + "</strong><span class=\"text-muted small-note\">opened " +
-            esc(api.formatDate(o.openingDate)) + "</span></div>" + branch(o.id) + "</li>";
-        }).join("") + "</ul>";
-      }
-      setHtml("office-tree", branch(0) || "<p class=\"text-muted\">No offices</p>");
-      document.querySelector("#staff-table tbody").innerHTML = staff.map(function (s) {
-        var name = s.displayName || ((s.firstname || "") + " " + (s.lastname || "")).trim();
-        return "<tr><td class=\"strong\">" + esc(name) + "</td><td>" + esc(s.officeName || "") +
-          "</td><td>" + (s.isLoanOfficer ? "Yes" : "No") + "</td><td>" + (s.isActive ? "Active" : "Inactive") + "</td></tr>";
-      }).join("") || api.emptyRow(4, "No staff");
-    });
-  }
-
   /* =================================================================== PRODUCTS */
   if (page === "products") {
     var paintProducts = async function () {

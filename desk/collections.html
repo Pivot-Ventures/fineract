@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Collections / overdue · Pivot SACCO Desk</title>
+  <title>Collections / overdue · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
 </head>
 <body data-page="collections">
@@ -14,7 +14,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +36,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +62,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -90,10 +94,17 @@
         <div class="kpi-card accent"><div class="kpi-label">Loans in arrears</div><div class="kpi-value" id="kpi-overdue-count">—</div></div>
         <div class="kpi-card"><div class="kpi-label">Amount overdue</div><div class="kpi-value" id="kpi-overdue-amount">—</div></div>
         <div class="kpi-card teal"><div class="kpi-label">Active loans checked</div><div class="kpi-value" id="kpi-checked">—</div></div>
+        <div class="kpi-card accent"><div class="kpi-label">Portfolio at risk (PAR)</div><div class="kpi-value" id="kpi-par">—</div><div class="kpi-meta" id="kpi-par-meta"></div></div>
       </div>
-      <div class="card"><div class="card-h"><h2>Overdue queue</h2></div>
+      <div class="card"><div class="card-h"><h2>Overdue queue</h2>
+        <div class="filters inline">
+          <label for="col-bucket" class="sr-only">Days overdue</label>
+          <select id="col-bucket"><option value="">All ages</option><option>1–30 days</option><option>31–60 days</option><option>61–90 days</option><option>Over 90 days</option></select>
+          <label for="col-officer" class="sr-only">Loan officer</label>
+          <select id="col-officer"><option value="">All officers</option></select>
+        </div></div>
         <div class="card-b table-wrap"><table class="data" id="collections-table">
-          <thead><tr><th>Member</th><th>Loan</th><th>Status</th><th class="text-right">Overdue</th><th class="text-right">Outstanding</th><th>Officer</th><th></th></tr></thead>
+          <thead><tr><th>Member</th><th>Loan</th><th>Days overdue</th><th class="text-right">Overdue</th><th class="text-right">Outstanding</th><th>Officer</th><th></th></tr></thead>
           <tbody><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
         </table></div>
         <p class="text-muted small-note card-note" id="collections-note"></p></div>
@@ -104,5 +115,6 @@
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
   <script src="assets/actions.js"></script>
+  <script src="assets/loans.js"></script>
 </body>
 </html>

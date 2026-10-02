@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard · Pivot SACCO Desk</title>
+  <title>Dashboard · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
+  <link rel="stylesheet" href="assets/frontoffice.css" />
 </head>
 <body data-page="dashboard">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -14,7 +15,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +37,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +63,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -84,26 +89,35 @@
     <main class="content" id="main-content">
       <div class="page-header">
         <div><h1>Dashboard</h1><p class="page-sub" id="page-sub">Currency UGX</p></div>
+        <div class="btn-group"><button type="button" class="btn btn-ghost" data-action="refresh-dashboard">Refresh</button></div>
       </div>
 
       <div class="kpi-grid">
-        <div class="kpi-card teal"><div class="kpi-label">Active members</div><div class="kpi-value" id="kpi-active-members">—</div></div>
-        <div class="kpi-card teal"><div class="kpi-label">Active loans</div><div class="kpi-value" id="kpi-active-loans">—</div></div>
-        <div class="kpi-card accent"><div class="kpi-label">Loans pending approval</div><div class="kpi-value" id="kpi-pending-loans">—</div></div>
-        <div class="kpi-card accent"><div class="kpi-label">Approved, awaiting disbursal</div><div class="kpi-value" id="kpi-approved-loans">—</div></div>
-        <div class="kpi-card teal"><div class="kpi-label">Savings accounts</div><div class="kpi-value" id="kpi-savings-accounts">—</div></div>
+        <div class="kpi-card teal"><div class="kpi-label">Active members</div><div class="kpi-value" id="kpi-active-members">—</div><div class="kpi-meta" id="kpi-active-members-meta"></div></div>
+        <div class="kpi-card teal"><div class="kpi-label">Active loans</div><div class="kpi-value" id="kpi-active-loans">—</div><div class="kpi-meta" id="kpi-active-loans-meta"></div></div>
+        <div class="kpi-card teal"><div class="kpi-label">Loan portfolio</div><div class="kpi-value" id="kpi-outstanding">—</div><div class="kpi-meta" id="kpi-outstanding-meta"></div></div>
+        <div class="kpi-card accent" id="kpi-par-card"><div class="kpi-label">PAR &gt; 30 days</div><div class="kpi-value" id="kpi-par">—</div><div class="kpi-meta" id="kpi-par-meta"></div></div>
+        <div class="kpi-card teal"><div class="kpi-label">Savings balances</div><div class="kpi-value" id="kpi-savings">—</div><div class="kpi-meta" id="kpi-savings-meta"></div></div>
+        <div class="kpi-card"><div class="kpi-label">Teller cash today</div><div class="kpi-value fo-small" id="kpi-cash-today">—</div><div class="kpi-meta" id="kpi-cash-today-meta"></div></div>
       </div>
+      <div class="card"><div class="card-h"><h2>Work queues</h2></div><div class="card-b fo-queues">
+        <section class="fo-queue" aria-labelledby="qh-1"><h3 id="qh-1"><a href="loans.html?status=100">Loans pending approval</a><span class="mono" id="q-loans-pending-count">—</span></h3><ul id="q-loans-pending"><li class="text-muted">Loading…</li></ul></section>
+        <section class="fo-queue" aria-labelledby="qh-2"><h3 id="qh-2"><a href="loans.html?status=200">Approved, awaiting disbursal</a><span class="mono" id="q-loans-approved-count">—</span></h3><ul id="q-loans-approved"><li class="text-muted">Loading…</li></ul></section>
+        <section class="fo-queue" aria-labelledby="qh-3"><h3 id="qh-3"><a href="clients.html">Members pending activation</a><span class="mono" id="q-clients-pending-count">—</span></h3><ul id="q-clients-pending"><li class="text-muted">Loading…</li></ul></section>
+        <section class="fo-queue" aria-labelledby="qh-4"><h3 id="qh-4"><a href="savings.html">Savings awaiting approval</a><span class="mono" id="q-savings-pending-count">—</span></h3><ul id="q-savings-pending"><li class="text-muted">Loading…</li></ul></section>
+      </div></div>
       <div class="grid-2">
         <div class="card"><div class="card-h"><h2>Recent members</h2><a class="btn btn-sm btn-ghost" href="clients.html">All members</a></div>
           <div class="card-b table-wrap"><table class="data" id="recent-members">
-            <thead><tr><th>Joined</th><th>Member</th><th>Office</th><th class="text-right">Client #</th></tr></thead>
+            <thead><tr><th scope="col">Joined</th><th scope="col">Member</th><th scope="col">Office</th><th scope="col" class="text-right">Client #</th></tr></thead>
             <tbody><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
           </table></div></div>
-        <div class="card"><div class="card-h"><h2>Work queues</h2></div><div class="card-b">
-          <div class="meta-item queue-item"><div class="k">Loan approvals</div><div class="v"><a href="loans.html?status=100">Loans pending approval</a></div></div>
-          <div class="meta-item queue-item"><div class="k">Disbursements</div><div class="v"><a href="loans.html?status=200">Approved loans awaiting disbursal</a></div></div>
+        <div class="card"><div class="card-h"><h2>Shortcuts</h2></div><div class="card-b">
+          <div class="meta-item queue-item"><div class="k">Counter</div><div class="v"><a href="teller.html">Teller day desk</a></div></div>
           <div class="meta-item queue-item"><div class="k">Overdue</div><div class="v"><a href="collections.html">Collections queue</a></div></div>
-          <div class="meta-item"><div class="k">End of day</div><div class="v"><a href="cashier-eod.html">Settle cashier drawer</a></div></div>
+          <div class="meta-item queue-item"><div class="k">End of day</div><div class="v"><a href="cashier-eod.html">Settle cashier drawer</a></div></div>
+          <div class="meta-item"><div class="k">Members</div><div class="v"><a href="client-onboard.html">Onboard a member</a></div></div>
+          <p class="text-muted small-note">PAR &gt; 30 = principal outstanding on loans more than 30 days overdue ÷ total principal outstanding.</p>
         </div></div>
       </div>
     </main>
@@ -113,5 +127,6 @@
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
   <script src="assets/actions.js"></script>
+  <script src="assets/frontoffice.js"></script>
 </body>
 </html>

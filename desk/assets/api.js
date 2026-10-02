@@ -210,9 +210,16 @@
    */
   async function login(username, password, tenantId) {
     tenantId = String(tenantId || DEFAULT_TENANT).trim() || DEFAULT_TENANT;
-    var data = await request("POST", "/authentication", { username: username, password: password }, {
-      tenant: tenantId, anonymous: true
-    });
+    var data;
+    try {
+      data = await request("POST", "/authentication", { username: username, password: password }, {
+        tenant: tenantId, anonymous: true
+      });
+    } catch (err) {
+      /* Fineract answers 403 (with a valid key) when the password must be changed first, e.g. a new user. */
+      if (err.status === 403 && err.data && err.data.shouldRenewPassword && err.data.base64EncodedAuthenticationKey) data = err.data;
+      else throw err;
+    }
     if (!data || !data.authenticated || !data.base64EncodedAuthenticationKey) {
       throw new Error("Sign-in was not accepted by Fineract.");
     }
@@ -241,7 +248,8 @@
   }
 
   async function changePassword(pending, newPassword, repeatPassword) {
-    await request("PUT", "/users/" + encodeURIComponent(pending.userId), {
+    /* POST /users/{id}/pwd is the only call Fineract exempts from its "password must be reset" check. */
+    await request("POST", "/users/" + encodeURIComponent(pending.userId) + "/pwd", {
       password: newPassword, repeatPassword: repeatPassword
     }, { tenant: pending.tenantId, authKey: pending.authKey });
   }
@@ -576,7 +584,9 @@
   /*
    * openDialog({
    *   title, submitLabel, fields: [{ key, label, type, value, options, required, amount,
-   *     placeholder, help, full, search, min, max }],
+   *     placeholder, help, full, search, min, max, autocomplete, onChange(value, ctl) }],
+   *     type "checkboxes": options [{ value, label }], value = array of checked values → collected as an array;
+   *     onChange(value, ctl): ctl.setOptions(key, options, value) refills a select field.
    *   validate(values) → error string | "",
    *   confirm(values) → { title, lines: [[label, value], ...], note, confirmLabel } — adds a review step,
    *   onSubmit(values) → Promise — dialog stays open (button disabled) until it settles;
@@ -608,6 +618,18 @@
         var req = f.required ? " required" : "";
         var help = f.help ? '<span class="field-help" id="' + id + '-help">' + escapeHtml(f.help) + "</span>" : "";
         var desc = f.help ? ' aria-describedby="' + id + '-help"' : "";
+        if (f.type === "checkboxes") {
+          var checked = (f.value || []).map(String);
+          html += '<fieldset class="form-row full check-group" id="' + id + '"' + desc + "><legend>" + escapeHtml(f.label) +
+            (f.required ? ' <span aria-hidden="true">*</span>' : "") + "</legend>";
+          (f.options || []).forEach(function (o, i) {
+            var cid = id + "-" + i;
+            html += '<label class="check" for="' + cid + '"><input type="checkbox" id="' + cid + '" data-group="' + escapeHtml(f.key) +
+              '" value="' + escapeHtml(o.value) + '"' + (checked.indexOf(String(o.value)) >= 0 ? " checked" : "") + " /> " + escapeHtml(o.label) + "</label>";
+          });
+          html += help + "</fieldset>";
+          return;
+        }
         html += '<div class="form-row' + (f.full || f.type === "textarea" || f.type === "search" ? " full" : "") + '"><label for="' + id + '">' +
           escapeHtml(f.label) + (f.required ? ' <span aria-hidden="true">*</span>' : "") + "</label>";
         if (f.type === "select") {
@@ -633,6 +655,7 @@
           html += '<input id="' + id + '" data-k="' + escapeHtml(f.key) + '" type="' + escapeHtml(f.type || "text") + '"' + req + desc +
             (f.placeholder ? ' placeholder="' + escapeHtml(f.placeholder) + '"' : "") +
             (f.max ? ' max="' + escapeHtml(f.max) + '"' : "") +
+            (f.autocomplete ? ' autocomplete="' + escapeHtml(f.autocomplete) + '"' : "") +
             ' value="' + escapeHtml(f.value || "") + '" />';
         }
         html += help + "</div>";
@@ -674,6 +697,26 @@
         errEl.textContent = msg || "";
         errEl.hidden = !msg;
       }
+      var ctl = {
+        setOptions: function (key, options, value) {
+          var f = fields.filter(function (x) { return x.key === key; })[0] || {};
+          var sel = box.querySelector('select[data-k="' + key + '"]');
+          if (!sel) return;
+          sel.innerHTML = (f.placeholder ? '<option value="">' + escapeHtml(f.placeholder) + "</option>" : "") +
+            (options || []).map(function (o) {
+              return '<option value="' + escapeHtml(o.value) + '"' + (String(o.value) === String(value) ? " selected" : "") + ">" + escapeHtml(o.label) + "</option>";
+            }).join("");
+        }
+      };
+      fields.forEach(function (f) {
+        if (!f.onChange) return;
+        var el = box.querySelector('[data-k="' + f.key + '"]');
+        if (!el) return;
+        el.addEventListener("change", function () {
+          Promise.resolve().then(function () { return f.onChange(el.value, ctl); })
+            .catch(function (err) { showError(err.message || String(err)); });
+        });
+      });
       function close(val) {
         if (busy) return;
         document.removeEventListener("keydown", onKey);
@@ -701,6 +744,10 @@
           out[el.getAttribute("data-k")] = el.type === "checkbox" ? el.checked : el.value;
           if (el.getAttribute("data-label")) out[el.getAttribute("data-k") + "Label"] = el.getAttribute("data-label");
         });
+        fields.forEach(function (f) { if (f.type === "checkboxes") out[f.key] = []; });
+        box.querySelectorAll("[data-group]").forEach(function (el) {
+          if (el.checked) out[el.getAttribute("data-group")].push(el.value);
+        });
         return out;
       }
       function check(v) {
@@ -708,6 +755,7 @@
           var f = fields[i];
           var raw = v[f.key];
           var empty = raw === undefined || raw === null || String(raw).trim() === "";
+          if (f.required && f.type === "checkboxes" && !raw.length) return "Select at least one option under " + f.label + ".";
           if (f.required && empty) {
             return f.type === "search" ? "Choose " + f.label.toLowerCase() + " from the search results." : f.label + " is required.";
           }

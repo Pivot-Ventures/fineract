@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Teller · Pivot SACCO Desk</title>
+  <title>Teller · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
+  <link rel="stylesheet" href="assets/frontoffice.css" />
 </head>
 <body data-page="teller-detail">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -14,7 +15,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +37,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +63,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -96,26 +101,46 @@
       </div></div></div>
       <div class="card"><div class="card-h"><h2>Cashiers</h2></div>
         <div class="card-b table-wrap"><table class="data" id="cashiers-table">
-          <thead><tr><th>Staff</th><th>From</th><th>To</th><th>Full day?</th><th></th></tr></thead>
-          <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+          <thead><tr><th scope="col">Staff</th><th scope="col">Assignment</th><th scope="col">Hours</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
         </table></div></div>
       <div class="grid-2">
-        <div class="card" id="allocate-card" data-perm="ALLOCATECASHTOCASHIER_TELLER"><div class="card-h"><h2>Allocate cash</h2></div><div class="card-b">
-          <form id="allocate-form" novalidate>
-            <div class="form-grid">
-              <div class="form-row"><label for="alloc-cashier">Cashier</label><select id="alloc-cashier" required></select></div>
-              <div class="form-row"><label for="alloc-amount">Amount (UGX)</label><input id="alloc-amount" class="mono" inputmode="numeric" autocomplete="off" placeholder="e.g. 500,000" required /></div>
-              <div class="form-row"><label for="alloc-date">Date</label><input id="alloc-date" type="date" required /></div>
-              <div class="form-row"><label for="alloc-note">Note</label><input id="alloc-note" placeholder="Vault allocation" /></div>
+        <div>
+          <div class="card"><div class="card-h"><h2>Drawer · <span id="td-drawer-name">—</span></h2>
+            <div class="filters inline"><label for="td-cashier" class="sr-only">Cashier</label><select id="td-cashier"></select></div></div>
+            <div class="card-b"><div class="recon-box">
+              <div class="recon-line"><span>+ Allocated from vault</span><span class="mono" id="td-allocated">—</span></div>
+              <div class="recon-line"><span>+ Cash in</span><span class="mono" id="td-cash-in">—</span></div>
+              <div class="recon-line"><span>− Cash out</span><span class="mono" id="td-cash-out">—</span></div>
+              <div class="recon-line"><span>− Settled to vault</span><span class="mono" id="td-settled">—</span></div>
+              <div class="recon-line total"><span>System drawer balance</span><span class="mono" id="td-balance">—</span></div>
             </div>
-            <div class="form-actions"><button type="submit" class="btn btn-amber">Allocate</button></div>
+            <p class="card-note"><a id="td-eod-link" href="cashier-eod.html">Full end-of-day reconciliation →</a></p></div></div>
+          <div class="card"><div class="card-h"><h2>Recent movements</h2></div>
+            <div class="card-b table-wrap"><table class="data" id="cashier-txns">
+              <thead><tr><th scope="col">Time</th><th scope="col">Type</th><th scope="col">Details</th><th scope="col" class="text-right">In</th><th scope="col" class="text-right">Out</th></tr></thead>
+              <tbody><tr class="empty-row"><td colspan="5">Select a cashier.</td></tr></tbody>
+            </table></div></div>
+        </div>
+        <div class="card" data-perm="ALLOCATECASHTOCASHIER_TELLER SETTLECASHFROMCASHIER_TELLER"><div class="card-h"><h2>Vault ↔ till cash</h2></div><div class="card-b">
+          <form id="td-move-form" novalidate>
+            <fieldset class="fo-mode"><legend>Movement</legend>
+              <label for="td-move-alloc"><input type="radio" id="td-move-alloc" name="td-move-mode" value="allocate" checked /> Allocate (vault → till)</label>
+              <label for="td-move-settle"><input type="radio" id="td-move-settle" name="td-move-mode" value="settle" /> Settle (till → vault)</label>
+            </fieldset>
+            <p class="denom-head">Count the cash (optional)</p>
+            <div id="td-move-denoms"></div>
+            <div class="fo-counted"><span class="strong">Counted: <span class="mono" id="td-move-counted">—</span></span>
+              <button type="button" class="btn btn-sm btn-ghost" id="td-move-use-count">Use counted total</button></div>
+            <div class="recon-box mt-10" id="td-move-variance" hidden></div>
+            <div class="form-grid mt-10">
+              <div class="form-row"><label for="td-move-amount">Amount (UGX) <span aria-hidden="true">*</span></label><input id="td-move-amount" class="mono" inputmode="numeric" autocomplete="off" placeholder="e.g. 500,000" required /></div>
+              <div class="form-row"><label for="td-move-date">Date <span aria-hidden="true">*</span></label><input id="td-move-date" type="date" required /></div>
+              <div class="form-row full"><label for="td-move-note">Note</label><input id="td-move-note" placeholder="Vault allocation" /></div>
+            </div>
+            <div class="form-actions"><button type="submit" class="btn btn-amber">Review allocation</button></div>
           </form>
         </div></div>
-        <div class="card"><div class="card-h"><h2>Recent cashier transactions</h2></div>
-          <div class="card-b table-wrap"><table class="data" id="cashier-txns">
-            <thead><tr><th>Date</th><th>Type</th><th class="text-right">Amount</th></tr></thead>
-            <tbody><tr class="empty-row"><td colspan="3">Select a cashier.</td></tr></tbody>
-          </table></div></div>
       </div>
     </main>
   </div>
@@ -124,5 +149,6 @@
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
   <script src="assets/actions.js"></script>
+  <script src="assets/frontoffice.js"></script>
 </body>
 </html>

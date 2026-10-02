@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Clients · Pivot SACCO Desk</title>
+  <title>Clients · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
+  <link rel="stylesheet" href="assets/members.css" />
 </head>
 <body data-page="clients">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -14,7 +15,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +37,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +63,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -91,21 +96,27 @@
         <button type="button" class="btn btn-ghost" data-unavailable="CSV import is not available yet">Import CSV</button>
         <span class="text-muted small-note">CSV import: not available yet</span>
       </div>
+      <div class="card" id="pending-card" hidden><div class="card-h"><h2>Awaiting activation <span class="chip amber" id="pending-count">0</span></h2></div>
+        <div class="card-b table-wrap"><table class="data" id="pending-table">
+          <thead><tr><th>Client #</th><th>Name</th><th>Mobile</th><th>Office</th><th>Submitted</th><th><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody></tbody>
+        </table></div></div>
       <div class="card"><div class="card-h"><h2>Members</h2>
         <form class="filters inline" id="clients-filter" role="search">
-          <label for="clients-search" class="sr-only">Search by name</label>
-          <input id="clients-search" type="search" placeholder="Name (case-sensitive)" />
+          <label for="clients-search" class="sr-only">Search by name, member number, account number, phone or national ID</label>
+          <input id="clients-search" type="search" placeholder="Name, member no, account no, phone or NIN" autocomplete="off" />
+          <label for="clients-office" class="sr-only">Office</label>
+          <select id="clients-office"><option value="">All offices</option></select>
           <label for="clients-status" class="sr-only">Status</label>
           <select id="clients-status"><option value="all">All statuses</option><option value="active">Active</option><option value="pending">Pending</option><option value="closed">Closed</option></select>
           <button type="submit" class="btn btn-sm">Search</button>
+          <button type="button" class="btn btn-sm btn-ghost" id="clients-clear" hidden>Clear</button>
         </form></div>
         <div class="card-b table-wrap"><table class="data" id="clients-table">
-          <thead><tr><th><span class="sr-only">Photo</span></th><th>Client #</th><th>Name</th><th>Mobile</th><th>Office</th><th>Status</th><th></th></tr></thead>
-          <tbody><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
+          <thead><tr><th><span class="sr-only">Photo</span></th><th>Client #</th><th>Member no.</th><th>Name</th><th>Mobile</th><th>Office</th><th>Status</th><th><span class="sr-only">Open</span></th></tr></thead>
+          <tbody><tr class="loading-row"><td colspan="8">Loading…</td></tr></tbody>
         </table></div>
         <div class="pager" id="clients-pager"></div></div>
-      <div class="card" id="kyc"><div class="card-h"><h2>KYC queue</h2></div>
-        <div class="card-b"><div class="empty-state">Not available yet. Members are activated when they are onboarded; there is no separate KYC review step in Fineract.</div></div></div>
     </main>
   </div>
 </div>
@@ -113,5 +124,6 @@
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
   <script src="assets/actions.js"></script>
+  <script src="assets/members.js"></script>
 </body>
 </html>

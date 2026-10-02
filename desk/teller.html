@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Teller day desk · Pivot SACCO Desk</title>
+  <title>Teller day desk · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
+  <link rel="stylesheet" href="assets/frontoffice.css" />
 </head>
 <body data-page="teller">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -14,7 +15,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +37,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +63,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -83,23 +88,31 @@
 
     <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Teller day desk</h1><p class="page-sub" id="page-sub">Select a teller and cashier to begin.</p></div>
+        <div><h1>Teller day desk</h1><p class="page-sub" id="page-sub">Loading your drawer…</p></div>
       </div>
-
+      <div id="desk-notice" class="fo-notice" role="status" hidden></div>
       <div class="btn-group page-actions">
-        <button type="button" class="btn btn-amber" data-action="open-session">Choose teller / cashier</button>
-        <button type="button" class="btn btn-ghost" data-action="allocate" data-perm="ALLOCATECASHTOCASHIER_TELLER">Allocate cash</button>
-        <a class="btn btn-ghost" href="cashier-eod.html">Settle / EOD</a>
-        <a class="btn btn-ghost" href="tellers.html">Manage tellers</a>
+        <button type="button" class="btn btn-amber" data-action="deposit" data-cash-action data-perm="DEPOSIT_SAVINGSACCOUNT">↓ Cash in (deposit)</button>
+        <button type="button" class="btn btn-amber" data-action="withdrawal" data-cash-action data-perm="WITHDRAWAL_SAVINGSACCOUNT">↑ Cash out (withdraw)</button>
+        <button type="button" class="btn" data-action="repay" data-cash-action data-perm="REPAYMENT_LOAN">↩ Loan repayment</button>
+        <a class="btn btn-ghost" id="desk-eod-link" href="cashier-eod.html">End of day / settle</a>
+        <button type="button" class="btn btn-ghost" data-action="open-session">View another drawer</button>
+        <a class="btn btn-ghost" id="desk-manage-link" href="tellers.html" data-perm="ALLOCATECASHTOCASHIER_TELLER">Allocate cash</a>
+        <button type="button" class="btn btn-ghost" data-action="refresh-desk">Refresh</button>
       </div>
       <div class="kpi-grid">
-        <div class="kpi-card teal"><div class="kpi-label">Allocated to drawer</div><div class="kpi-value" id="kpi-allocated">—</div></div>
+        <div class="kpi-card teal"><div class="kpi-label">Opening float (allocated)</div><div class="kpi-value" id="kpi-allocated">—</div></div>
         <div class="kpi-card"><div class="kpi-label">Cash in</div><div class="kpi-value" id="kpi-cash-in">—</div></div>
         <div class="kpi-card"><div class="kpi-label">Cash out</div><div class="kpi-value" id="kpi-cash-out">—</div></div>
         <div class="kpi-card"><div class="kpi-label">Settled to vault</div><div class="kpi-value" id="kpi-settled">—</div></div>
-        <div class="kpi-card accent"><div class="kpi-label">Running drawer</div><div class="kpi-value" id="kpi-net">—</div><div class="kpi-meta" id="kpi-net-meta"></div></div>
+        <div class="kpi-card accent"><div class="kpi-label">Drawer balance (cash you should hold)</div><div class="kpi-value" id="kpi-net">—</div><div class="kpi-meta" id="kpi-net-meta"></div></div>
       </div>
       <div class="grid-2">
+        <div class="card"><div class="card-h"><h2>Recent drawer transactions</h2><span class="chip" id="txn-count" hidden></span></div>
+          <div class="card-b table-wrap"><table class="data" id="teller-txns">
+            <thead><tr><th scope="col">Time</th><th scope="col">Type</th><th scope="col">Details</th><th scope="col" class="text-right">In</th><th scope="col" class="text-right">Out</th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+          </table></div></div>
         <div class="card"><div class="card-h"><h2>Find member</h2></div><div class="card-b">
           <form class="filters" id="teller-search-form" role="search">
             <label for="teller-search" class="sr-only">Member name, account number or phone</label>
@@ -107,27 +120,12 @@
             <button type="submit" class="btn">Search</button>
           </form>
           <div class="table-wrap"><table class="data" id="teller-members">
-            <thead><tr><th>Client #</th><th>Name</th><th>Office</th><th></th></tr></thead>
+            <thead><tr><th scope="col">Client #</th><th scope="col">Name</th><th scope="col">Office</th><th scope="col"><span class="sr-only">Open</span></th></tr></thead>
             <tbody><tr class="empty-row"><td colspan="4">Search for a member by name, account number or phone.</td></tr></tbody>
           </table></div>
-        </div></div>
-        <div class="card"><div class="card-h"><h2>Quick actions</h2></div><div class="card-b">
-          <div class="action-grid">
-            <button type="button" class="action-tile" data-action="allocate" data-perm="ALLOCATECASHTOCASHIER_TELLER"><span class="ico" aria-hidden="true">↓↓</span><span class="lbl">Allocate</span></button>
-            <button type="button" class="action-tile" data-action="settle" data-perm="SETTLECASHFROMCASHIER_TELLER"><span class="ico" aria-hidden="true">↑↑</span><span class="lbl">Settle</span></button>
-            <button type="button" class="action-tile" data-action="deposit" data-perm="DEPOSIT_SAVINGSACCOUNT"><span class="ico" aria-hidden="true">↓</span><span class="lbl">Cash in (deposit)</span></button>
-            <button type="button" class="action-tile" data-action="withdrawal" data-perm="WITHDRAWAL_SAVINGSACCOUNT"><span class="ico" aria-hidden="true">↑</span><span class="lbl">Cash out (withdraw)</span></button>
-            <button type="button" class="action-tile" data-action="repay" data-perm="REPAYMENT_LOAN"><span class="ico" aria-hidden="true">↩</span><span class="lbl">Repay loan</span></button>
-            <button type="button" class="action-tile" data-unavailable="Share accounts are not available yet"><span class="ico" aria-hidden="true">◎</span><span class="lbl">Buy shares</span><span class="tile-note">Not available yet</span></button>
-          </div>
-          <p class="text-muted small-note">Cash in / out post savings deposits and withdrawals. They appear on the cashier drawer whose staff member is the signed-in user.</p>
+          <p class="text-muted small-note">Cash in / out always uses the Cash payment type and today's date, so it lands on <strong>your</strong> drawer. Mobile money and bank payments are posted from the member's account page instead.</p>
         </div></div>
       </div>
-      <div class="card"><div class="card-h"><h2>Session transactions</h2></div>
-        <div class="card-b table-wrap"><table class="data" id="teller-txns">
-          <thead><tr><th>Time</th><th>Type</th><th>Note</th><th class="text-right">In</th><th class="text-right">Out</th></tr></thead>
-          <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
-        </table></div></div>
     </main>
   </div>
 </div>
@@ -135,5 +133,6 @@
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
   <script src="assets/actions.js"></script>
+  <script src="assets/frontoffice.js"></script>
 </body>
 </html>

@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Journal entries · Phaneroo SACCO</title>
+  <title>Shares · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
-  <link rel="stylesheet" href="assets/accounting.css" />
 </head>
-<body data-page="journals">
+<body data-page="shares">
 <a class="skip-link" href="#main-content">Skip to content</a>
 <div class="status-bar" id="status-bar" role="alert" hidden></div>
 <div class="app-shell">
@@ -88,44 +87,36 @@
 
     <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Journal entries</h1><p class="page-sub">General ledger postings. Open a transaction to see all its legs, print the voucher or reverse it.</p></div>
+        <div><h1>Shares</h1><p class="page-sub" id="shr-sub">Member share capital.</p></div>
       </div>
 
-      <div class="btn-group page-actions">
-        <a class="btn btn-amber" href="journal-entry.html" data-perm="CREATE_JOURNALENTRY">＋ Manual journal</a>
-        <a class="btn btn-ghost" href="accounting-rules.html">Frequent postings</a>
-        <button type="button" class="btn btn-ghost" id="je-csv">Export CSV</button>
-      </div>
-      <div class="card"><div class="card-h"><h2>Search journals</h2></div>
-        <div class="card-b">
-          <form class="filters" id="je-filter" novalidate>
-            <label for="je-from">From</label><input id="je-from" type="date" />
-            <label for="je-to">To</label><input id="je-to" type="date" />
-            <label for="je-office" class="sr-only">Office</label>
-            <select id="je-office"><option value="">All offices</option></select>
-            <label for="je-gl" class="sr-only">GL account</label>
-            <select id="je-gl"><option value="">All GL accounts</option></select>
-            <label for="je-manual" class="sr-only">Entry type</label>
-            <select id="je-manual"><option value="">All entries</option><option value="true">Manual only</option></select>
-            <label for="je-txn" class="sr-only">Transaction ID</label>
-            <input id="je-txn" type="search" placeholder="Transaction ID" />
-            <button type="submit" class="btn btn-sm">Search</button>
-            <button type="button" class="btn btn-sm btn-ghost" id="je-reset">Clear</button>
-          </form>
-        </div>
-        <div class="card-b"><label for="je-quick" class="sr-only">Filter this page by reference, narration or account</label>
-          <input id="je-quick" type="search" placeholder="Filter this page: reference, narration, account…" /></div>
-        <div class="card-b table-wrap"><table class="data" id="je-table">
-          <thead><tr><th scope="col">Date</th><th scope="col">Transaction</th><th scope="col">Office</th><th scope="col">GL account</th><th scope="col" class="text-right">Debit</th><th scope="col" class="text-right">Credit</th><th scope="col">Reference</th><th scope="col">Narration</th><th scope="col">Source</th><th scope="col">By</th></tr></thead>
-          <tbody><tr class="loading-row"><td colspan="10">Loading…</td></tr></tbody>
+      <div class="btn-group page-actions"><button type="button" class="btn btn-amber" data-action="shr-open" data-perm="CREATE_SHAREACCOUNT">＋ Open share account</button></div>
+      <div class="card"><div class="card-h"><h2>Share accounts</h2>
+        <form class="filters inline" id="dep-filter" role="search">
+          <label for="dep-search" class="sr-only">Search by account number or member name</label>
+          <input id="dep-search" type="search" placeholder="Account no or member name" />
+          <label for="dep-status" class="sr-only">Status</label>
+          <select id="dep-status">
+            <option value="">All statuses</option>
+            <option value="300">Active</option>
+            <option value="100">Pending approval</option>
+            <option value="200">Approved (not active)</option>
+            <option value="600">Closed</option>
+          </select>
+          <button type="submit" class="btn btn-sm">Search</button>
+        </form></div>
+        <div class="card-b table-wrap"><table class="data" id="dep-table">
+          <thead><tr><th>Account</th><th>Member</th><th>Product</th><th class="text-right">Shares</th><th class="text-right">Value</th><th>Status</th><th><span class="sr-only">Open</span></th></tr></thead>
+          <tbody><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
         </table></div>
-        <p class="page-totals" id="je-page-totals"></p>
-        <div class="pager" id="je-pager"></div></div>
+        <div class="pager" id="dep-pager"></div></div>
     </main>
   </div>
 </div>
   <script src="assets/api.js"></script>
   <script src="assets/app.js"></script>
-  <script src="assets/accounting.js"></script>
+  <script src="assets/pages.js"></script>
+  <script src="assets/actions.js"></script>
+  <script src="assets/deposits.js"></script>
 </body>
 </html>

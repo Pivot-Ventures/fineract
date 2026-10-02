@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Reports · Pivot SACCO Desk</title>
+  <title>Reports · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
+  <link rel="stylesheet" href="assets/accounting.css" />
 </head>
 <body data-page="reports">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -14,7 +15,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +37,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +63,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -83,32 +88,37 @@
 
     <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Reports</h1><p class="page-sub">Financial and member reports.</p></div>
+        <div><h1>Reports</h1><p class="page-sub">Run any Fineract report: choose it, set the parameters, then export to CSV or print.</p></div>
       </div>
-
-      <div class="report-grid">
-        <div class="report-card"><h3>Portfolio at risk</h3><p>Not available yet on this database.</p><button type="button" class="btn btn-sm" data-unavailable="Portfolio at risk is not available yet">Run</button></div>
-        <div class="report-card"><h3>Collections</h3><p>Loans in arrears.</p><a class="btn btn-sm" href="collections.html">Open</a></div>
-        <div class="report-card"><h3>Member statement</h3><p>Savings and loan transactions for a date range.</p><a class="btn btn-sm" href="member-statement.html">Open</a></div>
-        <div class="report-card"><h3>Trial balance</h3><p>Debits and credits by GL account.</p><a class="btn btn-sm" href="trial-balance.html">Open</a></div>
-        <div class="report-card"><h3>Income statement</h3><p>Income and expenses for a period.</p><a class="btn btn-sm" href="income-statement.html">Open</a></div>
-        <div class="report-card"><h3>Balance sheet</h3><p>Assets, liabilities and equity at a date.</p><a class="btn btn-sm" href="balance-sheet.html">Open</a></div>
+      <div class="btn-group page-actions">
+        <a class="btn btn-ghost" href="trial-balance.html">Trial balance</a>
+        <a class="btn btn-ghost" href="income-statement.html">Income statement</a>
+        <a class="btn btn-ghost" href="balance-sheet.html">Balance sheet</a>
+        <a class="btn btn-ghost" href="member-statement.html">Member statement</a>
+        <a class="btn btn-ghost" href="collections.html">Collections</a>
       </div>
-      <div class="card mt-16" id="admin"><div class="card-h"><h2>Administration</h2></div>
-        <div class="card-b">
-          <div class="btn-group">
-            <button type="button" class="btn btn-ghost" data-action="list-users" data-perm="READ_USER">Show users</button>
-            <button type="button" class="btn btn-ghost" data-unavailable="A settings screen is not available yet">Settings</button>
-          </div>
-          <p class="text-muted small-note">Settings screen: not available yet (use Fineract admin).</p>
-          <div class="table-wrap" id="users-output"></div>
+      <div class="print-only" id="print-head"></div>
+      <div class="rpt-layout">
+        <div class="card rpt-side"><div class="card-b">
+          <label for="rpt-search" class="sr-only">Search reports</label>
+          <input id="rpt-search" type="search" placeholder="Search reports…" />
+          <nav id="rpt-list" class="mt-10" aria-label="Report catalogue"><p class="text-muted">Loading reports…</p></nav>
         </div></div>
+        <div class="card"><div class="card-h"><div><h2 id="rpt-title">Choose a report</h2><p class="text-muted small-note" id="rpt-desc"></p></div>
+            <div class="rpt-actions" id="rpt-actions" hidden>
+              <button type="button" class="btn btn-sm btn-ghost" id="rpt-csv">Export CSV</button>
+              <button type="button" class="btn btn-sm btn-ghost" id="rpt-print">Print / PDF</button>
+            </div></div>
+          <div class="card-b">
+            <form id="rpt-params" novalidate></form>
+            <div id="rpt-output" class="mt-16" aria-live="polite"></div>
+          </div></div>
+      </div>
     </main>
   </div>
 </div>
   <script src="assets/api.js"></script>
   <script src="assets/app.js"></script>
-  <script src="assets/pages.js"></script>
-  <script src="assets/actions.js"></script>
+  <script src="assets/accounting.js"></script>
 </body>
 </html>

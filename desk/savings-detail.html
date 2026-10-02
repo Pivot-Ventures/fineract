@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Savings account · Pivot SACCO Desk</title>
+  <title>Savings account · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
 </head>
 <body data-page="savings-detail">
@@ -14,7 +14,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +36,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +62,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -87,25 +91,61 @@
       </div>
 
       <div class="card"><div class="card-b"><div class="profile-head">
-        <div class="grow"><h2 class="profile-title"><span id="sav-product">—</span> <span id="sav-status"></span></h2>
+        <div class="grow"><h2 class="profile-title"><span id="sav-product">—</span> <span id="sav-status"></span> <span id="sav-substatus"></span></h2>
           <div class="text-muted"><span id="sav-account">—</span> · <a id="sav-client" href="clients.html">—</a></div></div>
-        <div class="btn-group">
-          <button type="button" class="btn btn-amber" data-action="deposit" data-perm="DEPOSIT_SAVINGSACCOUNT" hidden>Deposit</button>
-          <button type="button" class="btn btn-ghost" data-action="withdrawal" data-perm="WITHDRAWAL_SAVINGSACCOUNT" hidden>Withdraw</button>
-          <a class="btn btn-ghost" id="sav-statement" href="member-statement.html">Statement</a>
+        <div class="btn-group" id="sav-actions">
+          <button type="button" class="btn btn-amber" data-action="sav-approve" data-perm="APPROVE_SAVINGSACCOUNT" hidden>Approve</button>
+          <button type="button" class="btn btn-amber" data-action="sav-activate" data-perm="ACTIVATE_SAVINGSACCOUNT" hidden>Activate</button>
+          <button type="button" class="btn btn-amber" data-action="sav-deposit" data-perm="DEPOSIT_SAVINGSACCOUNT" hidden>Deposit</button>
+          <button type="button" class="btn btn-ghost" data-action="sav-withdraw" data-perm="WITHDRAWAL_SAVINGSACCOUNT" hidden>Withdraw</button>
+          <button type="button" class="btn btn-ghost" data-action="sav-transfer" data-perm="CREATE_ACCOUNTTRANSFER" hidden>Transfer</button>
         </div>
       </div>
       <div class="meta-list">
         <div class="meta-item"><div class="k">Balance</div><div class="v mono" id="sav-balance">—</div></div>
         <div class="meta-item"><div class="k">Available</div><div class="v mono" id="sav-available">—</div></div>
-        <div class="meta-item"><div class="k">Interest</div><div class="v" id="sav-interest">—</div></div>
+        <div class="meta-item"><div class="k">On hold</div><div class="v mono" id="sav-onhold">—</div></div>
+        <div class="meta-item"><div class="k">Interest rate</div><div class="v" id="sav-interest">—</div></div>
+        <div class="meta-item"><div class="k">Interest earned, not posted</div><div class="v mono" id="sav-interest-due">—</div></div>
+        <div class="meta-item"><div class="k">Withdrawal fee</div><div class="v mono" id="sav-wfee">—</div></div>
+        <div class="meta-item"><div class="k">Minimum balance</div><div class="v mono" id="sav-minbal">—</div></div>
+        <div class="meta-item"><div class="k">Lock-in</div><div class="v" id="sav-lockin">—</div></div>
         <div class="meta-item"><div class="k">Opened</div><div class="v" id="sav-opened">—</div></div>
+      </div>
+      <div class="btn-group mt-10" id="sav-more">
+        <button type="button" class="btn btn-sm btn-ghost" data-action="sav-post-interest" data-perm="POSTINTEREST_SAVINGSACCOUNT" hidden>Post interest</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-action="sav-hold" data-perm="HOLDAMOUNT_SAVINGSACCOUNT" hidden>Hold amount</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-action="sav-block" data-perm="BLOCK_SAVINGSACCOUNT" hidden>Block account</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-action="sav-unblock" data-perm="UNBLOCK_SAVINGSACCOUNT" hidden>Unblock account</button>
+        <button type="button" class="btn btn-sm btn-danger" data-action="sav-close" data-perm="CLOSE_SAVINGSACCOUNT" hidden>Close account</button>
       </div></div></div>
-      <div class="card"><div class="card-h"><h2>Transactions</h2></div>
-        <div class="card-b table-wrap"><table class="data" id="sav-txns">
-          <thead><tr><th>Date</th><th>Type</th><th class="text-right">Amount</th><th class="text-right">Balance</th></tr></thead>
-          <tbody><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
+
+      <div class="card" id="sav-charges-card" hidden><div class="card-h"><h2>Charges</h2></div>
+        <div class="card-b table-wrap"><table class="data" id="sav-charges">
+          <thead><tr><th>Charge</th><th>Type</th><th>Due</th><th class="text-right">Amount</th><th class="text-right">Paid / waived</th><th class="text-right">Outstanding</th><th><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody></tbody>
         </table></div></div>
+
+      <div class="card" id="sav-holds-card" hidden><div class="card-h"><h2>Amounts on hold</h2></div>
+        <div class="card-b table-wrap"><table class="data" id="sav-holds">
+          <thead><tr><th>Date</th><th>Reason</th><th class="text-right">Amount</th><th><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody></tbody>
+        </table></div></div>
+
+      <div class="card statement" id="sav-statement-card"><div class="card-h"><h2>Account statement</h2>
+        <form class="filters inline" id="sav-stmt-form">
+          <label for="sav-from">From</label><input id="sav-from" type="date" />
+          <label for="sav-to">To</label><input id="sav-to" type="date" />
+          <button type="submit" class="btn btn-sm">Show</button>
+          <button type="button" class="btn btn-sm btn-ghost" data-print>Print</button>
+        </form></div>
+        <div class="card-b">
+          <p class="text-muted" id="sav-stmt-head"></p>
+          <div class="table-wrap"><table class="data" id="sav-txns">
+            <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th class="text-right">Debit</th><th class="text-right">Credit</th><th class="text-right">Balance</th><th><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
+          </table></div>
+        </div></div>
     </main>
   </div>
 </div>
@@ -113,5 +153,6 @@
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
   <script src="assets/actions.js"></script>
+  <script src="assets/deposits.js"></script>
 </body>
 </html>
