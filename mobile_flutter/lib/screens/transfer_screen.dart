@@ -174,6 +174,14 @@ class _TransferScreenState extends State<TransferScreen> {
         ),
       );
       if (res == null) return;
+      // Held by maker-checker: nothing has moved yet, so never show the success screen.
+      if (res['status'] == 'pending_approval') {
+        await state.refreshBundle();
+        if (!mounted) return;
+        showToast(context, '${res['message'] ?? 'Waiting for branch approval.'}', warn: true);
+        _done();
+        return;
+      }
       HapticFeedback.mediumImpact();
       await state.refreshBundle();
       if (!mounted) return;

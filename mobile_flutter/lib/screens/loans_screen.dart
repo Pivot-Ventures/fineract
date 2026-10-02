@@ -163,6 +163,14 @@ class _LoansScreenState extends State<LoansScreen> {
         ),
       );
       if (res == null) return;
+      // Held by maker-checker: nothing has moved yet, so never show the success screen.
+      if (res['status'] == 'pending_approval') {
+        await state.refreshBundle();
+        if (!mounted) return;
+        showToast(context, '${res['message'] ?? 'Waiting for branch approval.'}', warn: true);
+        _done();
+        return;
+      }
       HapticFeedback.mediumImpact();
       await state.refreshBundle();
       final updated = state.bundle?.loans.where((l) => l.id == loan.id).toList();

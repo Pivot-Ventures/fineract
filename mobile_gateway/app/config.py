@@ -49,6 +49,10 @@ class Settings:
     momo_min_deposit: int = field(default_factory=lambda: int(_env("MOMO_MIN_DEPOSIT", "1000")))
     momo_max_deposit: int = field(default_factory=lambda: int(_env("MOMO_MAX_DEPOSIT", "5000000")))
 
+    # Transactional alerts service (SMS), server to server. Off unless both are set.
+    alerts_url: str = field(default_factory=lambda: _env("ALERTS_URL", "").rstrip("/"))
+    alerts_service_key: str = field(default_factory=lambda: _env("ALERTS_SERVICE_KEY", ""))
+
     # Staff permission required to enrol, reset or block members (checked against Fineract).
     staff_permission: str = field(default_factory=lambda: _env("STAFF_PERMISSION", "UPDATE_CLIENT"))
 

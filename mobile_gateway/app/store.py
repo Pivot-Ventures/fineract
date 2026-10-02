@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS momo_deposits (
     msisdn        TEXT NOT NULL,
     amount        REAL NOT NULL,
     provider_ref  TEXT,
-    status        TEXT NOT NULL,              -- pending | successful | failed
+    status        TEXT NOT NULL,              -- pending | successful | failed | pending_approval
     reason        TEXT,
     fineract_id   INTEGER,
     created_at    INTEGER NOT NULL,

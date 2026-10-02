@@ -1,6 +1,9 @@
+import asyncio
 import base64
 import json
+import logging
 import os
+import re
 
 import httpx
 import pytest
@@ -11,6 +14,7 @@ os.environ.update(FINERACT_URL="http://core", FINERACT_USER="svc", FINERACT_PASS
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app import main  # noqa: E402
+from app.alerts import Alerts  # noqa: E402
 from app.fineract import Fineract  # noqa: E402
 from app.momo import SandboxProvider  # noqa: E402
 from app.store import Store  # noqa: E402
@@ -38,6 +42,16 @@ class FakeCore:
         self.loan = {"id": 7, "accountNo": "000000007", "clientId": 1, "outstanding": 30000.0}
         self.transfers = []
         self.deposits = []
+        # Commands held by Fineract maker-checker ("accounttransfers", "deposit"): accepted with a
+        # commandId and no resourceId, and nothing moves until a checker approves.
+        self.maker_checker: set[str] = set()
+        self.commands = []
+
+    def held(self, kind: str, body: dict):
+        if kind not in self.maker_checker:
+            return None
+        self.commands.append(body)
+        return httpx.Response(200, json={"commandId": 900 + len(self.commands), "rollbackTransaction": False})
 
     def sav_json(self, s):
         return {"id": s["id"], "accountNo": s["accountNo"], "clientId": s["clientId"],
@@ -77,6 +91,8 @@ class FakeCore:
         if path.startswith("/savingsaccounts/") and path.endswith("/transactions") and request.method == "POST":
             sid, body = int(path.split("/")[2]), json.loads(request.content)
             assert q["command"] == "deposit"
+            if held := self.held("deposit", body):
+                return held
             self.savings[sid]["balance"] += body["transactionAmount"]
             self.deposits.append(body)
             return httpx.Response(200, json={"resourceId": 500 + len(self.deposits)})
@@ -92,6 +108,8 @@ class FakeCore:
                                              for s in self.savings.values() if s["accountNo"] == q["query"]])
         if path == "/accounttransfers":
             body = json.loads(request.content)
+            if held := self.held("accounttransfers", body):
+                return held
             src = self.savings[body["fromAccountId"]]
             if body["transferAmount"] > src["balance"]:
                 return httpx.Response(400, json={"errors": [{"defaultUserMessage": "Insufficient balance"}]})
@@ -278,3 +296,191 @@ def test_momo_off_by_default(env):
                                                      "amount": 5000, "idempotencyKey": "dep-offffff1"})
     assert r.status_code == 503
     assert c.get("/v1/me", headers=h).json()["channels"]["momoDeposits"] is False
+
+
+# ---------------------------------------------------------------- maker-checker
+
+def audit_actions() -> list[str]:
+    with main.store().conn() as conn:
+        return [r["action"] for r in conn.execute("SELECT action FROM audit")]
+
+
+def test_transfer_held_by_maker_checker_is_not_reported_as_done(env):
+    c, core = env
+    core.maker_checker.add("accounttransfers")
+    h = enrol(c)
+    body = {"fromAccountId": 1, "toAccountNo": "000000002", "amount": 10000, "pin": "4826",
+            "idempotencyKey": "k-mc-00001"}
+    r = c.post("/v1/transfers", json=body, headers=h)
+    assert r.status_code == 202, r.text
+    j = r.json()
+    assert j["status"] == "pending_approval" and j["reference"] is None and j["commandId"] == 901
+    assert "approval" in j["message"] and "availableAfter" not in j
+    assert core.savings[1]["balance"] == 58300.0 and core.transfers == []
+    # A retry replays the pending answer; it never submits a second command.
+    again = c.post("/v1/transfers", json=body, headers=h)
+    assert again.status_code == 202 and again.json() == j
+    assert len(core.commands) == 1
+    # Counted against today's limit (it moves as soon as it is approved).
+    assert c.get("/v1/me", headers=h).json()["limits"]["usedToday"] == 10000
+    actions = audit_actions()
+    assert "transfer_pending_approval" in actions and "transfer" not in actions
+
+
+def test_repayment_held_by_maker_checker(env):
+    c, core = env
+    core.maker_checker.add("accounttransfers")
+    h = enrol(c)
+    body = {"fromAccountId": 1, "amount": 20000, "pin": "4826", "idempotencyKey": "k-mc-loan1"}
+    r = c.post("/v1/loans/7/repayments", json=body, headers=h)
+    assert r.status_code == 202, r.text
+    assert r.json()["status"] == "pending_approval" and r.json()["reference"] is None
+    assert core.loan["outstanding"] == 30000.0
+    assert c.post("/v1/loans/7/repayments", json=body, headers=h).status_code == 202
+    assert len(core.commands) == 1
+    assert main.store().moved_today(1, main.today_local()) == 20000
+    actions = audit_actions()
+    assert "loan_repayment_pending_approval" in actions
+
+
+def test_momo_credit_held_by_maker_checker(env):
+    c, core = env
+    core.maker_checker.add("deposit")
+    h = enrol(c)
+    r = c.post("/v1/deposits/momo", headers=h, json={"savingsId": 1, "network": "mtn", "phone": "0772 123456",
+                                                     "amount": 20000, "idempotencyKey": "dep-mc-0001"}).json()
+    done = c.get(f"/v1/deposits/{r['id']}", headers=h).json()
+    assert done["status"] == "pending_approval" and done["reference"] is None
+    c.get(f"/v1/deposits/{r['id']}", headers=h)                       # polling never submits again
+    assert len(core.commands) == 1 and core.deposits == []
+    actions = audit_actions()
+    assert "momo_deposit_pending_approval" in actions and "momo_deposit_credited" not in actions
+
+
+# ---------------------------------------------------------------- transactional alerts
+
+class FakeAlerts:
+    def __init__(self, fail: bool = False):
+        self.events, self.raw, self.fail = [], [], fail
+
+    def handler(self, request: httpx.Request) -> httpx.Response:
+        self.raw.append(str(request.headers) + request.content.decode())
+        if self.fail:
+            raise httpx.ConnectError("alerts down")
+        assert request.url.path == "/v1/events"
+        assert request.headers["X-Alerts-Service-Key"] == "svc-key"
+        self.events.append(json.loads(request.content))
+        return httpx.Response(202, json={"ok": True})
+
+
+@pytest.fixture
+def alerting(env):
+    _, core = env
+    fake = FakeAlerts()
+    main._state["alerts"] = Alerts("http://alerts", "svc-key", transport=httpx.MockTransport(fake.handler))
+    with TestClient(main.app) as c:          # one event loop for the whole test, so alert tasks finish
+        drain = lambda: c.portal.call(main._state["alerts"].drain)
+        yield c, core, fake, drain
+
+
+def test_alerts_for_money_and_security_events(alerting):
+    c, core, fake, drain = alerting
+    code = c.post("/v1/admin/members/1/activation", headers={"X-Staff-Authorization": STAFF}).json()["code"]
+    r = c.post("/v1/auth/activate", json={"memberNo": "000000001", "code": code, "pin": "4826",
+                                          "deviceKey": DEVICE, "deviceName": "Galaxy S23"})
+    token = r.json()["token"]
+    h = {"Authorization": f"Bearer {token}", "X-Device-Key": DEVICE}
+    drain()
+    assert fake.events[-1]["type"] == "activation"
+
+    t = c.post("/v1/transfers", headers=h, json={"fromAccountId": 1, "toAccountNo": "000000002", "amount": 10000,
+                                                 "pin": "4826", "idempotencyKey": "k-alert-01"}).json()
+    p = c.post("/v1/loans/7/repayments", headers=h, json={"fromAccountId": 1, "amount": 20000, "pin": "4826",
+                                                          "idempotencyKey": "k-alert-02"}).json()
+    assert c.post("/v1/auth/pin", json={"currentPin": "4826", "newPin": "7391"}, headers=h).status_code == 200
+    staff = {"X-Staff-Authorization": STAFF}
+    assert c.post("/v1/admin/members/1/unlock", headers=staff).status_code == 200
+    assert c.post("/v1/admin/members/1/block", headers=staff).status_code == 200
+    drain()
+
+    by_type = {e["type"]: e for e in fake.events}
+    assert [e["type"] for e in fake.events] == ["activation", "transfer", "loan_repay", "pin", "pin", "mobile_blocked"]
+    for e in fake.events:
+        assert e["memberId"] == "1" and e["phone"] == "+256772441203"
+        assert set(e) == {"type", "idempotencyKey", "memberId", "phone", "context"}
+        assert len(e["idempotencyKey"]) <= 100
+    assert by_type["activation"]["context"] == {"memberName": "Grace"}
+    assert by_type["transfer"] == {
+        "type": "transfer", "idempotencyKey": f"transfer:{t['reference'][4:]}", "memberId": "1",
+        "phone": "+256772441203",
+        "context": {"amount": 10000, "account": "000000001", "balance": 48300.0, "reference": t["reference"],
+                    "memberName": "Grace"}}
+    assert by_type["loan_repay"]["idempotencyKey"] == f"loan_repay:{p['reference'][4:]}"
+    assert by_type["loan_repay"]["context"] == {"amount": 20000, "account": "000000007", "balance": 10000.0,
+                                                "reference": p["reference"], "memberName": "Grace"}
+    pins = [e for e in fake.events if e["type"] == "pin"]
+    assert pins[0]["idempotencyKey"] != pins[1]["idempotencyKey"]
+    # Nothing secret ever leaves the gateway.
+    # (Idempotency keys are stripped first: the timestamp in a non-money key could contain any 4 digits.)
+    sent = "\n".join(fake.raw)
+    for e in fake.events:
+        sent = sent.replace(e["idempotencyKey"], "")
+        assert re.fullmatch(r"(activation|transfer|loan_repay|pin:changed|pin:unlocked|mobile_blocked):[\d:]+",
+                            e["idempotencyKey"])
+    for secret in ("4826", "7391", code.replace(" ", ""), code, DEVICE, token):
+        assert secret not in sent
+
+
+def test_no_alerts_for_pending_approval_or_members_without_phone(alerting):
+    c, core, fake, drain = alerting
+    h = enrol(c)
+    drain()
+    fake.events.clear()
+    core.maker_checker.add("accounttransfers")
+    r = c.post("/v1/transfers", headers=h, json={"fromAccountId": 1, "toAccountNo": "000000002", "amount": 10000,
+                                                 "pin": "4826", "idempotencyKey": "k-alert-mc"})
+    assert r.status_code == 202
+    drain()
+    assert fake.events == []
+    core.maker_checker.clear()
+    other = enrol(c, client_id=2, member_no="000000002", device="f" * 43)     # James has no mobileNo
+    c.post("/v1/transfers", headers=other, json={"fromAccountId": 2, "toAccountNo": "000000001", "amount": 1000,
+                                                 "pin": "4826", "idempotencyKey": "k-alert-np"})
+    drain()
+    assert fake.events == []
+
+
+def test_failing_alerts_service_never_affects_member(alerting, caplog):
+    c, core, fake, drain = alerting
+    fake.fail = True
+    caplog.set_level(logging.WARNING, logger="gateway.alerts")
+    h = enrol(c)
+    r = c.post("/v1/transfers", headers=h, json={"fromAccountId": 1, "toAccountNo": "000000002", "amount": 10000,
+                                                 "pin": "4826", "idempotencyKey": "k-alert-ff"})
+    assert r.status_code == 200 and r.json()["status"] == "completed"
+    assert c.post("/v1/auth/pin", json={"currentPin": "4826", "newPin": "7391"}, headers=h).status_code == 200
+    drain()
+    assert fake.raw and fake.events == []
+    assert "not sent" in caplog.text
+    assert "772441203" not in caplog.text and "4826" not in caplog.text and "7391" not in caplog.text
+
+
+def test_alerts_off_without_url_or_key(env, monkeypatch):
+    c, _ = env
+    assert main._state["alerts"] is None                     # ALERTS_URL unset in the test environment
+    h = enrol(c)
+    r = c.post("/v1/transfers", headers=h, json={"fromAccountId": 1, "toAccountNo": "000000002", "amount": 10000,
+                                                 "pin": "4826", "idempotencyKey": "k-alert-of"})
+    assert r.status_code == 200
+    import dataclasses
+    from app import config
+    base = config.get_settings()
+    for url, key in (("http://alerts", ""), ("", "svc-key")):
+        monkeypatch.setattr(config, "settings", dataclasses.replace(base, alerts_url=url, alerts_service_key=key))
+        main.configure(main.store(), main.core())
+        assert main._state["alerts"] is None
+    monkeypatch.setattr(config, "settings", dataclasses.replace(base, alerts_url="http://alerts",
+                                                                alerts_service_key="svc-key"))
+    main.configure(main.store(), main.core())
+    assert isinstance(main._state["alerts"], Alerts)
+    asyncio.run(main._state["alerts"].close())
