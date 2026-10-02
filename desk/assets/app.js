@@ -37,6 +37,12 @@
       docsLink.rel = "noopener";
       docsLink.innerHTML = "<span class=\"nav-icon\" aria-hidden=\"true\">↗</span> Payments API docs";
       overview.appendChild(docsLink);
+      var alertsLink = document.createElement("a");
+      alertsLink.className = "nav-link";
+      alertsLink.setAttribute("data-nav", "transactional-alerts");
+      alertsLink.href = "/transactional-alerts/";
+      alertsLink.innerHTML = "<span class=\"nav-icon\" aria-hidden=\"true\">✉</span> Transactional alerts";
+      overview.appendChild(alertsLink);
     }
   }
 
