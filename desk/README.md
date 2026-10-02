@@ -88,6 +88,9 @@ development server only; production is served by Caddy.
 
 Shared: `assets/api.js` (API client, session, dialogs), `assets/app.js` (shell, auth guard), `assets/pages.js` (read views), `assets/actions.js` (writes), `assets/app.css`
 
+### Payments portal
+Static ops UI in `payments-portal/` (overview, payments, run detail, reports, channels). It calls `/payments/...` on the same host and falls back to a 100-intent UGX demo book. See [payments-portal/README.md](payments-portal/README.md) for the seed and droplet path. `/payments/docs` stays the gateway OpenAPI.
+
 ## Design refs (URLs only — do not copy paid assets)
 - FintechWeb ThemeForest finance admin
 - Geex banking patterns
