@@ -26,7 +26,12 @@ class AppState extends ChangeNotifier {
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
-    apiBase = prefs.getString(_kApiBase) ?? kDefaultApiBase;
+    final saved = prefs.getString(_kApiBase);
+    final resolved = resolveApiBase(saved);
+    if (saved != null && saved != resolved) {
+      await prefs.setString(_kApiBase, resolved);
+    }
+    apiBase = resolved;
     _api.baseUrl = apiBase;
     final raw = prefs.getString(_kSession);
     if (raw != null) {

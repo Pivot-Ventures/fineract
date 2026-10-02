@@ -2,9 +2,48 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/models.dart';
 
-/// Default: LAN proxy on Mac (:5174) so cleartext HTTP matches desk CORS/TLS.
+/// Live Fineract. A previously saved LAN / desk-demo base is migrated here.
 const String kDefaultApiBase =
-    'http://192.168.1.123:5174/fineract-provider/api/v1';
+    'https://sacco.pivotventures.tech/fineract-provider/api/v1';
+
+/// True for the old Mac LAN proxy and other local/demo hosts.
+/// Custom HTTPS bases (set via the long-press override) are kept.
+bool isLegacyDemoApiBase(String raw) {
+  final uri = Uri.tryParse(raw.trim());
+  if (uri == null || !uri.hasScheme || uri.host.isEmpty) return true;
+  final host = uri.host.toLowerCase();
+  if (host == 'localhost' ||
+      host == '127.0.0.1' ||
+      host == '0.0.0.0' ||
+      host == '10.0.2.2' ||
+      host.endsWith('.local')) {
+    return true;
+  }
+  if (_isPrivateLanHost(host)) return true;
+  // Desk mobile proxy used before the live HTTPS default.
+  if (uri.hasPort && uri.port == 5174) return true;
+  return false;
+}
+
+bool _isPrivateLanHost(String host) {
+  final m = RegExp(r'^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$').firstMatch(host);
+  if (m == null) return false;
+  final a = int.parse(m.group(1)!);
+  final b = int.parse(m.group(2)!);
+  if (a == 10) return true;
+  if (a == 192 && b == 168) return true;
+  if (a == 172 && b >= 16 && b <= 31) return true;
+  return false;
+}
+
+/// Saved preference, or [kDefaultApiBase] when missing or still a LAN/demo host.
+String resolveApiBase(String? saved) {
+  if (saved == null) return kDefaultApiBase;
+  var u = saved.trim();
+  if (u.isEmpty || isLegacyDemoApiBase(u)) return kDefaultApiBase;
+  if (u.endsWith('/')) u = u.substring(0, u.length - 1);
+  return u;
+}
 
 class FineractException implements Exception {
   FineractException(this.message, {this.status});

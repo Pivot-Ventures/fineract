@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../api/fineract_api.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
@@ -50,8 +51,8 @@ class _ShellScreenState extends State<ShellScreen> {
           autofocus: true,
           keyboardType: TextInputType.url,
           decoration: const InputDecoration(
-            hintText: 'http://192.168.1.123:5174/fineract-provider/api/v1',
-            helperText: 'Proxy root or full /api/v1 base',
+            hintText: kDefaultApiBase,
+            helperText: 'Server root or full /api/v1 base',
           ),
         ),
         actions: [
@@ -62,7 +63,7 @@ class _ShellScreenState extends State<ShellScreen> {
       ),
     );
     if (next == null || next.isEmpty) return;
-    await state.setApiBase(next == kDefaultHint ? 'http://192.168.1.123:5174/fineract-provider/api/v1' : next);
+    await state.setApiBase(next == kDefaultHint ? kDefaultApiBase : next);
     if (mounted) {
       showToast(context, 'API base updated');
       await state.refreshBundle();
