@@ -9,6 +9,12 @@
 #
 # Restarts only pivot-sacco-alerts.service. Does not reload Caddy, nginx,
 # Fineract, or the payments gateway.
+#
+# Host routing for /alerts/* is alerts/deploy/caddy-alerts.caddy
+# (reverse_proxy to 127.0.0.1:8095). Do not apply it by reloading
+# /etc/caddy/Caddyfile — that host file is incomplete. Desk
+# /transactional-alerts/ is the gateway allowlist in
+# deploy/production/caddy/routes.caddy, not this script.
 
 set -euo pipefail
 
@@ -212,3 +218,4 @@ fi
 
 "${node_bin}" "${dest}/deploy/check-health.js" "${PORT}"
 echo "Alerts is listening on 127.0.0.1:${PORT}. Fineract, Caddy, nginx, Desk, and payments were not restarted."
+echo "Host /alerts/* stays on the Caddy admin API config (alerts/deploy/caddy-alerts.caddy → 127.0.0.1:${PORT}). This script did not read or reload /etc/caddy/Caddyfile."

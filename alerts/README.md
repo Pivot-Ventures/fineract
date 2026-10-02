@@ -51,7 +51,10 @@ If the file is missing, the unit still starts and both providers dry-run. Create
 1. Install Node.js 18 or newer so non-interactive SSH sees `node` and `npm` on the default PATH (for example `/usr/bin/node`). nvm installs under a home directory are refused: systemd cannot rely on them.
 2. Confirm the Desk SSH user can create `/opt/pivot-sacco/alerts`. When that user is root, the workflow creates a system account `pivot-alerts` and runs the service as that account. When the SSH user is not root, the service runs as that same user, and passwordless `sudo` must allow `install` of `/etc/systemd/system/pivot-sacco-alerts.service` plus `systemctl daemon-reload`, `enable`, and `restart` for that unit.
 3. Write `/etc/pivot-sacco/alerts.env` as above.
-4. Add the reverse-proxy snippet once, then reload that proxy yourself. Production Desk is served by Caddy (`desk/README.md`). Use `alerts/deploy/caddy-alerts.caddy` inside the existing site block, beside the current `/payments` and `/fineract-provider` lines. If this host uses nginx instead, use `alerts/deploy/nginx-alerts.conf` inside the existing Desk `server` block. Do not replace the desk root or `/payments/`. The `$alerts_api_key` header is commented out so an undefined nginx variable cannot stop Desk from starting.
+4. Two different Caddy configs are involved, and this workflow edits neither.
+   - **`/alerts/*` → `127.0.0.1:8095`** is host Caddy. `alerts/deploy/caddy-alerts.caddy` is the source of truth (the same `reverse_proxy` that is live on this droplet). It was applied through the Caddy admin API. Do not `caddy reload` `/etc/caddy/Caddyfile`; that file is incomplete and a reload drops routes that exist only in the running config. `alerts/deploy/install-on-host.sh` does not call the admin API.
+   - **`/transactional-alerts/*`** is the Desk page. The gateway container allowlist is `deploy/production/caddy/routes.caddy`, next to `/payments-portal/*`. A gateway recreate without that path 404s the page. The alerts port is not proxied from inside that container.
+   - If this host uses nginx instead, paste `alerts/deploy/nginx-alerts.conf` inside the existing Desk `server` block. Do not replace the desk root or `/payments/`. The `$alerts_api_key` header is commented out so an undefined nginx variable cannot stop Desk from starting.
 5. Merge to `main`, or run **Deploy SACCO Alerts** with `workflow_dispatch` on `main`.
 6. On the droplet, `curl -sS http://127.0.0.1:8095/alerts/api/v1/health`. After the proxy reload, the same check belongs at `https://<desk-host>/alerts/api/v1/health`.
 7. Do not publish port 8095 on the public firewall. The app binds `0.0.0.0` so the local proxy can reach it; only 443 should be public.
@@ -219,11 +222,11 @@ Not wired, on purpose:
 - **Savings account closure.** Closure is several Fineract posts (interest, optional transfer, close). An alert in the middle can fire for a close that then fails.
 - **Payments gateway** (`/opt/pivot-sacco/payments`, not in this repo). After a successful collect or disburse, that service can `POST /alerts/api/v1/events` the same JSON. Do not call it before Fineract has accepted the posting.
 
-If `ALERTS_API_KEY` is set, browser calls need the header. Preferred production setup: keep the process on localhost and let the reverse proxy add the header so the key is not stored in Desk JavaScript. Snippets: `alerts/deploy/caddy-alerts.caddy` (this droplet's Desk proxy) and `alerts/deploy/nginx-alerts.conf`. The nginx header line ships commented out. Uncomment it only after `set $alerts_api_key "...";` exists in the `http` block. An undefined `$alerts_api_key` prevents nginx from starting. Deploy SACCO Alerts does not edit or reload either proxy.
+If `ALERTS_API_KEY` is set, browser calls need the header. Preferred production setup: keep the process on localhost and let host Caddy add the header so the key is not stored in Desk JavaScript. `alerts/deploy/caddy-alerts.caddy` is that host snippet (`reverse_proxy /alerts/* 127.0.0.1:8095`). The gateway file `deploy/production/caddy/routes.caddy` does not proxy `/alerts/*`, because `127.0.0.1` inside the container is not this service. The nginx snippet is `alerts/deploy/nginx-alerts.conf`; its header line ships commented out. Uncomment it only after `set $alerts_api_key "...";` exists in the `http` block. An undefined `$alerts_api_key` prevents nginx from starting. Deploy SACCO Alerts does not edit or reload either proxy, and it does not reload `/etc/caddy/Caddyfile`.
 
 Desk calls relative `/alerts/api/v1`, same pattern as `/payments`.
 
-The Desk screen is `https://<desk-host>/transactional-alerts/`.
+The Desk screen is `https://<desk-host>/transactional-alerts/`. That path is a static allowlist entry in `deploy/production/caddy/routes.caddy`, not the `/alerts/*` proxy.
 
 ## Persistence
 

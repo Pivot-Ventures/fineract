@@ -1,0 +1,13 @@
+# Pivot SACCO — gateway Caddy when another proxy already terminates TLS.
+# The production compose file still starts Caddy with /etc/caddy/Caddyfile.
+# Point the container at this file only when host Caddy (or another proxy)
+# owns 443 and forwards plain HTTP here.
+#
+# Routing is in routes.caddy. /alerts/* is not defined in this container:
+# the alerts process is on the host at 127.0.0.1:8095. See
+# alerts/deploy/caddy-alerts.caddy. Do not reload the incomplete host
+# file /etc/caddy/Caddyfile.
+
+:80 {
+	import routes.caddy
+}
