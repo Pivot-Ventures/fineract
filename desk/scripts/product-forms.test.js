@@ -171,7 +171,7 @@ test("savings product matches the voluntary NONE fallback", function () {
   assert.equal(body.interestCalculationDaysInYearType, 365);
   assert.equal(body.withdrawalFeeForTransfers, false);
   assert.equal(body.digitsAfterDecimal, 2);
-  assert.equal(body.description, "Phaneroo SACCO voluntary savings");
+  assert.equal(body.description, "Pivot SACCO voluntary savings");
   GL_KEYS.forEach(function (key) { assert.equal(body[key], undefined); });
 });
 
