@@ -94,6 +94,8 @@ Static ops UI in `payments-portal/` (overview, payments, run detail, reports, ch
 ### Transactional alerts
 Static ops UI in `transactional-alerts/` (templates, delivery log, test send). It calls `/alerts/api/v1` on the same host. The Node service lives in `alerts/` and is started by **Deploy SACCO Alerts**, not by this Desk deploy. See [../alerts/README.md](../alerts/README.md). Successful teller, savings, and loan postings fire a non-blocking event from `assets/transactional-alerts.js`. Mobile activation codes are not sent through it.
 
+The gateway container does not serve every folder under the Desk root. `/transactional-alerts/*` has to be listed in [../deploy/production/caddy/routes.caddy](../deploy/production/caddy/routes.caddy), the same way `/payments-portal/*` is. **Deploy SACCO Desk** only rsyncs files; it does not reload Caddy. `/alerts/*` is a host Caddy proxy to `127.0.0.1:8095` (`alerts/deploy/caddy-alerts.caddy`), not a line in that gateway file.
+
 ## Design refs (URLs only — do not copy paid assets)
 - FintechWeb ThemeForest finance admin
 - Geex banking patterns

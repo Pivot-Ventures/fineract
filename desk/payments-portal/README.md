@@ -63,7 +63,7 @@ Those commands run in the payments gateway repo. This desk ships the fixture so 
 
 Merging to `main` runs **Deploy SACCO Desk** (`.github/workflows/deploy-desk.yml`). That workflow rsyncs `desk/` to the droplet web root (`SACCO_DESK_PATH`, default `/opt/pivot-sacco/desk`). It does not use `--delete`, and it does not restart Fineract or Caddy.
 
-No Caddy change. The desk is already the site root, so this folder is:
+The gateway allowlist is [../../deploy/production/caddy/routes.caddy](../../deploy/production/caddy/routes.caddy). `/payments-portal/*` is on that list (the bare `/payments-portal` path is listed too, so Caddy can redirect to the trailing slash). A new Desk directory is not reachable until the same `path` line names it. This workflow does not reload Caddy.
 
 `https://sacco.pivotventures.tech/payments-portal/`
 

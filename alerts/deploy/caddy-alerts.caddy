@@ -1,11 +1,19 @@
-# Phaneroo SACCO transactional alerts.
+# Phaneroo SACCO transactional alerts — host Caddy source of truth.
 #
-# Production Desk is served by Caddy (see desk/README.md). Paste this inside
-# the existing site block, next to the /payments and /fineract-provider
-# reverse_proxy lines. Do not replace those lines or the desk file_server.
+# This is the public /alerts/* route on sacco.pivotventures.tech. It is not
+# part of deploy/production/caddy/routes.caddy. That file is the gateway
+# container allowlist for Desk paths (/transactional-alerts/*, /payments-portal/*).
+# Inside the container, 127.0.0.1 is not this process.
 #
-# Deploy SACCO Alerts does not edit the live Caddyfile and does not reload
-# Caddy, nginx, Fineract, or the payments gateway.
+# Live host Caddy proxies /alerts/* to 127.0.0.1:8095. That route was added
+# through the Caddy admin API (localhost:2019). The on-disk
+# /etc/caddy/Caddyfile on this host is incomplete. Do not `caddy reload`,
+# `caddy adapt --config /etc/caddy/Caddyfile`, or replace the running config
+# with that file. A reload would drop /alerts/* and any other admin-API route
+# that is not in the file.
+#
+# Deploy SACCO Alerts (alerts/deploy/install-on-host.sh) does not call the
+# admin API and does not reload Caddy, nginx, Fineract, or the payments gateway.
 #
 # Uncomment the header only when the Caddy process environment has
 # ALERTS_API_KEY set to the same value as the alerts unit. Do not commit
