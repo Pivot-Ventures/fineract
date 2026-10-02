@@ -1,0 +1,16 @@
+# Phaneroo SACCO transactional alerts.
+#
+# Production Desk is served by Caddy (see desk/README.md). Paste this inside
+# the existing site block, next to the /payments and /fineract-provider
+# reverse_proxy lines. Do not replace those lines or the desk file_server.
+#
+# Deploy SACCO Alerts does not edit the live Caddyfile and does not reload
+# Caddy, nginx, Fineract, or the payments gateway.
+#
+# Uncomment the header only when the Caddy process environment has
+# ALERTS_API_KEY set to the same value as the alerts unit. Do not commit
+# the key.
+
+reverse_proxy /alerts/* 127.0.0.1:8095 {
+	# header_up X-Alerts-Key {env.ALERTS_API_KEY}
+}
