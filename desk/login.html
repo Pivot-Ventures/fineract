@@ -3,52 +3,58 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Login · Pivot SACCO Desk</title>
+  <title>Sign in · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
 </head>
-<body>
-  <div class="banner-mock">LIVE auth — Fineract /authentication via local proxy</div>
-  <div class="login-page">
-    <section class="login-hero">
-      <div>
-        <div class="brand-mark" style="width:48px;height:48px;font-size:18px">P</div>
-        <h1>Pivot SACCO Desk</h1>
-        <p>Front-office and portfolio workspace for Ugandan SACCOs. Built to sit on Apache Fineract — replacing the stock Mifos X Web App experience.</p>
-        <ul class="login-features">
-          <li>✓ Teller sessions, float &amp; EOD</li>
-          <li>✓ Members, loans, savings in UGX</li>
-          <li>✓ Accounting mapped to Fineract GL APIs</li>
-          <li>✓ Kampala-first branch operations</li>
-        </ul>
-      </div>
-      <div style="font-size:12px;color:#7FA8AD">© Pivot SACCO · Mock pack for Osbert review</div>
-    </section>
-    <section class="login-panel">
-      <div class="login-card">
-        <h2>Sign in</h2>
-        <p class="hint">Sign in with Fineract credentials (default mifos / password).</p>
-        <form id="login-form">
-          <div class="form-row" style="margin-bottom:12px">
-            <label>Tenant</label>
-            <select name="tenant" required>
-              <option value="default" selected>default (Pivot SACCO)</option>
-              <option value="demo">demo</option>
-            </select>
+<body data-page="login">
+  <div class="status-bar" id="status-bar" role="alert" hidden></div>
+  <div class="lb-page">
+    <svg class="lb-leaves" viewBox="0 0 680 340" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+      <path d="M-20 340 C40 220 150 190 210 120 C150 250 90 300 -20 340Z" fill="#92C73D" fill-opacity="0.55"/>
+      <path d="M-30 260 C60 200 120 110 110 20 C170 120 120 230 -30 260Z" fill="#4C7F1E" fill-opacity="0.35"/>
+      <path d="M700 -10 C610 80 560 150 520 230 C600 150 650 110 700 100Z" fill="#F8A11B" fill-opacity="0.5"/>
+      <path d="M700 340 C620 280 590 230 600 160 C640 230 680 260 700 270Z" fill="#92C73D" fill-opacity="0.45"/>
+      <circle cx="590" cy="70" r="26" fill="#F8A11B" fill-opacity="0.35"/>
+    </svg>
+    <main class="lb-main">
+      <div class="login-card lb-card">
+        <img class="lb-logo" src="assets/phaneroo-logo.png" alt="Phaneroo" width="172" height="72" />
+        <h1 class="lb-title">Phaneroo SACCO member desk</h1>
+        <p class="hint">Sign in with your staff account.</p>
+        <p class="login-notice" id="login-notice" role="status" hidden></p>
+        <form id="login-form" novalidate>
+          <div class="form-row mb-12">
+            <label for="login-tenant">Tenant</label>
+            <input id="login-tenant" type="text" name="tenant" autocomplete="organization" required />
           </div>
-          <div class="form-row" style="margin-bottom:12px">
-            <label>Username</label>
-            <input type="text" name="username" value="mifos" autocomplete="username" />
+          <div class="form-row mb-12">
+            <label for="login-username">Username</label>
+            <input id="login-username" type="text" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required />
           </div>
-          <div class="form-row" style="margin-bottom:16px">
-            <label>Password</label>
-            <input type="password" name="password" value="password" autocomplete="current-password" />
+          <div class="form-row mb-16">
+            <label for="login-password">Password</label>
+            <input id="login-password" type="password" name="password" autocomplete="current-password" required />
           </div>
-          <button type="submit" class="btn btn-amber" style="width:100%">Continue to desk</button>
+          <p class="dialog-error" id="login-error" role="alert" hidden></p>
+          <button type="submit" class="btn lb-btn btn-block">Sign in</button>
         </form>
-        <p class="text-muted" style="margin-top:14px;font-size:12px">POST <code>/fineract-provider/api/v1/authentication</code></p>
-        <p style="margin-top:10px;font-size:12px"><a href="dashboard.html">Skip login → Dashboard</a></p>
+        <form id="renew-form" novalidate hidden>
+          <p class="hint">Your password has expired. Choose a new password to continue.</p>
+          <div class="form-row mb-12">
+            <label for="renew-password">New password</label>
+            <input id="renew-password" type="password" autocomplete="new-password" required />
+          </div>
+          <div class="form-row mb-16">
+            <label for="renew-repeat">Repeat new password</label>
+            <input id="renew-repeat" type="password" autocomplete="new-password" required />
+          </div>
+          <p class="dialog-error" id="renew-error" role="alert" hidden></p>
+          <button type="submit" class="btn lb-btn btn-block">Change password and sign in</button>
+        </form>
+        <p class="lb-help">Forgot your password? Ask your branch admin.</p>
       </div>
-    </section>
+      <p class="lb-foot">Powered by Pivot · secured connection</p>
+    </main>
   </div>
   <script src="assets/api.js"></script>
   <script src="assets/app.js"></script>

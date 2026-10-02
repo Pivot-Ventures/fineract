@@ -38,12 +38,14 @@
     if (inputs[0] && !inputs[0].name) inputs[0].name = "username";
     if (inputs[1] && !inputs[1].name) inputs[1].name = "password";
 
+    var btn = loginForm.querySelector("button[type=submit]");
+    var submitLabel = btn ? btn.textContent : "Sign in";
+    var brandedLogin = !!document.querySelector(".lb-card");
     loginForm.addEventListener("submit", async function (e) {
       e.preventDefault();
       var tenant = (loginForm.querySelector("[name=tenant]") || loginForm.querySelector("select")).value;
       var username = (loginForm.querySelector("[name=username]") || loginForm.querySelector("input[type=text]")).value.trim();
       var password = (loginForm.querySelector("[name=password]") || loginForm.querySelector("input[type=password]")).value;
-      var btn = loginForm.querySelector("button[type=submit]");
       if (btn) { btn.disabled = true; btn.textContent = "Signing in…"; }
       try {
         await api.login(username, password, tenant);
@@ -53,16 +55,16 @@
       } catch (err) {
         api.toast("Login failed: " + (err.message || err), "error");
         api.setLiveBanner(false, "Login failed — " + (err.message || err));
-        if (btn) { btn.disabled = false; btn.textContent = "Continue to desk"; }
+        if (btn) { btn.disabled = false; btn.textContent = submitLabel; }
       }
     });
-    // Update banner copy
+    // Mock login copy only. The Phaneroo leaf card keeps its own staff-account hint.
     var b = document.querySelector(".banner-mock");
     if (b) b.textContent = "LIVE auth ready — uses Fineract /authentication (mifos / password)";
     var hint = loginForm.parentElement && loginForm.parentElement.querySelector(".hint");
-    if (hint) hint.textContent = "Tenant + Fineract credentials. Default: mifos / password.";
+    if (hint && !brandedLogin) hint.textContent = "Tenant + Fineract credentials. Default: mifos / password.";
     var mockNote = loginForm.parentElement && loginForm.parentElement.querySelector(".text-muted");
-    if (mockNote) mockNote.textContent = "POST /fineract-provider/api/v1/authentication";
+    if (mockNote && !brandedLogin) mockNote.textContent = "POST /fineract-provider/api/v1/authentication";
   }
 
   /* ---------- DASHBOARD ---------- */

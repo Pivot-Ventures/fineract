@@ -1,4 +1,4 @@
-# Pivot SACCO Desk — Live Fineract wiring
+# Phaneroo SACCO desk — Live Fineract wiring
 
 Status as of 2026-09-30 (Africa/Kampala): **Fineract UP**, UI proxy on **:5173**, progressive LIVE screens.
 

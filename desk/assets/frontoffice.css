@@ -1,4 +1,4 @@
-/* Roles page extras. Colors come from app.css tokens (Phaneroo green/cream). */
+/* Front office module plus roles extras. Colors come from app.css tokens (Phaneroo green/cream). */
 .fo-notice { border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: var(--teal-soft); color: var(--navy); }
 .fo-notice.ok { background: var(--success-soft); color: var(--success); }
 .perm-toolbar, .perm-sticky { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
@@ -11,3 +11,57 @@
 .perm-group-actions { margin: 8px 0; }
 details[data-group] { border-bottom: 1px solid var(--border); padding: 8px 0; }
 details[data-group] summary { cursor: pointer; }
+
+/* Soft Dev front-office layout. Token colors stay the green/cream set in app.css. */
+.fo-notice.warn { background: var(--amber-soft); color: var(--text); }
+.fo-notice.info { background: var(--info-soft); color: var(--navy); }
+.fo-notice .btn { margin-left: 6px; }
+.kpi-card.fo-alert { border-left: 3px solid var(--danger); }
+.kpi-value.fo-small { font-size: 18px; }
+
+.denom-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; }
+.denom-head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 4px; }
+.denom-cols .denom-row {
+  display: grid;
+  grid-template-columns: minmax(64px, 1fr) 72px minmax(64px, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  margin-bottom: 4px;
+  background: transparent;
+}
+.denom-cols .denom-row input { width: 100%; }
+.denom-cols .denom-row label { font-size: 13px; }
+.denom-sub { text-align: right; font-size: 12px; color: var(--muted); }
+.denom-cols input[aria-invalid="true"] { border-color: var(--danger); }
+@media (max-width: 520px) { .denom-cols { grid-template-columns: 1fr; } }
+
+.fo-mode { display: flex; gap: 16px; border: 0; padding: 0; margin: 0 0 10px; }
+.fo-mode legend { font-size: 12px; font-weight: 650; color: var(--muted); padding: 0; margin-bottom: 4px; }
+.fo-mode label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+.fo-counted { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0 0; }
+
+.fo-queues { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.fo-queue h3 { font-size: 13px; margin: 0 0 6px; display: flex; justify-content: space-between; gap: 8px; }
+.fo-queue h3 .mono { color: var(--amber); }
+.fo-queue ul { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.fo-queue li { padding: 5px 0; border-bottom: 1px solid var(--border); }
+.fo-queue li:last-child { border-bottom: 0; }
+
+.fo-office { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 2px 4px; border-radius: 6px; }
+.fo-office.active { background: var(--amber-soft); }
+.fo-linkbtn { background: none; border: 0; padding: 0; font: inherit; font-weight: 650; color: var(--teal); cursor: pointer; text-decoration: underline; }
+
+.print-only { display: none; }
+.fo-sign { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 40px; font-size: 13px; }
+.fo-sign div { border-top: 1px solid var(--text); padding-top: 6px; }
+@media print {
+  .no-print, .fo-notice, [data-perm] form { display: none !important; }
+  .print-only { display: block !important; }
+  .card { box-shadow: none !important; break-inside: avoid; }
+  .grid-2 { display: block !important; }
+}
+
+.grid-2 > * { min-width: 0; }
+.card-h { flex-wrap: wrap; }
+.card-h .chip { white-space: normal; }

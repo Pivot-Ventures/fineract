@@ -1,10 +1,10 @@
-# Pivot SACCO Desk
+# Phaneroo SACCO desk
 
-Static HTML UI for Pivot SACCO on the **Apache Fineract** backend in this repository. This is the product frontend.
+Static HTML UI for Phaneroo SACCO on the **Apache Fineract** backend in this repository. This is the product frontend.
 
 **Mifos X web-app is not part of this product.** Do not use the Mifos community app or the [Pivot-Ventures/web-app](https://github.com/Pivot-Ventures/web-app) fork (deprecated).
 
-**Brand:** Pivot SACCO Desk · **UGX** · Kampala · **LIVE-capable** (see README-WIRE.md)
+**Brand:** Phaneroo SACCO · Member desk · **UGX** · Kampala · **LIVE-capable** (see README-WIRE.md)
 
 
 ## Live Fineract wiring
