@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Member · Pivot SACCO Desk</title>
+  <title>Member · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
+  <link rel="stylesheet" href="assets/members.css" />
 </head>
 <body data-page="client-detail">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -14,7 +15,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +37,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +63,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -84,59 +89,118 @@
     <main class="content" id="main-content">
       <div class="page-header">
         <div><h1 id="client-title">Member</h1><p class="page-sub" id="page-sub">Loading…</p></div>
+        <a class="btn btn-ghost btn-sm" href="clients.html">‹ All members</a>
       </div>
+
+      <div class="notice-bar" id="client-notice" role="status" hidden></div>
 
       <div class="card"><div class="card-b"><div class="profile-head">
         <div class="avatar-xl" id="client-avatar" aria-hidden="true">?</div>
         <div class="grow">
           <h2 class="profile-title"><span id="client-name">—</span> <span id="client-status"></span></h2>
           <div class="text-muted" id="client-summary">—</div>
-          <div class="btn-group mt-10">
+          <div class="btn-group mt-10" id="client-lifecycle">
+            <button type="button" class="btn btn-sm btn-amber" id="btn-activate" data-perm="ACTIVATE_CLIENT" hidden>Activate member</button>
+            <button type="button" class="btn btn-sm btn-amber" id="btn-accept-transfer" data-perm="ACCEPTTRANSFER_CLIENT" hidden>Accept transfer</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="btn-reject-transfer" data-perm="REJECTTRANSFER_CLIENT" hidden>Reject transfer</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="btn-withdraw-transfer" data-perm="WITHDRAWTRANSFER_CLIENT" hidden>Cancel transfer</button>
             <button type="button" class="btn btn-sm btn-ghost" id="btn-update-photo" data-perm="CREATE_CLIENTIMAGE">Update photo</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="btn-remove-photo" data-perm="DELETE_CLIENTIMAGE" hidden>Remove photo</button>
             <a class="btn btn-sm btn-ghost" id="link-statement" href="member-statement.html">Statement</a>
-            <button type="button" class="btn btn-sm btn-ghost" id="btn-transfer" data-perm="PROPOSETRANSFER_CLIENT">Transfer office</button>
-            <button type="button" class="btn btn-sm btn-ghost" id="btn-close" data-perm="CLOSE_CLIENT">Close client</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="btn-transfer" data-perm="PROPOSETRANSFER_CLIENT PROPOSEANDACCEPTTRANSFER_CLIENT" hidden>Transfer office</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="btn-close" data-perm="CLOSE_CLIENT" hidden>Close member</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="btn-reactivate" data-perm="REACTIVATE_CLIENT" hidden>Reactivate</button>
           </div>
         </div>
         <div class="btn-group">
           <a class="btn btn-amber" id="link-new-loan" href="loan-apply.html" data-perm="CREATE_LOAN">New loan</a>
           <button type="button" class="btn btn-ghost" id="btn-open-savings" data-perm="CREATE_SAVINGSACCOUNT">Open savings</button>
-          <button type="button" class="btn btn-ghost" id="btn-edit" data-perm="UPDATE_CLIENT">Edit</button>
+          <button type="button" class="btn btn-ghost" id="btn-edit" data-perm="UPDATE_CLIENT">Edit profile</button>
         </div>
       </div>
       <div class="meta-list">
+        <div class="meta-item"><div class="k">Member no.</div><div class="v" id="client-external">—</div></div>
         <div class="meta-item"><div class="k">Mobile</div><div class="v" id="client-mobile">—</div></div>
-        <div class="meta-item"><div class="k">ID document</div><div class="v" id="client-identifier">—</div></div>
-        <div class="meta-item"><div class="k">Activation</div><div class="v" id="client-activation">—</div></div>
-        <div class="meta-item"><div class="k">External ID</div><div class="v" id="client-external">—</div></div>
+        <div class="meta-item"><div class="k">National ID / ID</div><div class="v" id="client-identifier">—</div></div>
+        <div class="meta-item"><div class="k">Date of birth</div><div class="v" id="client-dob">—</div></div>
         <div class="meta-item"><div class="k">Office</div><div class="v" id="client-office">—</div></div>
-        <div class="meta-item"><div class="k">Savings total</div><div class="v mono" id="client-savings-total">—</div></div>
+        <div class="meta-item"><div class="k">Loan officer</div><div class="v" id="client-staff">—</div></div>
+        <div class="meta-item"><div class="k">Activated</div><div class="v" id="client-activation">—</div></div>
+        <div class="meta-item"><div class="k">Groups</div><div class="v" id="client-groups">—</div></div>
+        <div class="meta-item"><div class="k">Savings balance</div><div class="v mono" id="client-savings-total">—</div></div>
+        <div class="meta-item"><div class="k">Loan balance</div><div class="v mono" id="client-loan-total">—</div></div>
       </div></div></div>
+
+      <div class="card" id="mobile-banking" data-perm="UPDATE_CLIENT" hidden>
+        <div class="card-h"><h2>Mobile banking</h2> <span id="mb-status" class="chip gray">—</span></div>
+        <div class="card-b">
+          <p class="text-muted" id="mb-detail">Loading…</p>
+          <div class="notice-bar" id="mb-code" role="status" hidden></div>
+          <div class="btn-group mt-10">
+            <button type="button" class="btn btn-sm btn-amber" id="mb-issue" hidden>Issue activation code</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="mb-unlock" hidden>Clear PIN lock</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="mb-block" hidden>Block mobile banking</button>
+          </div>
+        </div>
+      </div>
+
       <div data-tabs>
         <div class="tabs">
-          <button class="tab active" data-tab="loans" type="button">Loans</button>
-          <button class="tab" data-tab="savings" type="button">Savings</button>
-          <button class="tab" data-tab="family" type="button">Family</button>
-          <button class="tab" data-tab="addr" type="button">Addresses</button>
+          <button class="tab active" data-tab="accounts" type="button">Accounts</button>
+          <button class="tab" data-tab="ids" type="button">Identifiers</button>
+          <button class="tab" data-tab="family" type="button">Next of kin / family</button>
           <button class="tab" data-tab="docs" type="button">Documents</button>
+          <button class="tab" data-tab="charges" type="button">Charges</button>
+          <button class="tab" data-tab="addr" type="button" id="tab-addr" hidden>Addresses</button>
         </div>
-        <div class="tab-panel active" data-panel="loans"><div class="card"><div class="card-b table-wrap"><table class="data" id="client-loans">
-          <thead><tr><th>Account</th><th>Product</th><th>Status</th><th class="text-right">Outstanding</th><th></th></tr></thead>
-          <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
-        </table></div></div></div>
-        <div class="tab-panel" data-panel="savings"><div class="card"><div class="card-b table-wrap"><table class="data" id="client-savings">
-          <thead><tr><th>Account</th><th>Product</th><th>Status</th><th class="text-right">Balance</th><th></th></tr></thead>
-          <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
-        </table></div></div></div>
-        <div class="tab-panel" data-panel="family"><div class="card"><div class="card-b">
-          <div class="empty-state">Not set up yet. Family members are not captured in Desk.</div>
-        </div></div></div>
-        <div class="tab-panel" data-panel="addr"><div class="card"><div class="card-b">
-          <div class="empty-state">Not set up yet. Addresses are not captured in Desk.</div>
-        </div></div></div>
-        <div class="tab-panel" data-panel="docs"><div class="card"><div class="card-b">
-          <div class="empty-state">Not set up yet. Use “Update photo” for the member photo; other documents are not captured in Desk.</div>
-        </div></div></div>
+        <div class="tab-panel active" data-panel="accounts">
+          <div class="card"><div class="card-h"><h2>Loans</h2></div><div class="card-b table-wrap"><table class="data" id="client-loans">
+            <thead><tr><th>Account</th><th>Product</th><th>Status</th><th class="text-right">Principal</th><th class="text-right">Outstanding</th><th><span class="sr-only">Open</span></th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="6">Loading…</td></tr></tbody>
+          </table></div></div>
+          <div class="card"><div class="card-h"><h2>Savings</h2></div><div class="card-b table-wrap"><table class="data" id="client-savings">
+            <thead><tr><th>Account</th><th>Product</th><th>Status</th><th class="text-right">Balance</th><th><span class="sr-only">Open</span></th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+          </table></div></div>
+          <div class="card"><div class="card-h"><h2>Shares</h2></div><div class="card-b table-wrap"><table class="data" id="client-shares">
+            <thead><tr><th>Account</th><th>Product</th><th>Status</th><th class="text-right">Approved shares</th><th class="text-right">Pending shares</th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+          </table></div></div>
+        </div>
+        <div class="tab-panel" data-panel="ids"><div class="card">
+          <div class="card-h"><h2>Identity documents</h2>
+            <button type="button" class="btn btn-sm btn-amber" id="btn-add-id" data-perm="CREATE_CLIENTIDENTIFIER">＋ Add identifier</button></div>
+          <div class="card-b table-wrap"><table class="data" id="client-ids">
+            <thead><tr><th>Type</th><th>Number</th><th>Description</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+          </table></div></div></div>
+        <div class="tab-panel" data-panel="family"><div class="card">
+          <div class="card-h"><h2>Next of kin and family members</h2>
+            <button type="button" class="btn btn-sm btn-amber" id="btn-add-family" data-perm="CREATE_FAMILYMEMBERS">＋ Add person</button></div>
+          <div class="card-b table-wrap"><table class="data" id="client-family">
+            <thead><tr><th>Name</th><th>Relationship</th><th>Mobile</th><th>Gender</th><th>Date of birth</th><th>Dependent</th><th><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
+          </table></div></div></div>
+        <div class="tab-panel" data-panel="docs"><div class="card">
+          <div class="card-h"><h2>Documents</h2>
+            <button type="button" class="btn btn-sm btn-amber" id="btn-add-doc" data-perm="CREATE_DOCUMENT">＋ Upload document</button></div>
+          <div class="card-b table-wrap"><table class="data" id="client-docs">
+            <thead><tr><th>Name</th><th>File</th><th>Description</th><th class="text-right">Size</th><th><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+          </table></div></div></div>
+        <div class="tab-panel" data-panel="charges"><div class="card">
+          <div class="card-h"><h2>Member charges</h2></div>
+          <div class="card-b table-wrap"><table class="data" id="client-charges">
+            <thead><tr><th>Charge</th><th>Due</th><th class="text-right">Amount</th><th class="text-right">Paid</th><th class="text-right">Outstanding</th><th>Status</th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="6">Loading…</td></tr></tbody>
+          </table>
+          <p class="text-muted small-note">Membership and withdrawal fees are charged on the member's savings account (see the savings account page).</p></div></div></div>
+        <div class="tab-panel" data-panel="addr"><div class="card">
+          <div class="card-h"><h2>Addresses</h2></div>
+          <div class="card-b table-wrap"><table class="data" id="client-addr">
+            <thead><tr><th>Type</th><th>Address</th><th>City / district</th><th>Status</th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
+          </table></div></div></div>
       </div>
     </main>
   </div>
@@ -145,5 +209,7 @@
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
   <script src="assets/actions.js"></script>
+  <script src="assets/members.js"></script>
+  <script src="assets/mobile-banking.js"></script>
 </body>
 </html>

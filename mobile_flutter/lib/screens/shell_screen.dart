@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
-import 'bills_screen.dart';
+import 'channel_screens.dart';
 import 'deposit_screen.dart';
 import 'home_screen.dart';
 import 'loans_screen.dart';
 import 'more_screen.dart';
 import 'statement_screen.dart';
 import 'transfer_screen.dart';
-import 'withdraw_screen.dart';
 
 class ShellScreen extends StatefulWidget {
   const ShellScreen({super.key});
@@ -37,39 +37,6 @@ class _ShellScreenState extends State<ShellScreen> {
       }
     });
   }
-
-  Future<void> _editApiBase() async {
-    final state = context.read<AppState>();
-    final field = TextEditingController(text: state.apiBase);
-    final next = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('API base URL'),
-        content: TextField(
-          controller: field,
-          autofocus: true,
-          keyboardType: TextInputType.url,
-          decoration: const InputDecoration(
-            hintText: 'http://192.168.1.123:5174/fineract-provider/api/v1',
-            helperText: 'Proxy root or full /api/v1 base',
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, kDefaultHint), child: const Text('Reset')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, field.text.trim()), child: const Text('Save')),
-        ],
-      ),
-    );
-    if (next == null || next.isEmpty) return;
-    await state.setApiBase(next == kDefaultHint ? 'http://192.168.1.123:5174/fineract-provider/api/v1' : next);
-    if (mounted) {
-      showToast(context, 'API base updated');
-      await state.refreshBundle();
-    }
-  }
-
-  static const kDefaultHint = '__RESET__';
 
   Widget _body() {
     switch (_route) {
@@ -102,7 +69,7 @@ class _ShellScreenState extends State<ShellScreen> {
       case 'bills':
         return 'Pay bills';
       case 'deposit':
-        return 'Deposit';
+        return 'Add money';
       case 'withdraw':
         return 'Withdraw';
       case 'statement':
@@ -127,57 +94,55 @@ class _ShellScreenState extends State<ShellScreen> {
     final showBack = !_isRootTab;
     final depositActive = _route == 'deposit';
 
-    return Scaffold(
-      extendBody: true,
-      appBar: AppBar(
-        leading: showBack
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-                onPressed: () => _navigate(_tabs[_tab.clamp(0, _tabs.length - 1)]),
-              )
-            : null,
-        title: GestureDetector(
-          onLongPress: _editApiBase,
-          child: Row(
-            children: [
-              Text(_title),
-              if (_route == 'home') ...[
-                const SizedBox(width: 8),
-                const LiveChip(),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          if (_route == 'home' || _route == 'statement')
-            IconButton(
-              tooltip: 'Refresh',
-              onPressed: () => state.refreshBundle(),
-              icon: state.loading
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.refresh_rounded, size: 22),
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    // Android back: sub-screens return to their tab, other tabs return to Home, Home exits.
+    return PopScope(
+      canPop: _route == 'home',
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _navigate(_isRootTab ? 'home' : _tabs[_tab.clamp(0, _tabs.length - 1)]);
+      },
+      child: Scaffold(
+        extendBody: true,
+        appBar: AppBar(
+          leading: showBack
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                  onPressed: () => _navigate(_tabs[_tab.clamp(0, _tabs.length - 1)]),
+                )
+              : null,
+          title: Text(_title),
+          actions: [
+            if (_route == 'home' || _route == 'statement')
+              IconButton(
+                tooltip: 'Refresh',
+                onPressed: () => state.refreshBundle(),
+                icon: state.loading
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.refresh_rounded, size: 22),
+              ),
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: AvatarCircle(initials, onTap: () => _navigate('profile'), size: 32),
             ),
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: AvatarCircle(initials, onTap: () => _navigate('profile'), size: 32),
-          ),
-        ],
-      ),
-      body: _body(),
-      floatingActionButton: _DepositFab(
-        selected: depositActive,
-        onTap: () => _navigate('deposit'),
-      ),
-      floatingActionButtonLocation: const _LowerCenterDockedFabLocation(),
-      bottomNavigationBar: _CenterNotchDock(
-        selectedIndex: depositActive ? -1 : _tab,
-        onSelect: (i) {
-          HapticFeedback.selectionClick();
-          setState(() {
-            _tab = i;
-            _route = _tabs[i];
-          });
-        },
+          ],
+        ),
+        body: _body(),
+        // Hidden while typing so it never sits on top of the keyboard.
+        floatingActionButton: keyboardOpen
+            ? null
+            : _DepositFab(selected: depositActive, onTap: () => _navigate('deposit')),
+        floatingActionButtonLocation: const _LowerCenterDockedFabLocation(),
+        bottomNavigationBar: _CenterNotchDock(
+          selectedIndex: depositActive ? -1 : _tab,
+          onSelect: (i) {
+            HapticFeedback.selectionClick();
+            setState(() {
+              _tab = i;
+              _route = _tabs[i];
+            });
+          },
+        ),
       ),
     );
   }
@@ -192,10 +157,22 @@ class _CenterNotchDock extends StatelessWidget {
 
   static const _left = [
     _NavSpec('Home', Icons.home_outlined, Icons.home_rounded, PivoColors.navHome, PivoColors.navHomeMuted),
-    _NavSpec('Transfer', Icons.swap_horiz_rounded, Icons.swap_horiz_rounded, PivoColors.navTransfer, PivoColors.navTransferMuted),
+    _NavSpec(
+      'Transfer',
+      Icons.swap_horiz_rounded,
+      Icons.swap_horiz_rounded,
+      PivoColors.navTransfer,
+      PivoColors.navTransferMuted,
+    ),
   ];
   static const _right = [
-    _NavSpec('Bills', Icons.receipt_long_outlined, Icons.receipt_long_rounded, PivoColors.navBills, PivoColors.navBillsMuted),
+    _NavSpec(
+      'Bills',
+      Icons.receipt_long_outlined,
+      Icons.receipt_long_rounded,
+      PivoColors.navBills,
+      PivoColors.navBillsMuted,
+    ),
     _NavSpec('Loans', Icons.percent_rounded, Icons.percent_rounded, PivoColors.navLoans, PivoColors.navLoansMuted),
     _NavSpec('More', Icons.grid_view_outlined, Icons.grid_view_rounded, PivoColors.navMore, PivoColors.navMoreMuted),
   ];
@@ -231,11 +208,7 @@ class _CenterNotchDock extends StatelessWidget {
                   children: [
                     for (var i = 0; i < _left.length; i++)
                       Expanded(
-                        child: _DockTab(
-                          spec: _left[i],
-                          selected: selectedIndex == i,
-                          onTap: () => onSelect(i),
-                        ),
+                        child: _DockTab(spec: _left[i], selected: selectedIndex == i, onTap: () => onSelect(i)),
                       ),
                   ],
                 ),
@@ -312,11 +285,7 @@ class _DockTab extends StatelessWidget {
                       color: selected ? spec.color.withValues(alpha: 0.14) : Colors.transparent,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
-                      selected ? spec.filled : spec.outlined,
-                      size: 18,
-                      color: color,
-                    ),
+                    child: Icon(selected ? spec.filled : spec.outlined, size: 18, color: color),
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -379,17 +348,12 @@ class _DepositFab extends StatelessWidget {
         highlightElevation: 7,
         backgroundColor: selected ? PivoColors.good : PivoColors.deposit,
         foregroundColor: Colors.white,
-        shape: const CircleBorder(
-          side: BorderSide(color: Colors.white, width: 3),
-        ),
+        shape: const CircleBorder(side: BorderSide(color: Colors.white, width: 3)),
         child: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.add_rounded, size: 20),
-            Text(
-              'Deposit',
-              style: TextStyle(fontSize: 7.5, fontWeight: FontWeight.w800, height: 1),
-            ),
+            Text('Deposit', style: TextStyle(fontSize: 7.5, fontWeight: FontWeight.w800, height: 1)),
           ],
         ),
       ),

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Release: HTTPS only. The debug build overlays a config that also allows the LAN dev gateway. -->
+<!-- Debug builds only: allow plain HTTP to the member gateway on the developer's LAN. -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false">
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>

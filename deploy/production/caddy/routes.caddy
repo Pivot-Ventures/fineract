@@ -1,0 +1,54 @@
+# Shared by Caddyfile (standalone, terminates TLS) and Caddyfile.behind-proxy (another proxy terminates TLS).
+#   /                             → Desk static UI (allowlisted files only)
+#   /fineract-provider/api/*      → Fineract (private network, plain HTTP)
+#   /mobile/api/*                 → member gateway (the Pivosacc app and Desk's mobile-banking card)
+# Everything else (actuator, Swagger, API docs, stray files) → 404.
+
+encode zstd gzip
+
+request_body {
+	max_size 20MB
+}
+
+header {
+	Strict-Transport-Security "max-age=31536000"
+	X-Content-Type-Options "nosniff"
+	X-Frame-Options "DENY"
+	Referrer-Policy "no-referrer"
+	Permissions-Policy "camera=(self), microphone=(), geolocation=()"
+	Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+	-Server
+}
+
+# Members never reach Fineract directly: the app talks only to the gateway, which checks
+# ownership of every account it touches.
+handle_path /mobile/api/* {
+	reverse_proxy gateway:8000 {
+		header_down -Server
+	}
+}
+
+handle /fineract-provider/api/* {
+	reverse_proxy fineract:8080 {
+		header_down -Server
+	}
+}
+
+# Desk: HTML pages and assets only — never server.py, scripts/, READMEs or dotfiles.
+@desk {
+	path / /*.html /assets/*
+	not path /.* /assets/.*
+}
+handle @desk {
+	root * /srv/desk
+	file_server
+}
+
+handle {
+	respond 404
+}
+
+log {
+	output stdout
+	format json
+}

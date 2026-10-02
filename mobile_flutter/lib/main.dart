@@ -16,8 +16,8 @@ Future<void> main() async {
     ),
   );
   final state = AppState();
-  await state.init();
   runApp(PivosaccApp(state: state));
+  await state.init();
 }
 
 class PivosaccApp extends StatelessWidget {
@@ -44,11 +44,21 @@ class PivosaccApp extends StatelessWidget {
         },
         home: Consumer<AppState>(
           builder: (context, s, _) {
-            if (s.booting) {
-              return const Scaffold(body: LoadingPane(label: 'Starting Pivosacc…'));
+            switch (s.phase) {
+              case AuthPhase.booting:
+                return const Scaffold(body: LoadingPane(label: 'Starting Pivosacc…'));
+              case AuthPhase.needsActivation:
+                return const ActivationScreen();
+              case AuthPhase.locked:
+                return const LoginScreen();
+              case AuthPhase.unlocked:
+                // Any touch postpones the idle auto-lock.
+                return Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerDown: (_) => s.touch(),
+                  child: const ShellScreen(),
+                );
             }
-            if (!s.isLoggedIn) return const LoginScreen();
-            return const ShellScreen();
           },
         ),
       ),

@@ -495,7 +495,7 @@ class _ReceiptSheet extends StatelessWidget {
     return txn.isDeposit ? 'Deposit channel' : 'Payment channel';
   }
 
-  String get _statusLabel => 'Posted · Live';
+  String get _statusLabel => 'Posted';
 
   String get _title {
     if (txn.isDeposit) return 'Deposit successful';

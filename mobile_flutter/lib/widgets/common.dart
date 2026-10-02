@@ -256,28 +256,6 @@ class BillerTile extends StatelessWidget {
   }
 }
 
-class LiveChip extends StatelessWidget {
-  const LiveChip({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: PivoColors.goodSoft,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.circle, size: 7, color: PivoColors.good),
-          SizedBox(width: 5),
-          Text('LIVE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: PivoColors.good, letterSpacing: 0.4)),
-        ],
-      ),
-    );
-  }
-}
-
 class LoadingPane extends StatelessWidget {
   const LoadingPane({super.key, this.label = 'Loading…'});
   final String label;

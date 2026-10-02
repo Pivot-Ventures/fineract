@@ -1,49 +1,23 @@
+/// Signed-in member, as returned by the gateway's /v1/me.
 class Session {
   Session({
-    required this.username,
-    required this.tenantId,
-    required this.authKey,
-    required this.clientId,
     required this.clientName,
-    required this.clientAccountNo,
-    this.clientOffice = '',
-    this.officeId = 1,
-    this.memberRef = '',
+    required this.memberNo,
+    this.firstName = '',
+    this.office = '',
+    this.mobile = '',
+    this.device = '',
   });
 
-  final String username;
-  final String tenantId;
-  final String authKey;
-  final int clientId;
   final String clientName;
-  final String clientAccountNo;
-  final String clientOffice;
-  final int officeId;
-  final String memberRef;
+  final String memberNo;
+  final String firstName;
+  final String office;
+  final String mobile;
+  final String device;
 
-  Map<String, dynamic> toJson() => {
-        'username': username,
-        'tenantId': tenantId,
-        'authKey': authKey,
-        'clientId': clientId,
-        'clientName': clientName,
-        'clientAccountNo': clientAccountNo,
-        'clientOffice': clientOffice,
-        'officeId': officeId,
-        'memberRef': memberRef,
-      };
-
-  factory Session.fromJson(Map<String, dynamic> j) => Session(
-        username: j['username'] as String? ?? 'mifos',
-        tenantId: j['tenantId'] as String? ?? 'default',
-        authKey: j['authKey'] as String? ?? '',
-        clientId: (j['clientId'] as num).toInt(),
-        clientName: j['clientName'] as String? ?? '',
-        clientAccountNo: j['clientAccountNo'] as String? ?? '',
-        clientOffice: j['clientOffice'] as String? ?? '',
-        officeId: (j['officeId'] as num?)?.toInt() ?? 1,
-        memberRef: j['memberRef'] as String? ?? '',
-      );
+  String get clientAccountNo => memberNo;
+  String get clientOffice => office;
 
   String get initials {
     final parts = clientName.trim().split(RegExp(r'\s+'));
@@ -133,6 +107,7 @@ class MemberBundle {
     required this.savings,
     required this.loans,
     required this.allTransactions,
+    this.limits,
   });
 
   final String clientName;
@@ -144,14 +119,27 @@ class MemberBundle {
   final List<SavingsAccount> savings;
   final List<LoanAccount> loans;
   final List<Txn> allTransactions;
+  Limits? limits;
+  /// Mobile-money deposits are switched on in the gateway (sandbox = simulated approvals).
+  bool momoDeposits = false;
+  bool momoSandbox = false;
 }
 
-class PeerClient {
-  PeerClient({required this.id, required this.accountNo, required this.displayName, this.officeId = 1});
-  final int id;
+/// Recipient confirmed by the gateway before a transfer (name is masked, e.g. "James O.").
+class Recipient {
+  Recipient({required this.accountNo, required this.name, required this.own});
   final String accountNo;
-  final String displayName;
-  final int officeId;
+  final String name;
+  final bool own;
+}
+
+/// Daily limits the gateway enforces.
+class Limits {
+  Limits({required this.perTransaction, required this.perDay, required this.usedToday});
+  final double perTransaction;
+  final double perDay;
+  final double usedToday;
+  double get leftToday => (perDay - usedToday).clamp(0, perDay);
 }
 
 String fmtMoney(num n, [String currency = 'UGX']) {
@@ -179,5 +167,32 @@ String fmtDateArr(dynamic v) {
     final y = v[0], m = (v[1] as num).toInt(), d = v[2];
     if (m >= 1 && m <= 12) return '$d ${months[m - 1]} $y';
   }
+  if (v is String) {
+    final m = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(v);
+    if (m != null) return fmtDateArr([int.parse(m[1]!), int.parse(m[2]!), int.parse(m[3]!)]);
+  }
   return v?.toString() ?? '—';
+}
+
+/// A mobile-money deposit request; the account is credited only once [status] is "successful".
+class MomoDeposit {
+  MomoDeposit.fromJson(Map j)
+      : id = '${j['id']}',
+        status = '${j['status']}',
+        reason = j['reason']?.toString(),
+        amount = (j['amount'] as num?)?.toDouble() ?? 0,
+        network = '${j['network'] ?? ''}',
+        phone = '${j['phone'] ?? ''}',
+        reference = j['reference']?.toString(),
+        providerRef = j['providerRef']?.toString();
+  final String id;
+  final String status;
+  final String? reason;
+  final double amount;
+  final String network;
+  final String phone;
+  final String? reference;
+  final String? providerRef;
+  bool get pending => status == 'pending';
+  bool get successful => status == 'successful';
 }

@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../state/app_state.dart';
+import '../api/gateway_api.dart';
 import '../theme.dart';
+import '../widgets/pin_pad.dart';
 import '../widgets/common.dart';
 
 enum _LoanStep { home, detail, repay, success }
@@ -19,7 +21,6 @@ class _LoansScreenState extends State<LoansScreen> {
   LoanAccount? _loan;
   int? _fromSavingsId;
   final _amountCtrl = TextEditingController();
-  final _pinCtrl = TextEditingController();
   bool _busy = false;
   double _lastAmount = 0;
   String _lastRef = '';
@@ -37,7 +38,6 @@ class _LoansScreenState extends State<LoansScreen> {
   @override
   void dispose() {
     _amountCtrl.dispose();
-    _pinCtrl.dispose();
     super.dispose();
   }
 
@@ -125,100 +125,60 @@ class _LoansScreenState extends State<LoansScreen> {
     if (picked != null) setState(() => _fromSavingsId = picked);
   }
 
-  Future<bool> _askPin() async {
-    _pinCtrl.clear();
-    final ok = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + MediaQuery.of(ctx).viewInsets.bottom),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Confirm with PIN', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-              const SizedBox(height: 6),
-              const Text('Enter your member PIN to post this repayment.',
-                  style: TextStyle(color: PivoColors.muted, fontSize: 12)),
-              const SizedBox(height: 14),
-              TextField(
-                controller: _pinCtrl,
-                obscureText: true,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                autofocus: true,
-                decoration: const InputDecoration(labelText: 'PIN', counterText: ''),
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(backgroundColor: PivoColors.ochre),
-                  onPressed: () {
-                    final pin = _pinCtrl.text.trim();
-                    if (pin == '1234' || pin == '0000') {
-                      Navigator.pop(ctx, true);
-                    } else {
-                      showToast(ctx, 'Incorrect PIN. Demo PIN is 1234.', error: true);
-                    }
-                  },
-                  child: const Text('Confirm PIN'),
-                ),
-              ),
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-            ],
-          ),
-        );
-      },
-    );
-    return ok == true;
-  }
-
   Future<void> _confirmRepay() async {
     final loan = _loan;
     if (loan == null) return;
-    if (_amount <= 0) {
+    final state = context.read<AppState>();
+    final from = _sav(state.bundle?.savings ?? []);
+    final amt = _amount;
+    if (from == null) {
+      showToast(context, 'You need an active savings account to pay from', error: true);
+      return;
+    }
+    if (amt <= 0) {
       showToast(context, 'Enter a valid amount', error: true);
       return;
     }
-    final pinOk = await _askPin();
-    if (!pinOk || !mounted) return;
-
-    setState(() => _busy = true);
-    HapticFeedback.mediumImpact();
-    final state = context.read<AppState>();
-    final from = _sav(state.bundle?.savings ?? []);
-    var posted = false;
-    var ref = 'TXN-${DateTime.now().millisecondsSinceEpoch % 100000000}';
-    try {
-      final note = from == null
-          ? 'Pivosacc mobile repayment'
-          : 'Pivosacc repay from ${from.accountNo}';
-      final res = await state.api.loanRepayment(loanId: loan.id, amount: _amount, note: note);
-      await state.refreshBundle();
-      posted = true;
-      if (res is Map && res['resourceId'] != null) ref = 'TXN-${res['resourceId']}';
-      // Refresh loan pointer from bundle
-      final updated = state.bundle?.loans.where((l) => l.id == loan.id).toList();
-      if (updated != null && updated.isNotEmpty) _loan = updated.first;
-    } catch (e) {
-      if (mounted) {
-        showToast(context, 'Repayment staged: ${e.toString().split('\n').first}', warn: true);
-      }
-      ref = 'STAGED-${DateTime.now().millisecondsSinceEpoch % 100000000}';
+    if (amt > loan.outstanding) {
+      showToast(context, 'That is more than you owe (${fmtMoney(loan.outstanding)})', error: true);
+      return;
     }
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _lastAmount = _amount;
-      _lastRef = ref;
-      _posted = posted;
-      _step = _LoanStep.success;
-    });
+    if (amt > from.available) {
+      showToast(context, 'Not enough money in ${from.accountNo}. Available: ${fmtMoney(from.available)}', error: true);
+      return;
+    }
+    final key = GatewayApi.newIdempotencyKey();
+    setState(() => _busy = true);
+    try {
+      final res = await confirmWithPin<Map>(
+        context,
+        title: 'Enter PIN to repay',
+        summary: '${fmtMoney(amt)} to ${loan.productName} from ${from.accountNo}',
+        submit: (pin) => state.api.repayLoan(
+          loanId: loan.id,
+          fromAccountId: from.id,
+          amount: amt,
+          pin: pin,
+          idempotencyKey: key,
+        ),
+      );
+      if (res == null) return;
+      HapticFeedback.mediumImpact();
+      await state.refreshBundle();
+      final updated = state.bundle?.loans.where((l) => l.id == loan.id).toList();
+      if (!mounted) return;
+      setState(() {
+        if (updated != null && updated.isNotEmpty) _loan = updated.first;
+        _lastAmount = amt;
+        _lastRef = '${res['reference'] ?? '—'}';
+        _posted = true;
+        _step = _LoanStep.success;
+      });
+    } catch (e) {
+      if (!state.handleSessionError(e) && mounted) showToast(context, e.toString(), error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   void _done() {
@@ -322,7 +282,7 @@ class _LoansScreenState extends State<LoansScreen> {
                 _kv('Loan', '${_loan!.accountNo} · ${_loan!.productName}'),
                 _kv('From', account?.accountNo ?? '—'),
                 _kv('Date', when),
-                _kv('Status', _posted ? 'Posted · Live' : 'Staged · retry at branch',
+                _kv('Status', _posted ? 'Completed' : 'Not completed',
                     valueColor: _posted ? PivoColors.deposit : PivoColors.ochre),
                 const SizedBox(height: 16),
                 SizedBox(

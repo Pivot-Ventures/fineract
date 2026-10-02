@@ -123,11 +123,46 @@ services:
       retries: 10
     logging: *logging
 
+  # Member gateway for the Pivosacc app: member PIN auth, device binding, ownership checks,
+  # limits. Holds a least-privilege Fineract service user (scripts/create-gateway-user.sh).
+  gateway:
+    build: ../../mobile_gateway
+    image: pivot-sacco-gateway:latest
+    restart: unless-stopped
+    user: "1000:1000"
+    depends_on:
+      fineract:
+        condition: service_healthy
+    environment:
+      FINERACT_URL: http://fineract:8080/fineract-provider/api/v1
+      FINERACT_TENANT: ${FINERACT_TENANT_ID:-default}
+      FINERACT_USER: ${GATEWAY_FINERACT_USER:-mobile-gateway}
+      FINERACT_PASSWORD: ${GATEWAY_FINERACT_PASSWORD:-}  # written by scripts/create-gateway-user.sh
+      TENANT_TZ: Africa/Kampala
+      GATEWAY_DB: /data/gateway.sqlite3
+      LIMIT_PER_TXN: ${MOBILE_LIMIT_PER_TXN:-2000000}
+      LIMIT_PER_DAY: ${MOBILE_LIMIT_PER_DAY:-5000000}
+    volumes:
+      - gateway_data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,size=16m
+    networks: [backend]
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    logging: *logging
+
   caddy:
     image: caddy:2.10
     restart: unless-stopped
     depends_on:
       fineract:
+        condition: service_healthy
+      gateway:
         condition: service_healthy
     ports:
       - "${HTTP_PORT:-80}:80"
@@ -136,7 +171,7 @@ services:
       DESK_DOMAIN: ${DESK_DOMAIN}
       CADDY_TLS: ${CADDY_TLS:-internal}
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy:/etc/caddy:ro
       - ../../desk:/srv/desk:ro
       - caddy_data:/data
       - caddy_config:/config
@@ -151,5 +186,6 @@ networks:
 volumes:
   pgdata:
   content:
+  gateway_data:
   caddy_data:
   caddy_config:

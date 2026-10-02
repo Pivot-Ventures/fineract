@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Nightly backup: both Fineract databases (pg_dump custom format), role definitions, and the
-# client photo/document volume. Schedule it (cron / launchd / systemd timer), e.g.:
+# Nightly backup: both Fineract databases (pg_dump custom format), role definitions, the member
+# gateway database and the client photo/document volume. Schedule it (cron / launchd / systemd timer), e.g.:
 #   30 1 * * *  /opt/pivot-sacco/deploy/production/scripts/backup.sh >> /var/log/pivot-backup.log 2>&1
 set -euo pipefail
 sha256() { if command -v sha256sum >/dev/null; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
@@ -24,6 +24,11 @@ dc exec -T db pg_dumpall -U "$POSTGRES_SUPERUSER" --roles-only < /dev/null > "$d
 
 content_vol="$(dc config --format json | python3 -c 'import sys,json; print(json.load(sys.stdin)["volumes"]["content"]["name"])')"
 docker run --rm -v "$content_vol:/data:ro" busybox:1.37 tar -C /data -czf - . > "$dest/content.tar.gz"
+
+# Member gateway: PIN hashes, device bindings, limits and the mobile audit trail (online SQLite backup).
+dc exec -T gateway python -c "import sqlite3; s=sqlite3.connect('/data/gateway.sqlite3'); d=sqlite3.connect('/data/backup.sqlite3'); s.backup(d); d.close()" < /dev/null
+dc cp gateway:/data/backup.sqlite3 "$dest/gateway.sqlite3"
+dc exec -T gateway python -c "import os; os.remove('/data/backup.sqlite3')" < /dev/null
 
 # A dump that pg_restore cannot list is not a backup.
 for db in fineract_tenants "$tenant_db"; do

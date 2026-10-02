@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../state/app_state.dart';
+import '../api/gateway_api.dart';
 import '../theme.dart';
+import '../widgets/pin_pad.dart';
 import '../widgets/common.dart';
 
 enum _TransferMode { otherMember, ownAccounts }
@@ -21,15 +23,12 @@ class _TransferScreenState extends State<TransferScreen> {
 
   int? _fromId;
   int? _toOwnId;
-  final _toQuery = TextEditingController();
-  final _amountCtrl = TextEditingController(text: '5000');
-  final _noteCtrl = TextEditingController(text: 'Pivosacc mobile transfer');
+  final _toAccountCtrl = TextEditingController();
+  final _amountCtrl = TextEditingController();
+  final _noteCtrl = TextEditingController();
 
-  List<PeerClient> _peers = [];
-  PeerClient? _peer;
-  List<SavingsAccount> _peerSavings = [];
-  int? _toPeerAccountId;
-  bool _searching = false;
+  Recipient? _recipient;
+  bool _checking = false;
   bool _busy = false;
   String? _lastRef;
   double _lastAmount = 0;
@@ -52,7 +51,7 @@ class _TransferScreenState extends State<TransferScreen> {
 
   @override
   void dispose() {
-    _toQuery.dispose();
+    _toAccountCtrl.dispose();
     _amountCtrl.dispose();
     _noteCtrl.dispose();
     super.dispose();
@@ -70,43 +69,26 @@ class _TransferScreenState extends State<TransferScreen> {
     return double.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
   }
 
-  Future<void> _search() async {
-    final q = _toQuery.text.trim();
-    if (q.isEmpty) {
-      showToast(context, 'Enter member account or name', warn: true);
+  /// Ask the gateway who owns the account number, so the member sees the name before sending.
+  Future<void> _checkRecipient() async {
+    final no = _toAccountCtrl.text.trim();
+    if (no.isEmpty) {
+      showToast(context, 'Enter the member\'s account number', warn: true);
       return;
     }
-    setState(() => _searching = true);
+    FocusScope.of(context).unfocus();
+    final state = context.read<AppState>();
+    setState(() => _checking = true);
     try {
-      final peers = await context.read<AppState>().api.searchClients(q);
-      setState(() {
-        _peers = peers;
-        _peer = peers.isNotEmpty ? peers.first : null;
-        _peerSavings = [];
-        _toPeerAccountId = null;
-      });
-      if (_peer != null) {
-        await _loadPeerSavings(_peer!);
-      } else if (mounted) {
-        showToast(context, 'No member found', warn: true);
-      }
-    } catch (e) {
-      if (mounted) showToast(context, e.toString(), error: true);
-    } finally {
-      if (mounted) setState(() => _searching = false);
-    }
-  }
-
-  Future<void> _loadPeerSavings(PeerClient peer) async {
-    try {
-      final list = await context.read<AppState>().api.getClientSavings(peer.id);
+      final r = await state.api.recipient(no);
       if (!mounted) return;
-      setState(() {
-        _peerSavings = list;
-        _toPeerAccountId = list.isNotEmpty ? list.first.id : null;
-      });
+      setState(() => _recipient = r);
+      if (r.own) showToast(context, 'That is your own account — use “My accounts” instead.', warn: true);
     } catch (e) {
-      if (mounted) showToast(context, e.toString(), error: true);
+      if (!state.handleSessionError(e) && mounted) showToast(context, e.toString(), error: true);
+      if (mounted) setState(() => _recipient = null);
+    } finally {
+      if (mounted) setState(() => _checking = false);
     }
   }
 
@@ -130,8 +112,8 @@ class _TransferScreenState extends State<TransferScreen> {
       return false;
     }
     if (_mode == _TransferMode.otherMember) {
-      if (_peer == null || _toPeerAccountId == null) {
-        showToast(context, 'Find and select a member', error: true);
+      if (_recipient == null || _recipient!.own) {
+        showToast(context, 'Enter and check the member\'s account number', error: true);
         return false;
       }
     } else {
@@ -146,8 +128,17 @@ class _TransferScreenState extends State<TransferScreen> {
     }
     final from = _findSav(savings, _fromId);
     if (from != null && _amount > from.available) {
-      showToast(context, 'Amount exceeds available balance', warn: true);
-      // still allow continue — Fineract will reject if needed
+      showToast(context, 'Not enough money. Available: ${fmtMoney(from.available, from.currency)}', error: true);
+      return false;
+    }
+    final limits = context.read<AppState>().bundle?.limits;
+    if (limits != null && _amount > limits.perTransaction) {
+      showToast(context, 'The most you can send at once is ${fmtMoney(limits.perTransaction)}', error: true);
+      return false;
+    }
+    if (limits != null && _amount > limits.leftToday) {
+      showToast(context, 'Over your daily limit. You can send ${fmtMoney(limits.leftToday)} more today.', error: true);
+      return false;
     }
     return true;
   }
@@ -160,52 +151,41 @@ class _TransferScreenState extends State<TransferScreen> {
 
   Future<void> _confirmSend() async {
     final state = context.read<AppState>();
-    final session = state.session;
-    if (session == null) return;
+    final savings = state.bundle?.savings ?? [];
+    final toNo = _mode == _TransferMode.otherMember
+        ? _recipient!.accountNo
+        : _findSav(savings, _toOwnId)!.accountNo;
+    final amt = _amount;
+    // One key per confirmation: a retry after a dropped connection cannot send twice.
+    final key = GatewayApi.newIdempotencyKey();
     setState(() => _busy = true);
-    HapticFeedback.mediumImpact();
     try {
-      final amt = _amount;
-      dynamic res;
-      if (_mode == _TransferMode.otherMember) {
-        res = await state.api.accountTransfer(
+      final res = await confirmWithPin<Map>(
+        context,
+        title: 'Enter PIN to send',
+        summary: '${fmtMoney(amt)} to ${_mode == _TransferMode.otherMember ? '${_recipient!.name} · $toNo' : toNo}',
+        submit: (pin) => state.api.transfer(
           fromAccountId: _fromId!,
-          toClientId: _peer!.id,
-          toAccountId: _toPeerAccountId!,
-          toOfficeId: _peer!.officeId,
+          toAccountNo: toNo,
           amount: amt,
-          description: _noteCtrl.text.trim(),
-        );
-      } else {
-        res = await state.api.accountTransfer(
-          fromAccountId: _fromId!,
-          toClientId: session.clientId,
-          toAccountId: _toOwnId!,
-          toOfficeId: session.officeId,
-          fromClientId: session.clientId,
-          amount: amt,
-          description: _noteCtrl.text.trim().isEmpty
-              ? 'Pivosacc own-account transfer'
-              : _noteCtrl.text.trim(),
-        );
-      }
+          note: _noteCtrl.text.trim(),
+          pin: pin,
+          idempotencyKey: key,
+        ),
+      );
+      if (res == null) return;
+      HapticFeedback.mediumImpact();
       await state.refreshBundle();
-      String ref = 'TXN-${DateTime.now().millisecondsSinceEpoch % 100000000}';
-      if (res is Map && res['resourceId'] != null) {
-        ref = 'TXN-${res['resourceId']}';
-      }
       if (!mounted) return;
       setState(() {
         _lastAmount = amt;
-        _lastRef = ref;
-        _busy = false;
+        _lastRef = '${res['reference'] ?? '—'}';
         _step = _TransferStep.success;
       });
     } catch (e) {
-      if (mounted) {
-        setState(() => _busy = false);
-        showToast(context, e.toString(), error: true);
-      }
+      if (!state.handleSessionError(e) && mounted) showToast(context, e.toString(), error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -213,8 +193,10 @@ class _TransferScreenState extends State<TransferScreen> {
     HapticFeedback.selectionClick();
     setState(() {
       _step = _TransferStep.form;
-      _amountCtrl.text = '5000';
-      _noteCtrl.text = 'Pivosacc mobile transfer';
+      _amountCtrl.clear();
+      _noteCtrl.clear();
+      _toAccountCtrl.clear();
+      _recipient = null;
       _lastRef = null;
     });
   }
@@ -288,9 +270,7 @@ class _TransferScreenState extends State<TransferScreen> {
         note: _noteCtrl.text.trim(),
         from: from,
         toOwn: toOwn,
-        peer: _peer,
-        peerSavings: _peerSavings,
-        toPeerAccountId: _toPeerAccountId,
+        recipient: _recipient,
         busy: _busy,
         onBack: () => setState(() => _step = _TransferStep.form),
         onConfirm: _confirmSend,
@@ -303,9 +283,7 @@ class _TransferScreenState extends State<TransferScreen> {
         note: _noteCtrl.text.trim(),
         from: from,
         toOwn: toOwn,
-        peer: _peer,
-        peerSavings: _peerSavings,
-        toPeerAccountId: _toPeerAccountId,
+        recipient: _recipient,
         mode: _mode,
         onDone: _done,
       );
@@ -391,76 +369,53 @@ class _TransferScreenState extends State<TransferScreen> {
                   children: [
                     Expanded(
                       child: TextField(
-                        controller: _toQuery,
+                        controller: _toAccountCtrl,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(12)],
                         decoration: const InputDecoration(
                           isDense: true,
-                          hintText: 'Account no / name / id',
+                          hintText: 'Member\'s account number',
+                          hintStyle: TextStyle(fontSize: 14, color: PivoColors.muted),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
                           filled: false,
                           contentPadding: EdgeInsets.symmetric(vertical: 8),
                         ),
-                        onSubmitted: (_) => _search(),
+                        onChanged: (_) {
+                          if (_recipient != null) setState(() => _recipient = null);
+                        },
+                        onSubmitted: (_) => _checkRecipient(),
                       ),
                     ),
                     TextButton(
-                      onPressed: _searching ? null : _search,
-                      child: _searching
+                      onPressed: _checking ? null : _checkRecipient,
+                      child: _checking
                           ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Find', style: TextStyle(fontWeight: FontWeight.w700)),
+                          : const Text('Check', style: TextStyle(fontWeight: FontWeight.w700)),
                     ),
                   ],
                 ),
-                if (_peer != null) ...[
+                if (_recipient != null) ...[
                   const Divider(height: 1),
                   const SizedBox(height: 8),
-                  if (_peers.length > 1)
-                    DropdownButtonFormField<PeerClient>(
-                      value: _peer,
-                      decoration: const InputDecoration(
-                        labelText: 'Recipient',
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      items: _peers
-                          .map((p) => DropdownMenuItem(
-                                value: p,
-                                child: Text('${p.displayName} · ${p.accountNo}', overflow: TextOverflow.ellipsis),
-                              ))
-                          .toList(),
-                      onChanged: (p) async {
-                        if (p == null) return;
-                        setState(() => _peer = p);
-                        await _loadPeerSavings(p);
-                      },
-                    )
-                  else
-                    Text(
-                      'Peer · ${_peer!.displayName} · ${_peer!.accountNo}',
-                      style: const TextStyle(color: PivoColors.deposit, fontWeight: FontWeight.w700, fontSize: 11.5),
-                    ),
-                  if (_peerSavings.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: DropdownButtonFormField<int>(
-                        value: _toPeerAccountId ?? _peerSavings.first.id,
-                        decoration: const InputDecoration(
-                          labelText: 'To savings',
-                          isDense: true,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  Row(
+                    children: [
+                      Icon(_recipient!.own ? Icons.info_outline_rounded : Icons.verified_rounded,
+                          size: 16, color: _recipient!.own ? PivoColors.ochre : PivoColors.deposit),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '${_recipient!.name} · ${_recipient!.accountNo}',
+                          style: TextStyle(
+                            color: _recipient!.own ? PivoColors.ochre : PivoColors.deposit,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12.5,
+                          ),
                         ),
-                        items: _peerSavings
-                            .map((s) => DropdownMenuItem(
-                                  value: s.id,
-                                  child: Text('${s.productName} · ${s.accountNo}', overflow: TextOverflow.ellipsis),
-                                ))
-                            .toList(),
-                        onChanged: (v) => setState(() => _toPeerAccountId = v),
                       ),
-                    )
-                  else
-                    const Text('No active savings on peer', style: TextStyle(fontSize: 11, color: PivoColors.muted)),
+                    ],
+                  ),
                 ],
               ],
             ),
@@ -664,9 +619,7 @@ class _ConfirmView extends StatelessWidget {
     required this.note,
     required this.from,
     required this.toOwn,
-    required this.peer,
-    required this.peerSavings,
-    required this.toPeerAccountId,
+    required this.recipient,
     required this.busy,
     required this.onBack,
     required this.onConfirm,
@@ -677,9 +630,7 @@ class _ConfirmView extends StatelessWidget {
   final String note;
   final SavingsAccount? from;
   final SavingsAccount? toOwn;
-  final PeerClient? peer;
-  final List<SavingsAccount> peerSavings;
-  final int? toPeerAccountId;
+  final Recipient? recipient;
   final bool busy;
   final VoidCallback onBack;
   final VoidCallback onConfirm;
@@ -689,14 +640,8 @@ class _ConfirmView extends StatelessWidget {
       final t = toOwn;
       return t == null ? '—' : '${t.productName} · ${t.accountNo}';
     }
-    final p = peer;
-    SavingsAccount? sav;
-    for (final s in peerSavings) {
-      if (s.id == toPeerAccountId) sav = s;
-    }
-    if (p == null) return '—';
-    if (sav != null) return '${p.displayName} · ${sav.accountNo}';
-    return '${p.displayName} · ${p.accountNo}';
+    final r = recipient;
+    return r == null ? '—' : '${r.name} · ${r.accountNo}';
   }
 
   @override
@@ -737,8 +682,6 @@ class _ConfirmView extends StatelessWidget {
                   letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(height: 6),
-              const Text('Fee · Free', style: TextStyle(color: PivoColors.deposit, fontWeight: FontWeight.w700, fontSize: 11.5)),
             ],
           ),
         ),
@@ -757,7 +700,7 @@ class _ConfirmView extends StatelessWidget {
               const Divider(height: 1, indent: 14),
               _kv('Note', note.isEmpty ? '—' : note),
               const Divider(height: 1, indent: 14),
-              _kv('When', 'Instant · Live Fineract'),
+              _kv('When', 'Instant'),
             ],
           ),
         ),
@@ -797,9 +740,7 @@ class _SuccessView extends StatelessWidget {
     required this.note,
     required this.from,
     required this.toOwn,
-    required this.peer,
-    required this.peerSavings,
-    required this.toPeerAccountId,
+    required this.recipient,
     required this.mode,
     required this.onDone,
   });
@@ -809,9 +750,7 @@ class _SuccessView extends StatelessWidget {
   final String note;
   final SavingsAccount? from;
   final SavingsAccount? toOwn;
-  final PeerClient? peer;
-  final List<SavingsAccount> peerSavings;
-  final int? toPeerAccountId;
+  final Recipient? recipient;
   final _TransferMode mode;
   final VoidCallback onDone;
 
@@ -819,14 +758,8 @@ class _SuccessView extends StatelessWidget {
     if (mode == _TransferMode.ownAccounts) {
       return toOwn == null ? '—' : '${toOwn!.accountNo} · ${toOwn!.productName}';
     }
-    final p = peer;
-    SavingsAccount? sav;
-    for (final s in peerSavings) {
-      if (s.id == toPeerAccountId) sav = s;
-    }
-    if (p == null) return '—';
-    if (sav != null) return '${sav.accountNo} · ${sav.productName}';
-    return p.accountNo;
+    final r = recipient;
+    return r == null ? '—' : '${r.name} · ${r.accountNo}';
   }
 
   @override
@@ -861,7 +794,7 @@ class _SuccessView extends StatelessWidget {
               Text(
                 mode == _TransferMode.ownAccounts
                     ? 'Moved between your accounts'
-                    : 'Sent to ${peer?.displayName ?? 'member'}',
+                    : 'Sent to ${recipient?.name ?? 'member'}',
                 style: const TextStyle(color: PivoColors.muted, fontSize: 12),
               ),
               const SizedBox(height: 10),
@@ -881,7 +814,7 @@ class _SuccessView extends StatelessWidget {
               _row('From', from == null ? '—' : '${from!.accountNo} · ${from!.productName}'),
               _row('To', _toLine),
               _row('Date', when),
-              _row('Status', 'Posted · Live', valueColor: PivoColors.deposit),
+              _row('Status', 'Completed', valueColor: PivoColors.deposit),
               if (note.isNotEmpty) _row('Note', note),
               const SizedBox(height: 16),
               SizedBox(
