@@ -1,8 +1,18 @@
 # Pivot SACCO transactional alerts — Node service deploy.
-# Ship path: merge to main, and this workflow rsyncs alerts/ and restarts
-# pivot-sacco-alerts.service. Desk, Fineract, Caddy, nginx, and payments
-# are left running. Provider keys stay in the host env file, never in git
-# and never in this workflow.
+# Ship path: merge to main, and this workflow rsyncs alerts/ to
+# <SACCO_ALERTS_PATH>/incoming, and install-on-host.sh builds a new release
+# under <SACCO_ALERTS_PATH>/releases, switches the `current` symlink,
+# restarts pivot-sacco-alerts.service, health-checks it, and rolls back on
+# failure. Desk, Fineract, Caddy, nginx, and payments are left running.
+# Provider keys stay in the host env file, never in git and never in this
+# workflow.
+#
+# Required secrets: SACCO_DESK_HOST, SACCO_DESK_USER, SACCO_DESK_SSH_KEY,
+# SACCO_DESK_KNOWN_HOSTS (pinned host key lines, e.g. from
+# `ssh-keyscan -H <host>` run once from a trusted machine and verified
+# against the droplet console fingerprint).
+# Optional: SACCO_ALERTS_PATH (default /opt/pivot-sacco/alerts),
+# SACCO_ALERTS_ENV_FILE (default /etc/pivot-sacco-alerts.env).
 
 name: Deploy SACCO Alerts
 
@@ -42,6 +52,7 @@ jobs:
           SACCO_DESK_HOST: ${{ secrets.SACCO_DESK_HOST }}
           SACCO_DESK_USER: ${{ secrets.SACCO_DESK_USER }}
           SACCO_DESK_SSH_KEY: ${{ secrets.SACCO_DESK_SSH_KEY }}
+          SACCO_DESK_KNOWN_HOSTS: ${{ secrets.SACCO_DESK_KNOWN_HOSTS }}
           SACCO_ALERTS_PATH: ${{ secrets.SACCO_ALERTS_PATH }}
           SACCO_ALERTS_ENV_FILE: ${{ secrets.SACCO_ALERTS_ENV_FILE }}
         shell: bash
@@ -51,6 +62,11 @@ jobs:
 
           if [ -z "${SACCO_DESK_HOST}" ] || [ -z "${SACCO_DESK_USER}" ] || [ -z "${SACCO_DESK_SSH_KEY}" ]; then
             echo "SACCO_DESK_HOST, SACCO_DESK_USER, and SACCO_DESK_SSH_KEY must be set."
+            exit 1
+          fi
+          if [ -z "${SACCO_DESK_KNOWN_HOSTS}" ]; then
+            echo "SACCO_DESK_KNOWN_HOSTS must be set to the droplet's pinned SSH host key line(s)."
+            echo "Generate it once from a trusted machine (ssh-keyscan -H <host>), verify the fingerprint against the droplet console, and store it as a repository secret."
             exit 1
           fi
 
@@ -65,12 +81,12 @@ jobs:
           host="$(trim "${SACCO_DESK_HOST}")"
           remote_user="$(trim "${SACCO_DESK_USER}")"
           dest="$(trim "${SACCO_ALERTS_PATH:-/opt/pivot-sacco/alerts}")"
-          env_file="$(trim "${SACCO_ALERTS_ENV_FILE:-/etc/pivot-sacco/alerts.env}")"
+          env_file="$(trim "${SACCO_ALERTS_ENV_FILE:-/etc/pivot-sacco-alerts.env}")"
           if [ -z "${dest}" ]; then
             dest="/opt/pivot-sacco/alerts"
           fi
           if [ -z "${env_file}" ]; then
-            env_file="/etc/pivot-sacco/alerts.env"
+            env_file="/etc/pivot-sacco-alerts.env"
           fi
           dest="${dest%/}"
 
@@ -96,8 +112,8 @@ jobs:
             exit 1
           fi
           case "${dest}" in
-            /|/bin|/sbin|/usr|/usr/*|/etc|/etc/*|/var|/home|/root|/opt|/opt/pivot-sacco)
-              echo "SACCO_ALERTS_PATH ${dest} is too broad."
+            /|/bin|/sbin|/usr|/usr/*|/etc|/etc/*|/var|/var/lib|/home|/home/*|/root|/root/*|/opt|/opt/pivot-sacco|/tmp|/tmp/*)
+              echo "SACCO_ALERTS_PATH ${dest} is too broad or under a protected/home directory."
               exit 1
               ;;
             */desk|*/desk/*|*/payments|*/payments/*)
@@ -105,6 +121,10 @@ jobs:
               exit 1
               ;;
           esac
+          if [[ "${env_file}" != *.env ]]; then
+            echo "SACCO_ALERTS_ENV_FILE must end in .env."
+            exit 1
+          fi
           case "${env_file}" in
             "${dest}"|"${dest}"/*)
               echo "SACCO_ALERTS_ENV_FILE must be outside SACCO_ALERTS_PATH."
@@ -134,13 +154,14 @@ jobs:
             exit 1
           fi
 
-          # First-contact host key for this run. The address comes from SACCO_DESK_HOST.
-          ssh-keyscan -T 15 -H "${host}" > "${known_hosts}" || true
-          if [ ! -s "${known_hosts}" ]; then
-            echo "Could not collect a host key. Check SACCO_DESK_HOST and SSH reachability from GitHub-hosted runners."
+          # Pinned host key from a secret. No ssh-keyscan: trusting whatever key
+          # answers on each run would make StrictHostKeyChecking meaningless.
+          printf '%s\n' "${SACCO_DESK_KNOWN_HOSTS}" | sed -e 's/\r$//' -e 's/\\n/\n/g' > "${known_hosts}"
+          chmod 600 "${known_hosts}"
+          if ! ssh-keygen -F "${host}" -f "${known_hosts}" >/dev/null; then
+            echo "SACCO_DESK_KNOWN_HOSTS has no entry for SACCO_DESK_HOST. Add the host key line for that exact host name or IP."
             exit 1
           fi
-          chmod 644 "${known_hosts}"
 
           ssh_base=(
             ssh
@@ -153,33 +174,34 @@ jobs:
             -o PasswordAuthentication=no
           )
 
-          echo "Syncing alerts/ to ${remote_user}@${host}:${dest}/"
           dest_q="$(printf '%q' "${dest}")"
+          env_q="$(printf '%q' "${env_file}")"
+          user_q="$(printf '%q' "${remote_user}")"
+
+          echo "Preparing ${dest}/incoming on ${remote_user}@${host}"
           "${ssh_base[@]}" \
             "${remote_user}@${host}" \
-            "mkdir -p -- ${dest_q}/data"
+            "bash -s -- --prepare ${dest_q} ${user_q}" \
+            < alerts/deploy/install-on-host.sh
 
-          # Keep the JSON store and any env file that was left in the tree.
-          # npm ci on the host refreshes node_modules. --delete drops removed
-          # source files. Desk and payments are different directories and are
-          # not touched. Do not restart Fineract, Caddy, or nginx.
+          # Upload into the staging directory only. Releases, the current
+          # symlink, the data directory, and the env file are never touched by
+          # rsync. Desk and payments are different directories.
+          echo "Syncing alerts/ to ${remote_user}@${host}:${dest}/incoming/"
           export RSYNC_RSH="ssh -i ${keyfile} -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${known_hosts} -o ConnectTimeout=20 -o PasswordAuthentication=no"
           rsync -azi --delete --stats --delay-updates --safe-links \
-            --filter 'protect /data/***' \
-            --filter 'protect /.env' \
-            --filter 'protect /alerts.env' \
             --exclude '/data/' \
             --exclude '/.env' \
             --exclude '/alerts.env' \
             --exclude '/node_modules/' \
             --exclude '.git/' \
             alerts/ \
-            "${remote_user}@${host}:${dest}/"
+            "${remote_user}@${host}:${dest}/incoming/"
 
-          echo "Installing production dependencies and restarting pivot-sacco-alerts.service"
+          echo "Building release, switching current, restarting pivot-sacco-alerts.service"
           "${ssh_base[@]}" \
             "${remote_user}@${host}" \
-            "bash -s -- $(printf '%q' "${dest}") $(printf '%q' "${env_file}") $(printf '%q' "${remote_user}")" \
+            "bash -s -- ${dest_q} ${env_q} ${user_q}" \
             < alerts/deploy/install-on-host.sh
 
           echo "Alerts deploy finished. Fineract, Caddy, nginx, Desk, and payments were left running."
