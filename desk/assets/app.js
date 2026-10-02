@@ -18,7 +18,7 @@
 
   var sess = api.getSession() || {};
 
-  /* PR #8 — Payments middleware Overview link */
+  /* Payments portal, with the gateway OpenAPI kept one click away. */
   var sidebarNav = document.querySelector(".sidebar-nav");
   if (sidebarNav && !sidebarNav.querySelector("[data-nav='payments']")) {
     var overview = sidebarNav.querySelector(".nav-group");
@@ -26,11 +26,17 @@
       var paymentsLink = document.createElement("a");
       paymentsLink.className = "nav-link";
       paymentsLink.setAttribute("data-nav", "payments");
-      paymentsLink.href = "/payments/docs";
-      paymentsLink.target = "_blank";
-      paymentsLink.rel = "noopener";
-      paymentsLink.innerHTML = "<span class=\"nav-icon\">💳</span> Payments middleware";
+      paymentsLink.href = "/payments-portal/";
+      paymentsLink.innerHTML = "<span class=\"nav-icon\" aria-hidden=\"true\">💳</span> Payments portal";
       overview.appendChild(paymentsLink);
+      var docsLink = document.createElement("a");
+      docsLink.className = "nav-link";
+      docsLink.setAttribute("data-nav", "payments-docs");
+      docsLink.href = "/payments/docs";
+      docsLink.target = "_blank";
+      docsLink.rel = "noopener";
+      docsLink.innerHTML = "<span class=\"nav-icon\" aria-hidden=\"true\">↗</span> Payments API docs";
+      overview.appendChild(docsLink);
     }
   }
 
