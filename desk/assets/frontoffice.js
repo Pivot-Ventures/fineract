@@ -14,6 +14,12 @@
   var CTX = "pivot_teller_ctx";
   var CCY = "UGX";
   var DATE = { locale: "en", dateFormat: "yyyy-MM-dd" };
+
+  function notifyAlert(event) {
+    try {
+      if (window.TransactionalAlerts) window.TransactionalAlerts.notify(event);
+    } catch (e) { /* Fineract already posted; alerts must not block the desk */ }
+  }
   var NOTES = [50000, 20000, 10000, 5000, 2000, 1000];
   var COINS = [500, 200, 100, 50];
   var TXN_IN = [103];
@@ -667,7 +673,16 @@
           if (!v.note) delete body.receiptNumber;
           var path = isLoan ? "/loans/" + encodeURIComponent(v.acct) + "/transactions?command=repayment" :
             "/savingsaccounts/" + encodeURIComponent(v.acct) + "/transactions?command=" + (isIn ? "deposit" : "withdrawal");
-          return api.post(path, body);
+          var result = await api.post(path, body);
+          notifyAlert({
+            type: isLoan ? "loan_repay" : (isIn ? "deposit" : "withdrawal"),
+            amount: v.amount,
+            currency: "UGX",
+            reference: v.note || "",
+            savingsAccountId: isLoan ? "" : v.acct,
+            loanAccountId: isLoan ? v.acct : ""
+          });
+          return result;
         }
       });
     };

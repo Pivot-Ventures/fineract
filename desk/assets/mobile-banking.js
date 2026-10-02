@@ -86,6 +86,13 @@
         render(res);
         api.toast("Mobile banking updated", "success");
       }
+      /* PIN-lock clear only. Activation codes stay on this screen: Desk tells staff
+         not to send the code by SMS or WhatsApp, so the alerts service must not carry it. */
+      if (suffix === "/unlock" && window.TransactionalAlerts) {
+        try {
+          window.TransactionalAlerts.notify({ type: "pin", memberId: clientId, reference: "pin-unlock" });
+        } catch (e) { /* unlock already succeeded */ }
+      }
     } catch (e) {
       api.toast(e.message, "error");
     } finally {

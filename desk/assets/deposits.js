@@ -20,6 +20,12 @@
   var BULK = 1000;
   var SUFFIX = document.title.indexOf(" · ") >= 0 ? document.title.slice(document.title.indexOf(" · ")) : "";
 
+  function notifyAlert(event) {
+    try {
+      if (window.TransactionalAlerts) window.TransactionalAlerts.notify(event);
+    } catch (e) { /* Fineract already posted; alerts must not block the desk */ }
+  }
+
   /* ------------------------------------------------------------ helpers */
   function $(id) { return document.getElementById(id); }
   function enc(v) { return encodeURIComponent(v); }
@@ -495,9 +501,21 @@
           };
         },
         onSubmit: function (v) {
+          var posted = {
+            type: isDep ? "deposit" : "withdrawal",
+            memberId: a.clientId,
+            account: a.accountNo,
+            amount: v.amount,
+            currency: "UGX",
+            reference: v.receipt || "",
+            meta: { memberName: a.clientName || "" }
+          };
           return call("post", "/savingsaccounts/" + enc(a.id) + "/transactions?command=" + (isDep ? "deposit" : "withdrawal"), withDate(Object.assign({
             transactionDate: v.date, transactionAmount: String(v.amount), note: v.note || ""
-          }, paymentBits(v))));
+          }, paymentBits(v)))).then(function (result) {
+            notifyAlert(posted);
+            return result;
+          });
         }
       }).then(done(isDep ? "Deposit posted" : "Withdrawal posted"));
     };
@@ -536,12 +554,22 @@
           var toId = v.to === "other" ? v.otherId : v.to;
           var target = await call("get", "/savingsaccounts/" + enc(toId));
           var offices = await Promise.all([clientOffice(a.clientId), clientOffice(target.clientId)]);
-          return call("post", "/accounttransfers", withDate({
+          var result = await call("post", "/accounttransfers", withDate({
             fromOfficeId: offices[0], fromClientId: a.clientId, fromAccountType: 2, fromAccountId: Number(a.id),
             toOfficeId: offices[1], toClientId: target.clientId, toAccountType: 2, toAccountId: Number(toId),
             transferDate: v.date, transferAmount: String(v.amount),
             transferDescription: (v.description || "").trim() || ("Transfer from #" + a.accountNo + " to #" + target.accountNo)
           }));
+          notifyAlert({
+            type: "transfer",
+            memberId: a.clientId,
+            account: a.accountNo,
+            amount: v.amount,
+            currency: "UGX",
+            reference: (v.description || "").trim(),
+            meta: { memberName: a.clientName || "", toAccount: target.accountNo || "" }
+          });
+          return result;
         }
       }).then(done("Transfer posted"));
     };
@@ -554,7 +582,19 @@
         fields: [dateField(label + " on", "date")],
         onSubmit: function (v) {
           var body = {}; body[dateKey] = v.date;
-          return call("post", "/savingsaccounts/" + enc(a.id) + "?command=" + cmd, withDate(body));
+          return call("post", "/savingsaccounts/" + enc(a.id) + "?command=" + cmd, withDate(body)).then(function (result) {
+            if (cmd === "activate") {
+              notifyAlert({
+                type: "activation",
+                memberId: a.clientId,
+                account: a.accountNo,
+                currency: "UGX",
+                reference: "savings-activate",
+                meta: { memberName: a.clientName || "" }
+              });
+            }
+            return result;
+          });
         }
       }).then(done(label === "Approve" ? "Account approved" : "Account activated"));
     };
