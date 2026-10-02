@@ -6,9 +6,12 @@ debugging, published database port, default passwords and the `Asia/Kolkata` ten
 Never put member data in it.
 
 ```
-staff browser ──HTTPS──► caddy :443 ──┬── /            → desk/*.html, desk/assets/*  (read-only)
-                                      └── /fineract-provider/api/* → fineract:8080 ──► db:5432
-                                          everything else → 404       (private network, no host ports)
+staff browser ──HTTPS──► caddy :443 ──┬── /              → desk/*.html, desk/assets/*, payments-portal/, transactional-alerts/
+member app ─────HTTPS──►              ├── /fineract-provider/api/* → fineract:8080 ──► db:5432
+                                      ├── /mobile/api/*  → gateway:8000 ──► fineract (service user)
+                                      ├── /alerts/api/*  → alerts:8095  ──► Africa's Talking / LipeChat
+                                      ├── /payments/*    → $PAYMENTS_UPSTREAM (docs + internal routes → 404)
+                                      └── everything else → 404       (private network, no host ports)
 ```
 
 | Concern | How this stack handles it |
@@ -121,6 +124,18 @@ To restore into production (stops Fineract and replaces **all** data):
 3. Set the new digest in `FINERACT_IMAGE`.
 4. Run `docker compose up -d` and watch `docker compose logs -f fineract` until Liquibase finishes.
 
+## 6. Transactional alerts and the payments portal
+
+**Alerts** (`alerts` service, SMS via Africa's Talking, WhatsApp via LipeChat):
+1. `./scripts/gen-secrets.sh` — on an existing install it only appends new settings such as `ALERTS_SERVICE_KEY` (the key the member gateway uses to call the alerts service).
+2. `cp ../../alerts/.env.example alerts.env && chmod 600 alerts.env`, then fill in the provider credentials. It stays a dry run until you also set `ALERTS_LIVE=true`. See [alerts/README.md](../../alerts/README.md).
+3. `docker compose up -d --build alerts gateway caddy`.
+4. Open Desk → **Transactional alerts** as an administrator, check the templates, then send a test SMS to a staff phone.
+
+The service is not published. Caddy strips any browser-supplied `X-Alerts-Service-Key`, and the service checks the Desk staff login against Fineract on every call. Desk events carry only Fineract ids; the service reads the amount, phone and balance from Fineract itself. Only Ugandan mobile numbers are accepted, and sends per phone and per day are capped.
+
+**Payments portal** (`/payments-portal/`): set `PAYMENTS_UPSTREAM` to the payments middleware (`host:port` or an `https://` URL) and run `docker compose up -d caddy`. Without it, `/payments/*` answers 502 and the portal shows "gateway unavailable". It never falls back to demo data; the demo book loads only with `?demo=1` in development. The middleware's Swagger and `/payments/internal/*` routes are not exposed.
+
 ## Not covered here (next steps before migration)
 
 - **Finance setup:**
@@ -131,4 +146,4 @@ To restore into production (stops Fineract and replaces **all** data):
   - payment types: MTN MoMo, Airtel Money, banks, Migration
   - Uganda public holidays and working days
 - **Report fixes:** Portfolio at Risk and 21 other loan reports fail on PostgreSQL (`currency_code` compared with a bigint parameter). They need a Liquibase changeset in this repository and a rebuilt image.
-- **Member mobile app:** it must not be exposed through this stack. It needs its own gateway with member authentication and ownership checks first.
+- **Member mobile app:** served through the `gateway` service (member PIN, device binding, ownership checks). Run `scripts/create-gateway-user.sh` once, and smoke-test against staging first with `mobile_gateway/scripts/staging-smoke.sh`.
