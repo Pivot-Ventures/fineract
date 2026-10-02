@@ -1,16 +1,16 @@
 # Pivosacc — native Flutter member app
 
-Material 3 banking UI (no WebView). Talks to Fineract via LAN proxy:
+Material 3 banking UI (no WebView). Default API base is live Fineract:
 
-`http://192.168.1.123:5174/fineract-provider/api/v1`
+`https://sacco.pivotventures.tech/fineract-provider/api/v1`
 
-Demo login: member `000000001`, PIN `1234`.
+A previously saved LAN or desk-demo base (private IP, localhost, or port `5174`) is migrated to that URL on startup. Long-press the home title to override it.
 
-## UI notes (v1.0.2)
+Demo login: member `000000001`, PIN `1234` (also accepts `0000`). There is no live member-gateway PIN setup.
 
-- Statement amounts: **deposits green**, **withdrawals red** (no meta/dev labels)
-- Deposit screen green-themed; withdraw screen red-themed
-- Native bottom dock + home Deposit FAB
-- Approval gallery: `~/Projects/sacco/proposals/flutter-ui-approval/`
+## UI notes (v1.0.12)
 
-**Do not** ship APK to phone until Osbert approves the gallery PNGs.
+- Option B center-notch dock: Home, Transfer, Deposit FAB, Bills, Loans, More
+- Home account carousel and activity receipt
+- Full deposit, bills, transfer, and loans flows; loan repay confirms with PIN
+- Statement amounts: **deposits green**, **withdrawals red**
