@@ -8,61 +8,60 @@
   <link rel="stylesheet" href="assets/accounting.css" />
 </head>
 <body data-page="statement">
-<div class="banner-mock">MOCK DATA ONLY — Phaneroo SACCO UI mockup. Not connected to Apache Fineract.</div>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div class="status-bar" id="status-bar" role="alert" hidden></div>
 <div class="app-shell">
 
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
-    <div class="brand-mark">P</div>
+    <div class="brand-mark" aria-hidden="true">P</div>
     <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
-  <nav class="sidebar-nav">
+  <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
-      <a class="nav-link" data-nav="dashboard" href="dashboard.html"><span class="nav-icon">▣</span> Dashboard</a>
+      <a class="nav-link" data-nav="dashboard" href="dashboard.html"><span class="nav-icon" aria-hidden="true">▣</span> Dashboard</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Front office</div>
-      <a class="nav-link" data-nav="teller" href="teller.html"><span class="nav-icon">💱</span> Teller day desk</a>
-      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon">🖥</span> Tellers &amp; cashiers</a>
-      <a class="nav-link" data-nav="cashier-eod" href="cashier-eod.html"><span class="nav-icon">⚖</span> Cashier EOD / settle</a>
-      <a class="nav-link" data-nav="collections" href="collections.html"><span class="nav-icon">📥</span> Collections / overdue</a>
+      <a class="nav-link" data-nav="teller" href="teller.html"><span class="nav-icon" aria-hidden="true">💱</span> Teller day desk</a>
+      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon" aria-hidden="true">🖥</span> Tellers &amp; cashiers</a>
+      <a class="nav-link" data-nav="cashier-eod" href="cashier-eod.html"><span class="nav-icon" aria-hidden="true">⚖</span> Cashier EOD / settle</a>
+      <a class="nav-link" data-nav="collections" href="collections.html"><span class="nav-icon" aria-hidden="true">📥</span> Collections / overdue</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Members</div>
-      <a class="nav-link" data-nav="clients" href="clients.html"><span class="nav-icon">👤</span> Clients</a>
-      <a class="nav-link" data-nav="onboard" href="client-onboard.html"><span class="nav-icon">＋</span> Onboard member</a>
-      <a class="nav-link" data-nav="groups" href="groups.html"><span class="nav-icon">👥</span> Groups</a>
-      <a class="nav-link" data-nav="centres" href="centres.html"><span class="nav-icon">⌖</span> Centres</a>
-      <a class="nav-link" data-nav="clients" href="clients.html#kyc"><span class="nav-icon">🪪</span> KYC queue</a>
+      <a class="nav-link" data-nav="clients" href="clients.html"><span class="nav-icon" aria-hidden="true">👤</span> Clients</a>
+      <a class="nav-link" data-nav="onboard" href="client-onboard.html"><span class="nav-icon" aria-hidden="true">＋</span> Onboard member</a>
+      <a class="nav-link" data-nav="groups" href="groups.html"><span class="nav-icon" aria-hidden="true">👥</span> Groups</a>
+      <a class="nav-link" data-nav="centres" href="centres.html"><span class="nav-icon" aria-hidden="true">⌖</span> Centres</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Portfolio</div>
-      <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon">📋</span> Loans</a>
-      <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon">✎</span> Loan application</a>
-      <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
+      <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
+      <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
       <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
       <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
       <a class="nav-link" data-nav="recurring-deposits" href="recurring-deposits.html"><span class="nav-icon" aria-hidden="true">↻</span> Recurring deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
-      <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon">🏷</span> Products &amp; charges</a>
+      <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Accounting</div>
-      <a class="nav-link" data-nav="accounting" href="accounting.html"><span class="nav-icon">📒</span> Chart of accounts</a>
-      <a class="nav-link" data-nav="journals" href="journals.html"><span class="nav-icon">☰</span> Journal entries</a>
-      <a class="nav-link" data-nav="journal" href="journal-entry.html"><span class="nav-icon">✎</span> Create journal</a>
-      <a class="nav-link" data-nav="closing" href="closing-entries.html"><span class="nav-icon">🔒</span> Closing entries</a>
-      <a class="nav-link" data-nav="mappings" href="financial-mappings.html"><span class="nav-icon">↔</span> Financial mappings</a>
-      <a class="nav-link" data-nav="rules" href="accounting-rules.html"><span class="nav-icon">⚙</span> Rules / frequent</a>
-      <a class="nav-link" data-nav="accruals" href="accruals.html"><span class="nav-icon">⏱</span> Accruals / provisioning</a>
-      <a class="nav-link" data-nav="trial" href="trial-balance.html"><span class="nav-icon">⚖</span> Trial balance</a>
-      <a class="nav-link" data-nav="is" href="income-statement.html"><span class="nav-icon">📈</span> Income statement</a>
-      <a class="nav-link" data-nav="bs" href="balance-sheet.html"><span class="nav-icon">📊</span> Balance sheet</a>
+      <a class="nav-link" data-nav="accounting" href="accounting.html"><span class="nav-icon" aria-hidden="true">📒</span> Chart of accounts</a>
+      <a class="nav-link" data-nav="journals" href="journals.html"><span class="nav-icon" aria-hidden="true">☰</span> Journal entries</a>
+      <a class="nav-link" data-nav="journal" href="journal-entry.html"><span class="nav-icon" aria-hidden="true">✎</span> Create journal</a>
+      <a class="nav-link" data-nav="closing" href="closing-entries.html"><span class="nav-icon" aria-hidden="true">🔒</span> Closing entries</a>
+      <a class="nav-link" data-nav="mappings" href="financial-mappings.html"><span class="nav-icon" aria-hidden="true">↔</span> Financial mappings</a>
+      <a class="nav-link" data-nav="rules" href="accounting-rules.html"><span class="nav-icon" aria-hidden="true">⚙</span> Rules / frequent</a>
+      <a class="nav-link" data-nav="accruals" href="accruals.html"><span class="nav-icon" aria-hidden="true">⏱</span> Accruals / provisioning</a>
+      <a class="nav-link" data-nav="trial" href="trial-balance.html"><span class="nav-icon" aria-hidden="true">⚖</span> Trial balance</a>
+      <a class="nav-link" data-nav="is" href="income-statement.html"><span class="nav-icon" aria-hidden="true">📈</span> Income statement</a>
+      <a class="nav-link" data-nav="bs" href="balance-sheet.html"><span class="nav-icon" aria-hidden="true">📊</span> Balance sheet</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Organization</div>
-      <a class="nav-link" data-nav="offices" href="offices.html"><span class="nav-icon">🏢</span> Offices / staff</a>
-      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon">🖥</span> Tellers setup</a>
+      <a class="nav-link" data-nav="offices" href="offices.html"><span class="nav-icon" aria-hidden="true">🏢</span> Offices / staff</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Reports</div>
-      <a class="nav-link" data-nav="reports" href="reports.html"><span class="nav-icon">📊</span> Report catalog</a>
-      <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon">📄</span> Member statement</a>
+      <a class="nav-link" data-nav="reports" href="reports.html"><span class="nav-icon" aria-hidden="true">📊</span> Report catalog</a>
+      <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
       <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
@@ -72,63 +71,57 @@
       <a class="nav-link" data-nav="system" href="system.html"><span class="nav-icon" aria-hidden="true">⏲</span> System</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><span class="mock-badge">MOCK UI</span><div style="margin-top:6px">Tenant: default · env: local</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
 
 <header class="topbar">
-  <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Menu">☰</button>
-  <div class="topbar-search"><span class="search-ico">⌕</span>
-    <input type="search" placeholder="Search member by name, ID, phone…" /></div>
-  <span class="chip">Branch: Kampala Main</span>
-  <span class="chip green">Teller: Open</span>
-  <div class="topbar-right"><span class="chip amber">MOCK</span><div class="avatar">OM</div></div>
+  <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Open menu" aria-controls="sidebar">☰</button>
+  <div class="topbar-search" role="search"><span class="search-ico" aria-hidden="true">⌕</span>
+    <label for="global-search" class="sr-only">Search members, loans and savings</label>
+    <input id="global-search" type="search" placeholder="Search member, account no, phone…" /></div>
+  <span class="chip" id="office-chip" hidden></span>
+  <div class="topbar-right">
+    <span class="user-name" id="user-name"></span>
+    <div class="avatar" id="user-avatar" aria-hidden="true">?</div>
+    <button type="button" class="btn btn-sm btn-ghost" id="logout-btn">Log out</button>
+  </div>
 </header>
 
-    <div class="content">
+    <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Member statement</h1><p class="page-sub">Ugandan SACCO operations · Currency UGX · Kampala Main</p></div>
-        <div class="api-chip"><span>Fineract</span> /runreports/ClientStatement · /clients/{id}</div>
+        <div><h1>Member statement</h1><p class="page-sub">Savings, shares and loan transactions for a member over a date range, with opening and closing balances.</p></div>
       </div>
 
-      <div class="filters">
-        <input type="date" value="2026-01-01" /><input type="date" value="2026-09-30" />
-        <select><option>Nakato Grace · 0001284</option><option>Okello Daniel</option></select>
-        <button class="btn" data-mock="Run statement">Run</button>
-        <button class="btn btn-ghost" data-print>Print / PDF</button>
-      </div>
-      <div class="statement">
-        <div class="statement-head">
-          <div><div class="statement-brand">Phaneroo SACCO · Kampala Main</div>
-            <div class="text-muted" style="font-size:12px">Member statement (MOCK)</div></div>
-          <div style="text-align:right"><div class="strong">Nakato Grace</div>
-            <div class="text-muted" style="font-size:12px">#0001284 · 01 Jan – 30 Sep 2026</div></div>
+      <form class="filters" id="statement-form" novalidate>
+        <label for="st-client">Member</label><input id="st-client" type="text" placeholder="Search name, account no or phone" autocomplete="off" />
+        <label for="st-from">From</label><input id="st-from" type="date" required />
+        <label for="st-to">To</label><input id="st-to" type="date" required />
+        <button type="submit" class="btn">Run</button>
+        <span id="st-actions" hidden>
+          <button type="button" class="btn btn-ghost" id="st-print">Print / PDF</button>
+          <button type="button" class="btn btn-ghost" id="st-csv">Export CSV</button>
+        </span>
+      </form>
+      <div class="statement" id="statement">
+        <div class="st-head">
+          <div class="st-brand"><img src="assets/phaneroo-logo.png" alt="Phaneroo SACCO logo" class="st-logo" />
+            <div><div class="statement-brand">Phaneroo SACCO</div>
+              <div class="text-muted small-note">Member account statement</div>
+              <div class="text-muted small-note" id="st-printed"></div></div></div>
+          <div class="st-member"><div class="strong" id="st-name">—</div>
+            <div class="text-muted small-note" id="st-acno"></div>
+            <div class="text-muted small-note" id="st-office"></div>
+            <div class="small-note strong" id="st-range"></div></div>
         </div>
-        <h3 style="font-size:14px;margin:0 0 8px">Savings SA-90112</h3>
-        <div class="table-wrap" style="margin-bottom:18px"><table class="data">
-          <thead><tr><th>Date</th><th>Description</th><th class="text-right">Credit</th><th class="text-right">Balance</th></tr></thead>
-          <tbody>
-            <tr><td>01 Jan</td><td>Opening</td><td class="mono text-right">—</td><td class="mono text-right">1,400,000</td></tr>
-            <tr><td>22 Sep</td><td>Deposit</td><td class="mono text-right">50,000</td><td class="mono text-right">1,850,000</td></tr>
-          </tbody>
-        </table></div>
-        <h3 style="font-size:14px;margin:0 0 8px">Loan 0004821</h3>
-        <div class="table-wrap"><table class="data">
-          <thead><tr><th>Date</th><th>Description</th><th class="text-right">Amount</th><th class="text-right">Outstanding</th></tr></thead>
-          <tbody>
-            <tr><td>15 Mar 2025</td><td>Disbursement</td><td class="mono text-right">3,000,000</td><td class="mono text-right">3,000,000</td></tr>
-            <tr><td>30 Sep 2026</td><td>Repayment</td><td class="mono text-right">250,000</td><td class="mono text-right">1,240,000</td></tr>
-          </tbody>
-        </table></div>
+        <div id="st-body" aria-live="polite"><div class="empty-state">Choose a member and date range, then Run.</div></div>
       </div>
-
-    </div>
+    </main>
   </div>
 </div>
   <script src="assets/api.js"></script>
   <script src="assets/app.js"></script>
-  <script src="assets/pages.js"></script>
-  <script src="assets/actions.js"></script>
+  <script src="assets/accounting.js"></script>
 </body>
 </html>

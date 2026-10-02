@@ -188,7 +188,7 @@
     return {
       name: text(v.name, "Name", 100),
       shortName: text(v.shortName, "Short name", 4),
-      description: description || "Phaneroo SACCO voluntary savings",
+      description: description || "Pivot SACCO voluntary savings",
       currencyCode: code,
       digitsAfterDecimal: digitsFor(pack, code),
       inMultiplesOf: 1,
