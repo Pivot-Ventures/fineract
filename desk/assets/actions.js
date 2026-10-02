@@ -3,1554 +3,672 @@
   "use strict";
   var api = window.FineractAPI;
   if (!api || !api.isLoggedIn()) return;
+
   var page = document.body.getAttribute("data-page") || "";
-  var CTX = "pivot_teller_ctx";
+  var sess = api.getSession() || {};
+  var esc = api.escapeHtml;
   var CCY = "UGX";
-  function ctx() {
-    try { return JSON.parse(sessionStorage.getItem(CTX) || "{}") || {}; }
-    catch (e) { return {}; }
+  var DATE = { locale: "en", dateFormat: "yyyy-MM-dd" };
+
+  function $(id) { return document.getElementById(id); }
+  function withDate(body) { return Object.assign({}, DATE, body); }
+  function refresh() { document.dispatchEvent(new CustomEvent("desk:refresh")); }
+  function fail(err) { if (err && err.status !== 401) api.toast(err.message || String(err), "error"); }
+  function fullName(c) {
+    return c.displayName || ((c.firstname || "") + " " + (c.lastname || "")).trim() || ("#" + c.id);
   }
-  function saveCtx(patch) {
-    var next = Object.assign(ctx(), patch || {});
-    sessionStorage.setItem(CTX, JSON.stringify(next));
-    return next;
-  }
-  function moneyPayload(amount, date, note) {
-    return { locale: "en", dateFormat: "yyyy-MM-dd", txnDate: date || api.todayISO(), txnAmount: String(amount), currencyCode: CCY, txnNote: note || "" };
-  }
-  function cardByHeading(fragment) {
-    var want = fragment.toLowerCase();
-    var nodes = document.querySelectorAll(".card-h h2, h2");
-    for (var i = 0; i < nodes.length; i++) {
-      if ((nodes[i].textContent || "").trim().toLowerCase().indexOf(want) >= 0) return nodes[i].closest(".card");
-    }
-    return null;
-  }
-  function on(btn, fn) {
-    if (!btn) return;
-    api.markWired(btn);
-    btn.addEventListener("click", function (e) {
+  /* Click handler with a busy guard so a double click cannot start two flows. */
+  function on(el, fn) {
+    if (!el) return;
+    el.addEventListener("click", function (e) {
       e.preventDefault();
-      Promise.resolve(fn(btn)).catch(function (err) { api.toast(err.message || String(err), "error"); });
+      if (el.getAttribute("aria-busy") === "true") return;
+      el.setAttribute("aria-busy", "true");
+      Promise.resolve().then(function () { return fn(el); }).catch(fail).then(function () {
+        el.removeAttribute("aria-busy");
+      });
     });
   }
-  function buttonsNamed(name) {
-    return Array.prototype.filter.call(document.querySelectorAll("[data-mock]"), function (b) { return b.getAttribute("data-mock") === name; });
+  function actions(name) {
+    return Array.prototype.slice.call(document.querySelectorAll('[data-action="' + name + '"]'));
   }
-  function txnRows(items) {
-    if (!items || !items.length) return '<tr><td colspan="5">No cashier transactions yet</td></tr>';
-    return items.map(function (t) {
-      var type = (t.txnType && (t.txnType.value || t.txnType)) || "—";
-      var id = t.txnType && t.txnType.id;
-      var inn = (id === 101 || id === 103) ? api.formatMoney(t.txnAmount) : "—";
-      var out = (id === 102 || id === 104) ? api.formatMoney(t.txnAmount) : "—";
-      var when = t.createdDate ? String(t.createdDate).replace("T", " ").slice(0, 16) : api.formatDate(t.txnDate);
-      return "<tr><td class=\"mono\">" + api.escapeHtml(when) + "</td><td>" + api.escapeHtml(String(type)) + "</td><td>" + api.escapeHtml(t.txnNote || "—") + "</td><td class=\"mono text-right\">" + inn + "</td><td class=\"mono text-right\">" + out + "</td></tr>";
-    }).join("");
+  function onAction(name, fn) { actions(name).forEach(function (b) { on(b, fn); }); }
+  /* Disables a form's submit button while fn runs. */
+  function onSubmitForm(form, fn) {
+    if (!form) return;
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var btn = form.querySelector("button[type=submit]");
+      if (btn && btn.disabled) return;
+      if (btn) btn.disabled = true;
+      Promise.resolve().then(function () { return fn(form); }).catch(fail).then(function () {
+        if (btn) btn.disabled = false;
+      });
+    });
+  }
+  function optionLabel(field, value) {
+    var o = (field.options || []).filter(function (x) { return String(x.value) === String(value); })[0];
+    return o ? o.label : String(value);
+  }
+  function officeOpts(offices) {
+    return offices.map(function (o) { return { value: o.id, label: o.name }; });
   }
   async function loadOffices() {
     var offices = await api.get("/offices");
     return Array.isArray(offices) ? offices : [];
   }
-  async function ensureSession() {
-    var c = ctx();
-    var tellers = await api.get("/tellers");
-    if (!Array.isArray(tellers) || !tellers.length) throw new Error("No tellers — create one under Tellers and cashiers");
-    var tid = api.qs("tellerId") || c.tellerId || tellers[0].id;
-    var pack = await api.get("/tellers/" + tid + "/cashiers");
-    var list = pack.cashiers || [];
-    if (!list.length) throw new Error("Teller has no cashier. Assign one on the teller page.");
-    var cid = api.qs("cashierId") || c.cashierId || list[0].id;
-    var cashier = list.filter(function (x) { return String(x.id) === String(cid); })[0] || list[0];
-    var teller = tellers.filter(function (t) { return String(t.id) === String(tid); })[0] || tellers[0];
-    return saveCtx({ tellerId: teller.id, tellerName: teller.name, officeId: teller.officeId, cashierId: cashier.id, cashierName: cashier.staffName, staffId: cashier.staffId });
+  function defaultOffice(offices) {
+    var has = offices.some(function (o) { return String(o.id) === String(sess.officeId); });
+    return has ? String(sess.officeId) : (offices[0] ? String(offices[0].id) : "");
   }
-  async function summary(tellerId, cashierId) {
-    return api.get("/tellers/" + tellerId + "/cashiers/" + cashierId + "/summaryandtransactions?currencyCode=" + CCY + "&limit=50");
+  function amountField(label) {
+    return { key: "amount", label: label || "Amount (UGX)", amount: true, required: true };
   }
-  var STATUS_OPTS = [
-    { value: "100", label: "Pending (100)" },
-    { value: "300", label: "Active (300)" },
-    { value: "400", label: "Inactive (400)" },
-    { value: "600", label: "Closed (600)" }
-  ];
-  var STATUS_MAP = { PENDING: "100", ACTIVE: "300", INACTIVE: "400", CLOSED: "600" };
-
-  if (page === "tellers") {
-    api.claimMocks(["Create teller", "Edit teller"]);
-    var selectedId = null;
-    var tbody = document.querySelector("#tellers-table tbody");
-    var officeFilter = document.querySelector(".filters select");
-    async function reload() {
-      var pair = await Promise.all([api.get("/tellers"), loadOffices()]);
-      var tellers = Array.isArray(pair[0]) ? pair[0] : [];
-      var offices = pair[1];
-      if (officeFilter) {
-        var cur = officeFilter.value;
-        officeFilter.innerHTML = '<option value="">All offices</option>' + offices.map(function (o) {
-          return '<option value="' + o.id + '">' + api.escapeHtml(o.name) + "</option>";
-        }).join("");
-        if (cur) officeFilter.value = cur;
-      }
-      var oid = officeFilter && officeFilter.value;
-      var rows = tellers.filter(function (t) { return !oid || String(t.officeId) === String(oid); });
-      if (tbody) {
-        tbody.innerHTML = rows.map(function (t) {
-          var st = String(t.status || "—");
-          return '<tr data-id="' + t.id + '"><td class="strong"><a href="teller-detail.html?id=' + t.id + '">' + api.escapeHtml(t.name) + "</a></td><td>" +
-            api.escapeHtml(t.officeName || "") + "</td><td>" + api.escapeHtml(t.description || "—") + '</td><td><span class="status ' +
-            (st.toLowerCase() === "active" ? "open" : "closed") + '">' + api.escapeHtml(st) + '</span></td><td class="mono">—</td><td><a class="btn btn-sm" href="teller-detail.html?id=' + t.id + '">Open</a></td></tr>';
-        }).join("") || '<tr><td colspan="6">No tellers. Use Create teller.</td></tr>';
-        tbody.querySelectorAll("tr[data-id]").forEach(function (tr) {
-          tr.addEventListener("click", function () {
-            selectedId = tr.getAttribute("data-id");
-            tbody.querySelectorAll("tr").forEach(function (r) { r.style.outline = ""; });
-            tr.style.outline = "2px solid #0E6B66";
-          });
-        });
-      }
-      api.setLiveBanner(true, "LIVE — GET /tellers · POST /tellers (status 300 = ACTIVE)");
-    }
-    if (officeFilter) officeFilter.addEventListener("change", function () { reload().catch(function (e) { api.toast(e.message, "error"); }); });
-    buttonsNamed("Create teller").forEach(function (btn) {
-      on(btn, async function () {
-        var offices = await loadOffices();
-        var v = await api.openDialog({
-          title: "Create teller", submitLabel: "Create",
-          fields: [
-            { key: "name", label: "Teller name", value: "" },
-            { key: "description", label: "Description", value: "Counter teller" },
-            { key: "officeId", label: "Office", type: "select", value: "2", options: offices.map(function (o) { return { value: o.id, label: o.name }; }) },
-            { key: "startDate", label: "Start date", type: "date", value: api.todayISO() },
-            { key: "status", label: "Status", type: "select", value: "300", options: STATUS_OPTS }
-          ]
-        });
-        if (!v || !String(v.name || "").trim()) return;
-        var res = await api.post("/tellers", {
-          officeId: Number(v.officeId), name: v.name.trim(), description: v.description || "",
-          status: Number(v.status), locale: "en", dateFormat: "yyyy-MM-dd", startDate: v.startDate || api.todayISO()
-        });
-        api.toast("Teller created #" + (res.resourceId || ""), "success");
-        saveCtx({ tellerId: res.resourceId, officeId: Number(v.officeId), tellerName: v.name.trim() });
-        await reload();
-      });
-    });
-    buttonsNamed("Edit teller").forEach(function (btn) {
-      on(btn, async function () {
-        if (!selectedId) { api.toast("Click a teller row first, then Edit", "error"); return; }
-        var teller = await api.get("/tellers/" + selectedId);
-        var offices = await loadOffices();
-        var v = await api.openDialog({
-          title: "Edit teller #" + selectedId, submitLabel: "Save",
-          fields: [
-            { key: "name", label: "Teller name", value: teller.name || "" },
-            { key: "description", label: "Description", value: teller.description || "" },
-            { key: "officeId", label: "Office", type: "select", value: String(teller.officeId || ""), options: offices.map(function (o) { return { value: o.id, label: o.name }; }) },
-            { key: "startDate", label: "Start date", type: "date", value: api.formatDate(teller.startDate) },
-            { key: "status", label: "Status", type: "select", value: STATUS_MAP[teller.status] || "300", options: STATUS_OPTS }
-          ]
-        });
-        if (!v) return;
-        await api.put("/tellers/" + selectedId, {
-          officeId: Number(v.officeId), name: v.name.trim(), description: v.description || "",
-          status: Number(v.status), locale: "en", dateFormat: "yyyy-MM-dd", startDate: v.startDate
-        });
-        api.toast("Teller updated", "success");
-        await reload();
-      });
-    });
-    reload().catch(function (err) { api.setLiveBanner(false, err.message); api.toast(err.message, "error"); });
+  function dateField(label, key) {
+    return { key: key || "date", label: label || "Date", type: "date", required: true, value: api.todayISO(), max: api.todayISO() };
+  }
+  function noteField(placeholder) {
+    return { key: "note", label: "Note", placeholder: placeholder || "optional" };
   }
 
-  if (page === "teller-detail") {
-    api.claimMocks(["Edit teller", "Create cashier", "Allocate cash", "POST allocate", "Edit cashier", "View cashier txns"]);
-    var tellerId = api.qs("id");
-    async function paintTxns(cashierId) {
-      var sum = await summary(tellerId, cashierId);
-      var items = (sum.cashierTransactions && sum.cashierTransactions.pageItems) || [];
-      var tables = document.querySelectorAll("table.data");
-      var txnTable = tables[1];
-      if (txnTable && txnTable.querySelector("tbody")) {
-        txnTable.querySelector("tbody").innerHTML = items.map(function (t) {
-          return "<tr><td>" + api.formatDate(t.txnDate) + "</td><td>" + api.escapeHtml((t.txnType && t.txnType.value) || "—") + '</td><td class="mono text-right">' + api.formatMoney(t.txnAmount) + "</td></tr>";
-        }).join("") || '<tr><td colspan="3">No transactions</td></tr>';
-      }
+  /* Tellers, cashiers, teller desk and cashier EOD live in assets/frontoffice.js. */
+
+  /* ---------- money dialog shared by the savings pages ---------- */
+  async function savingsTxnDialog(command, account) {
+    var pt = await api.paymentTypeField();
+    var isDeposit = command === "deposit";
+    var fields = [];
+    if (!account) {
+      fields.push({ key: "savingsId", label: "Savings account", type: "search", required: true, placeholder: "Account no or member name", search: function (q) { return api.searchSavings(q, true); } });
     }
-    async function editCashier(cashierId) {
-      var cur = await api.get("/tellers/" + tellerId + "/cashiers/" + cashierId);
-      var tmpl = await api.get("/tellers/" + tellerId + "/cashiers/template");
-      var staff = tmpl.staffOptions || [];
-      if (!staff.some(function (s) { return String(s.id) === String(cur.staffId); })) staff = [{ id: cur.staffId, displayName: cur.staffName }].concat(staff);
-      var v = await api.openDialog({
-        title: "Edit cashier #" + cashierId, submitLabel: "Save",
-        fields: [
-          { key: "staffId", label: "Staff", type: "select", value: String(cur.staffId), options: staff.map(function (s) { return { value: s.id, label: s.displayName }; }) },
-          { key: "description", label: "Description", value: cur.description || "" },
-          { key: "startDate", label: "From", type: "date", value: api.formatDate(cur.startDate) },
-          { key: "endDate", label: "To", type: "date", value: api.formatDate(cur.endDate) },
-          { key: "isFullDay", label: "Full day", type: "select", value: cur.isFullDay ? "true" : "false", options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] }
-        ]
-      });
-      if (!v) return;
-      var body = { staffId: Number(v.staffId), description: v.description || "", isFullDay: v.isFullDay === "true", locale: "en", dateFormat: "yyyy-MM-dd", startDate: v.startDate, endDate: v.endDate };
-      if (!body.isFullDay) { body.hourStartTime = "09"; body.minStartTime = "00"; body.hourEndTime = "17"; body.minEndTime = "00"; }
-      await api.put("/tellers/" + tellerId + "/cashiers/" + cashierId, body);
-      api.toast("Cashier updated", "success");
-      await paint();
-    }
-    async function paint() {
-      if (!tellerId) {
-        var all = await api.get("/tellers");
-        if (Array.isArray(all) && all[0]) tellerId = all[0].id;
+    fields.push(amountField(), pt, dateField(), noteField());
+    return api.openDialog({
+      title: isDeposit ? "Deposit (cash in)" : "Withdraw (cash out)", submitLabel: "Review", fields: fields,
+      confirm: function (v) {
+        return {
+          title: isDeposit ? "Confirm deposit" : "Confirm withdrawal",
+          lines: [
+            ["Account", account ? "#" + account.accountNo + " · " + (account.clientName || "") : (v.savingsIdLabel || v.savingsId)],
+            ["Amount", api.formatMoney(v.amount)], ["Payment type", optionLabel(pt, v.paymentTypeId)], ["Date", v.date]
+          ],
+          confirmLabel: (isDeposit ? "Post deposit of " : "Post withdrawal of ") + api.formatMoney(v.amount)
+        };
+      },
+      onSubmit: function (v) {
+        var id = account ? account.id : v.savingsId;
+        return api.post("/savingsaccounts/" + encodeURIComponent(id) + "/transactions?command=" + command, withDate({
+          transactionDate: v.date, transactionAmount: String(v.amount), paymentTypeId: Number(v.paymentTypeId), note: v.note || ""
+        }));
       }
-      if (!tellerId) throw new Error("No teller id");
-      var teller = await api.get("/tellers/" + tellerId);
-      saveCtx({ tellerId: teller.id, tellerName: teller.name, officeId: teller.officeId });
-      var h1 = document.querySelector(".page-header h1");
-      if (h1) h1.textContent = teller.name || ("Teller " + tellerId);
-      var sub = document.querySelector(".page-sub");
-      if (sub) sub.textContent = (teller.officeName || "") + " · status " + (teller.status || "") + " · id " + teller.id;
-      var head = document.querySelector(".profile-head h2");
-      if (head) head.innerHTML = api.escapeHtml(teller.name || "") + ' <span class="status ' + (teller.status === "ACTIVE" ? "open" : "closed") + '">' + api.escapeHtml(teller.status || "") + "</span>";
-      var muted = document.querySelector(".profile-head .text-muted");
-      if (muted) muted.textContent = "Office: " + (teller.officeName || teller.officeId) + " · POST status uses 300 = ACTIVE";
-      var pack = await api.get("/tellers/" + tellerId + "/cashiers");
-      var list = pack.cashiers || [];
-      var tbody = document.querySelector("table.data tbody");
-      if (tbody) {
-        tbody.innerHTML = list.map(function (c) {
-          return '<tr><td class="strong">' + api.escapeHtml(c.staffName || String(c.staffId)) + "</td><td>" + api.formatDate(c.startDate) + "</td><td>" + api.formatDate(c.endDate) + "</td><td>" + (c.isFullDay ? "Yes" : "No") + '</td><td><span class="status open">Assigned</span></td><td class="btn-group">' +
-            '<button class="btn btn-sm" type="button" data-act="alloc" data-cashier="' + c.id + '">Allocate</button>' +
-            '<a class="btn btn-sm btn-ghost" href="cashier-eod.html?tellerId=' + tellerId + "&cashierId=" + c.id + '">Settle</a>' +
-            '<button class="btn btn-sm btn-ghost" type="button" data-act="editc" data-cashier="' + c.id + '">Edit</button>' +
-            '<a class="btn btn-sm btn-ghost" href="teller.html?tellerId=' + tellerId + "&cashierId=" + c.id + '">Desk</a></td></tr>';
-        }).join("") || '<tr><td colspan="6">No cashiers — assign one</td></tr>';
-        tbody.querySelectorAll("[data-act=alloc]").forEach(function (b) {
-          b.addEventListener("click", function () {
-            saveCtx({ tellerId: Number(tellerId), cashierId: Number(b.getAttribute("data-cashier")) });
-            var card = cardByHeading("Allocate cash");
-            if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
-            api.toast("Cashier #" + b.getAttribute("data-cashier") + " selected", "success");
-          });
-        });
-        tbody.querySelectorAll("[data-act=editc]").forEach(function (b) {
-          b.addEventListener("click", function () { editCashier(Number(b.getAttribute("data-cashier"))).catch(function (e) { api.toast(e.message, "error"); }); });
-        });
-      }
-      var known = list.some(function (c) { return String(c.id) === String(ctx().cashierId); });
-      var cashierId = known ? ctx().cashierId : (list[0] && list[0].id);
-      if (cashierId) {
-        var match = list.filter(function (c) { return String(c.id) === String(cashierId); })[0] || {};
-        saveCtx({ cashierId: cashierId, cashierName: match.staffName });
-        await paintTxns(cashierId);
-      }
-      api.setLiveBanner(true, "LIVE — /tellers/" + tellerId + " · cashiers · /allocate");
-    }
-    buttonsNamed("Edit teller").forEach(function (btn) {
-      on(btn, async function () {
-        var teller = await api.get("/tellers/" + tellerId);
-        var offices = await loadOffices();
-        var v = await api.openDialog({
-          title: "Edit teller", submitLabel: "Save",
-          fields: [
-            { key: "name", label: "Name", value: teller.name || "" },
-            { key: "description", label: "Description", value: teller.description || "" },
-            { key: "officeId", label: "Office", type: "select", value: String(teller.officeId), options: offices.map(function (o) { return { value: o.id, label: o.name }; }) },
-            { key: "startDate", label: "Start date", type: "date", value: api.formatDate(teller.startDate) },
-            { key: "status", label: "Status", type: "select", value: STATUS_MAP[teller.status] || "300", options: STATUS_OPTS }
-          ]
-        });
-        if (!v) return;
-        await api.put("/tellers/" + tellerId, { officeId: Number(v.officeId), name: v.name.trim(), description: v.description || "", status: Number(v.status), locale: "en", dateFormat: "yyyy-MM-dd", startDate: v.startDate });
-        api.toast("Teller updated", "success");
-        await paint();
-      });
     });
-    buttonsNamed("Create cashier").forEach(function (btn) {
-      on(btn, async function () {
-        var tmpl = await api.get("/tellers/" + tellerId + "/cashiers/template");
-        var staff = tmpl.staffOptions || [];
-        if (!staff.length) { api.toast("No free staff for this office (cashier template staffOptions is empty)", "error"); return; }
-        var v = await api.openDialog({
-          title: "Assign cashier", submitLabel: "Assign",
-          fields: [
-            { key: "staffId", label: "Staff", type: "select", options: staff.map(function (s) { return { value: s.id, label: s.displayName }; }) },
-            { key: "description", label: "Description", value: "Day cashier" },
-            { key: "startDate", label: "From", type: "date", value: api.todayISO() },
-            { key: "endDate", label: "To", type: "date", value: "2027-12-31" },
-            { key: "isFullDay", label: "Full day", type: "select", value: "true", options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] }
-          ]
-        });
-        if (!v) return;
-        var body = { staffId: Number(v.staffId), description: v.description || "", isFullDay: v.isFullDay !== "false", locale: "en", dateFormat: "yyyy-MM-dd", startDate: v.startDate, endDate: v.endDate };
-        if (!body.isFullDay) { body.hourStartTime = "09"; body.minStartTime = "00"; body.hourEndTime = "17"; body.minEndTime = "00"; }
-        var res = await api.post("/tellers/" + tellerId + "/cashiers", body);
-        api.toast("Cashier assigned" + (res.subResourceId ? " #" + res.subResourceId : ""), "success");
-        if (res.subResourceId) saveCtx({ tellerId: Number(tellerId), cashierId: res.subResourceId });
-        await paint();
-      });
-    });
-    buttonsNamed("POST allocate").forEach(function (btn) {
-      on(btn, async function () {
-        var c = ctx();
-        if (!c.cashierId) throw new Error("Select a cashier row (Allocate) first");
-        var card = cardByHeading("Allocate cash");
-        var inputs = card ? card.querySelectorAll("input") : [];
-        var amount = api.parseAmount(inputs[0] && inputs[0].value);
-        var date = (inputs[1] && inputs[1].value) || api.todayISO();
-        var note = (inputs[2] && inputs[2].value) || "Vault allocation";
-        if (!amount || amount <= 0) throw new Error("Enter an allocate amount");
-        var res = await api.post("/tellers/" + tellerId + "/cashiers/" + c.cashierId + "/allocate", moneyPayload(amount, date, note));
-        api.toast("Allocated " + api.formatMoney(amount) + " (txn #" + (res.subResourceId || res.resourceId || "") + ")", "success");
-        await paintTxns(c.cashierId);
-      });
-    });
-    paint().catch(function (err) { api.setLiveBanner(false, err.message); api.toast(err.message, "error"); });
   }
 
-  if (page === "teller") {
-    api.claimMocks(["Open teller session", "Allocate cash", "Allocate", "Settle", "Cash in", "Cash out", "Repay", "Deposit", "Withdraw", "Shares", "Search"]);
-    function kpiSet(label, value, meta) {
-      document.querySelectorAll(".kpi-card").forEach(function (card) {
-        var lab = card.querySelector(".kpi-label");
-        if (lab && lab.textContent.toLowerCase().indexOf(label) >= 0) {
-          var val = card.querySelector(".kpi-value");
-          if (val) val.textContent = value;
-          var m = card.querySelector(".kpi-meta");
-          if (m && meta) m.textContent = meta;
-        }
-      });
-    }
-    async function paintDesk() {
-      var c = await ensureSession();
-      var sum = await summary(c.tellerId, c.cashierId);
-      var items = (sum.cashierTransactions && sum.cashierTransactions.pageItems) || [];
-      kpiSet("opening", api.formatMoney(sum.sumCashAllocation));
-      kpiSet("allocated", api.formatMoney(sum.sumCashAllocation));
-      kpiSet("cash in", api.formatMoney(sum.sumInwardCash));
-      kpiSet("cash out", api.formatMoney(sum.sumOutwardCash));
-      kpiSet("running", api.formatMoney(sum.netCash), (sum.cashierName || c.cashierName || "") + " · " + (sum.tellerName || ""));
-      var sub = document.querySelector(".page-sub");
-      if (sub) sub.textContent = (sum.tellerName || "") + " · " + (sum.cashierName || "") + " · drawer " + api.formatMoney(sum.netCash);
-      var chip = document.querySelector(".topbar .chip.green");
-      if (chip) chip.textContent = "Teller: " + (sum.tellerName || "Open");
-      var tables = document.querySelectorAll("table.data");
-      var txnBody = tables[1] && tables[1].querySelector("tbody");
-      if (txnBody) txnBody.innerHTML = txnRows(items);
-      var clients = await api.get("/clients?limit=50");
-      var cbody = document.querySelector("#teller-members tbody");
-      if (cbody) {
-        cbody.innerHTML = (clients.pageItems || []).map(function (cl) {
-          return '<tr><td class="mono">' + api.escapeHtml(cl.accountNo || String(cl.id)) + "</td><td>" + api.escapeHtml(cl.displayName || "") + "</td><td>" + api.escapeHtml(cl.officeName || "") + '</td><td><a class="btn btn-sm" href="client-detail.html?id=' + cl.id + '">Select</a></td></tr>';
-        }).join("") || '<tr><td colspan="4">No clients</td></tr>';
-      }
-      api.setLiveBanner(true, "LIVE — cashier #" + c.cashierId + " on teller #" + c.tellerId);
-      return c;
-    }
-    async function cashMove(command) {
-      var sav = await api.get("/savingsaccounts?limit=100");
-      var items = sav.pageItems || [];
-      if (!items.length) throw new Error("No savings accounts to post cash against");
-      var v = await api.openDialog({
-        title: command === "deposit" ? "Cash in (savings deposit)" : "Cash out (savings withdrawal)",
-        submitLabel: command === "deposit" ? "Cash in" : "Cash out",
-        fields: [
-          { key: "savingsAccountId", label: "Savings account", type: "select", options: items.map(function (s) { return { value: s.id, label: (s.accountNo || s.id) + " · " + (s.clientName || "") + " · " + api.formatMoney(s.accountBalance) }; }) },
-          { key: "amount", label: "Amount (UGX)", type: "number", value: "10000" },
-          { key: "note", label: "Note", value: command === "deposit" ? "Teller cash in" : "Teller cash out" }
-        ]
-      });
-      if (!v) return;
-      var amount = api.parseAmount(v.amount);
-      if (!amount || amount <= 0) throw new Error("Enter an amount");
-      await api.post("/savingsaccounts/" + v.savingsAccountId + "/transactions?command=" + command, {
-        locale: "en", dateFormat: "yyyy-MM-dd", transactionDate: api.todayISO(), transactionAmount: String(amount), paymentTypeId: 4, note: v.note || command
-      });
-      api.toast((command === "deposit" ? "Cash in" : "Cash out") + " " + api.formatMoney(amount) + " posted", "success");
-      await paintDesk();
-    }
-    on(buttonsNamed("Open teller session")[0], async function () {
-      var tellers = await api.get("/tellers");
-      if (!Array.isArray(tellers) || !tellers.length) throw new Error("Create a teller first");
-      var options = [];
-      for (var i = 0; i < tellers.length; i++) {
-        var pack = await api.get("/tellers/" + tellers[i].id + "/cashiers");
-        (pack.cashiers || []).forEach(function (c) {
-          options.push({ value: tellers[i].id + ":" + c.id, label: tellers[i].name + " · " + (c.staffName || ("cashier " + c.id)) });
-        });
-      }
-      if (!options.length) throw new Error("No cashier assignments yet");
-      var cur = ctx();
-      var v = await api.openDialog({
-        title: "Open teller session", submitLabel: "Use this cashier",
-        fields: [{ key: "pair", label: "Teller / cashier", type: "select", value: (cur.tellerId && cur.cashierId) ? (cur.tellerId + ":" + cur.cashierId) : options[0].value, options: options }]
-      });
-      if (!v) return;
-      var parts = String(v.pair).split(":");
-      saveCtx({ tellerId: Number(parts[0]), cashierId: Number(parts[1]) });
-      api.toast("Session set to teller " + parts[0] + " / cashier " + parts[1], "success");
-      await paintDesk();
-    });
-    buttonsNamed("Allocate cash").concat(buttonsNamed("Allocate")).forEach(function (btn) {
-      on(btn, async function () {
-        var c = await ensureSession();
-        var v = await api.openDialog({
-          title: "Allocate cash to " + (c.cashierName || ("cashier " + c.cashierId)), submitLabel: "Allocate",
-          fields: [
-            { key: "amount", label: "Amount (UGX)", type: "number", value: "100000" },
-            { key: "date", label: "Date", type: "date", value: api.todayISO() },
-            { key: "note", label: "Note", value: "Vault allocation" }
-          ]
-        });
-        if (!v) return;
-        var amount = api.parseAmount(v.amount);
-        if (!amount || amount <= 0) throw new Error("Enter an amount");
-        var res = await api.post("/tellers/" + c.tellerId + "/cashiers/" + c.cashierId + "/allocate", moneyPayload(amount, v.date, v.note));
-        api.toast("Allocated " + api.formatMoney(amount) + " · txn #" + (res.subResourceId || res.resourceId || ""), "success");
-        await paintDesk();
-      });
-    });
-    buttonsNamed("Settle").forEach(function (btn) {
-      on(btn, async function () {
-        var c = await ensureSession();
-        var sum = await summary(c.tellerId, c.cashierId);
-        var v = await api.openDialog({
-          title: "Settle cash from drawer", submitLabel: "Settle",
-          fields: [
-            { key: "amount", label: "Amount (UGX)", type: "number", value: String(sum.netCash || 0) },
-            { key: "date", label: "Date", type: "date", value: api.todayISO() },
-            { key: "note", label: "Note", value: "Settle to vault" }
-          ]
-        });
-        if (!v) return;
-        var amount = api.parseAmount(v.amount);
-        if (!amount || amount <= 0) throw new Error("Enter an amount");
-        var res = await api.post("/tellers/" + c.tellerId + "/cashiers/" + c.cashierId + "/settle", moneyPayload(amount, v.date, v.note));
-        api.toast("Settled " + api.formatMoney(amount) + " · #" + (res.subResourceId || ""), "success");
-        await paintDesk();
-      });
-    });
-    buttonsNamed("Cash in").forEach(function (btn) { on(btn, function () { return cashMove("deposit"); }); });
-    buttonsNamed("Cash out").forEach(function (btn) { on(btn, function () { return cashMove("withdrawal"); }); });
-    buttonsNamed("Deposit").forEach(function (btn) { on(btn, function () { return cashMove("deposit"); }); });
-    buttonsNamed("Withdraw").forEach(function (btn) { on(btn, function () { return cashMove("withdrawal"); }); });
-    buttonsNamed("Repay").forEach(function (btn) {
-      on(btn, async function () {
-        var loans = await api.get("/loans?limit=100");
-        var items = (loans.pageItems || []).filter(function (l) { return /active|overpaid/i.test((l.status && l.status.value) || ""); });
-        if (!items.length) throw new Error("No active loans to repay");
-        var v = await api.openDialog({
-          title: "Repay loan (cash)", submitLabel: "Repay",
-          fields: [
-            { key: "loanId", label: "Loan", type: "select", options: items.map(function (l) { return { value: l.id, label: (l.accountNo || l.id) + " · " + (l.clientName || "") }; }) },
-            { key: "amount", label: "Amount (UGX)", type: "number", value: "10000" }
-          ]
-        });
-        if (!v) return;
-        await api.post("/loans/" + v.loanId + "/transactions?command=repayment", { locale: "en", dateFormat: "yyyy-MM-dd", transactionDate: api.todayISO(), transactionAmount: String(api.parseAmount(v.amount)), paymentTypeId: 4 });
-        api.toast("Repayment posted", "success");
-        await paintDesk();
-      });
-    });
-    buttonsNamed("Shares").forEach(function (btn) {
-      on(btn, async function () {
-        var W = window.PivotDeskWrites;
-        if (!W) throw new Error("Share helpers did not load");
-        var products = W.asList(await api.get("/products/share"));
-        if (!products.length) throw new Error("No share product yet. Create one under Products & charges.");
-        var clients = await api.get("/clients?limit=100");
-        var people = clients.pageItems || [];
-        if (!people.length) throw new Error("No clients to buy shares for");
-        var chosen = await api.openDialog({
-          title: "Buy shares", submitLabel: "Continue",
-          fields: [
-            { key: "clientId", label: "Client", type: "select", options: people.map(function (c) { return { value: c.id, label: (c.accountNo || c.id) + " · " + (c.displayName || "") }; }) },
-            { key: "productId", label: "Share product", type: "select", options: products.map(function (p) { return { value: p.id, label: p.name }; }) },
-            { key: "requestedShares", label: "Shares", type: "number", value: "1" },
-            { key: "date", label: "Date", type: "date", value: api.todayISO() }
-          ]
-        });
-        if (!chosen) return;
-        var accounts = await api.get("/clients/" + chosen.clientId + "/accounts");
-        var sav = (accounts.savingsAccounts || []).filter(function (s) {
-          var label = (s.status && (s.status.value || s.status.code)) || "";
-          return !/closed|rejected/i.test(String(label));
-        });
-        if (!sav.length) throw new Error("This client needs a savings account to fund the share purchase.");
-        var savingsAccountId = sav[0].id;
-        if (sav.length > 1) {
-          var pick = await api.openDialog({
-            title: "Fund from savings", submitLabel: "Buy",
-            fields: [{ key: "savingsAccountId", label: "Savings account", type: "select", options: sav.map(function (s) { return { value: s.id, label: (s.accountNo || s.id) + " · " + api.formatMoney(s.accountBalance) }; }) }]
-          });
-          if (!pick) return;
-          savingsAccountId = pick.savingsAccountId;
-        }
-        var body = W.shareAccountPayload({
-          clientId: chosen.clientId, productId: chosen.productId, savingsAccountId: savingsAccountId,
-          requestedShares: chosen.requestedShares, date: chosen.date
-        });
-        var created = await api.post("/accounts/share", body);
-        var accountId = created.resourceId || created.savingsId;
-        if (!accountId) throw new Error("Share application did not return an id");
-        await api.post("/accounts/share/" + accountId + "?command=approve", W.shareApprovePayload(chosen.date));
-        await api.post("/accounts/share/" + accountId + "?command=activate", W.shareActivatePayload(chosen.date));
-        api.toast("Shares purchased · account #" + accountId, "success");
-      });
-    });
-    buttonsNamed("Search").forEach(function (btn) {
-      on(btn, async function () {
-        var input = document.querySelector("[data-table-search='#teller-members']");
-        var q = input ? input.value.trim() : "";
-        var data = await api.get("/clients?limit=50" + (q ? "&displayName=" + encodeURIComponent(q) : ""));
-        var cbody = document.querySelector("#teller-members tbody");
-        if (!cbody) return;
-        cbody.innerHTML = (data.pageItems || []).map(function (cl) {
-          return '<tr><td class="mono">' + api.escapeHtml(cl.accountNo || String(cl.id)) + "</td><td>" + api.escapeHtml(cl.displayName || "") + "</td><td>" + api.escapeHtml(cl.officeName || "") + '</td><td><a class="btn btn-sm" href="client-detail.html?id=' + cl.id + '">Select</a></td></tr>';
-        }).join("") || '<tr><td colspan="4">No match</td></tr>';
-      });
-    });
-    paintDesk().catch(function (err) { api.setLiveBanner(false, err.message); api.toast(err.message, "error"); });
-  }
-
-  if (page === "cashier-eod") {
-    api.claimMocks(["POST settle"]);
-    var denoms = [50000, 20000, 10000, 5000, 2000, 1000];
-    function counted() {
-      var inputs = document.querySelectorAll(".denom-row input");
-      var total = 0;
-      inputs.forEach(function (inp, i) { total += (denoms[i] || 0) * (api.parseAmount(inp.value) || 0); });
-      return total;
-    }
-    async function paintEod() {
-      var c = await ensureSession();
-      var sum = await summary(c.tellerId, c.cashierId);
-      var lines = document.querySelectorAll(".recon-box .recon-line");
-      function setLine(i, n) {
-        if (lines[i]) { var span = lines[i].querySelector(".mono"); if (span) span.textContent = Number(n || 0).toLocaleString("en-UG"); }
-      }
-      setLine(0, sum.sumCashAllocation); setLine(1, sum.sumCashAllocation); setLine(2, sum.sumInwardCash); setLine(3, sum.sumOutwardCash); setLine(4, sum.netCash);
-      var chip = document.querySelector(".card-h .chip");
-      if (chip) chip.textContent = (sum.cashierName || "") + " · " + (sum.tellerName || "");
-      var countEl = document.querySelector(".denom-grid") && document.querySelector(".denom-grid").parentElement.querySelector("p .mono");
-      var box = document.querySelector(".recon-box.warn");
-      function refreshVar() {
-        var got = counted();
-        if (countEl) countEl.textContent = api.formatMoney(got);
-        var diff = got - Number(sum.netCash || 0);
-        if (box) {
-          var mono = box.querySelector(".mono");
-          if (mono) mono.textContent = (diff < 0 ? "-" : "+") + Math.abs(diff).toLocaleString("en-UG");
-          var note = box.querySelector(".text-muted");
-          if (note) note.textContent = diff === 0 ? "Drawer matches expected cash." : ("Variance " + api.formatMoney(diff) + " vs expected " + api.formatMoney(sum.netCash));
-        }
-      }
-      document.querySelectorAll(".denom-row input").forEach(function (inp) { inp.addEventListener("input", refreshVar); });
-      refreshVar();
-      api.setLiveBanner(true, "LIVE — POST /tellers/" + c.tellerId + "/cashiers/" + c.cashierId + "/settle");
-    }
-    buttonsNamed("POST settle").forEach(function (btn) {
-      on(btn, async function () {
-        var c = await ensureSession();
-        var card = cardByHeading("Settle cash");
-        var inputs = card ? card.querySelectorAll("input, textarea") : [];
-        var amount = api.parseAmount(inputs[0] && inputs[0].value);
-        var date = (inputs[1] && inputs[1].value) || api.todayISO();
-        var note = (inputs[2] && inputs[2].value) || "EOD settle";
-        if (!amount || amount <= 0) throw new Error("Enter a settle amount");
-        var res = await api.post("/tellers/" + c.tellerId + "/cashiers/" + c.cashierId + "/settle", moneyPayload(amount, date, note));
-        api.toast("Settled " + api.formatMoney(amount) + " · #" + (res.subResourceId || ""), "success");
-        await paintEod();
-      });
-    });
-    paintEod().catch(function (err) { api.setLiveBanner(false, err.message); api.toast(err.message, "error"); });
-  }
-
+  /* ================================================================ JOURNAL ENTRY */
   if (page === "journal") {
-    var form = document.getElementById("journal-form");
-    if (form) {
-      (async function () {
-        var offices = await loadOffices();
-        var gls = await api.get("/glaccounts");
-        var pays = await api.get("/paymenttypes").catch(function () { return []; });
-        if (!Array.isArray(gls)) gls = [];
-        var detail = gls.filter(function (g) { return g.usage && g.usage.id === 1 && !g.disabled; });
-        if (!detail.length) detail = gls;
-        function fillSelect(sel, options) {
-          if (!sel) return;
-          sel.innerHTML = options.map(function (o) { return '<option value="' + o.id + '">' + api.escapeHtml(o.label) + "</option>"; }).join("");
-        }
-        var selects = form.querySelectorAll(".form-grid select");
-        fillSelect(selects[0], offices.map(function (o) { return { id: o.id, label: o.name }; }));
-        if (selects[0] && offices.some(function (o) { return o.id === 2; })) selects[0].value = "2";
-        fillSelect(selects[1], [{ id: "UGX", label: "UGX" }]);
-        var rules = await api.get("/accountingrules").catch(function () { return []; });
-        fillSelect(selects[2], [{ id: "", label: "— None —" }].concat((Array.isArray(rules) ? rules : []).map(function (r) { return { id: r.id, label: r.name }; })));
-        fillSelect(selects[3], (Array.isArray(pays) ? pays : []).map(function (p) { return { id: p.id, label: p.name }; }));
-        var glOpts = detail.map(function (g) { return { id: g.id, label: (g.glCode || "") + " " + g.name }; });
-        form.querySelectorAll("tbody select").forEach(function (sel, idx) {
-          fillSelect(sel, glOpts);
-          if (glOpts[idx]) sel.value = String(glOpts[idx].id);
-        });
-        var submit = form.querySelector("button[type=submit]");
-        if (submit) submit.textContent = "Post journal";
-        api.setLiveBanner(true, "LIVE — POST /journalentries");
-        form.addEventListener("submit", async function (e) {
-          e.preventDefault();
+    var form = $("journal-form");
+    var linesBody = document.querySelector("#je-lines tbody");
+    var glOpts = [];
+    var lineSeq = 0;
+    var jeError = function (msg) { var el = $("je-error"); el.textContent = msg || ""; el.hidden = !msg; };
+    var addLine = function () {
+      lineSeq += 1;
+      var n = lineSeq;
+      var tr = document.createElement("tr");
+      tr.innerHTML = '<td><label class="sr-only" for="je-gl-' + n + '">GL account, line ' + n + "</label>" +
+        '<select id="je-gl-' + n + '" class="je-gl"><option value="">— Select GL account —</option>' + glOpts.map(function (g) {
+          return '<option value="' + esc(g.id) + '">' + esc(g.label) + "</option>";
+        }).join("") + "</select></td>" +
+        '<td><label class="sr-only" for="je-dr-' + n + '">Debit, line ' + n + '</label><input id="je-dr-' + n + '" class="mono text-right je-dr" inputmode="numeric" autocomplete="off" /></td>' +
+        '<td><label class="sr-only" for="je-cr-' + n + '">Credit, line ' + n + '</label><input id="je-cr-' + n + '" class="mono text-right je-cr" inputmode="numeric" autocomplete="off" /></td>' +
+        '<td><button type="button" class="btn btn-sm btn-ghost" data-remove-line aria-label="Remove line ' + n + '">✕</button></td>';
+      linesBody.appendChild(tr);
+    };
+    var readLines = function () {
+      var out = { debits: [], credits: [], dr: 0, cr: 0, error: "" };
+      linesBody.querySelectorAll("tr").forEach(function (tr, i) {
+        var gl = tr.querySelector(".je-gl");
+        var drRaw = tr.querySelector(".je-dr").value.trim();
+        var crRaw = tr.querySelector(".je-cr").value.trim();
+        if (!drRaw && !crRaw) return;
+        var label = "Line " + (i + 1);
+        if (drRaw && crRaw) { out.error = out.error || label + ": enter a debit or a credit, not both."; return; }
+        var amt = api.parseAmount(drRaw || crRaw);
+        if (!(amt > 0)) { out.error = out.error || label + ": amount must be a whole number of UGX greater than zero."; return; }
+        if (!gl.value) { out.error = out.error || label + ": choose a GL account."; return; }
+        var entry = { glAccountId: Number(gl.value), amount: amt, label: gl.options[gl.selectedIndex].text };
+        if (drRaw) { out.debits.push(entry); out.dr += amt; } else { out.credits.push(entry); out.cr += amt; }
+      });
+      return out;
+    };
+    var updateTotals = function () {
+      var r = readLines();
+      $("je-total-dr").textContent = api.formatNumber(r.dr);
+      $("je-total-cr").textContent = api.formatNumber(r.cr);
+    };
+    linesBody.addEventListener("input", updateTotals);
+    linesBody.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-remove-line]");
+      if (!b) return;
+      if (linesBody.querySelectorAll("tr").length <= 2) { api.toast("A journal needs at least two lines", "error"); return; }
+      b.closest("tr").remove();
+      updateTotals();
+    });
+    $("je-add-line").addEventListener("click", addLine);
+    var resetForm = function () {
+      linesBody.innerHTML = "";
+      addLine(); addLine();
+      $("je-narration").value = "";
+      $("je-ref").value = "";
+      updateTotals();
+    };
+    (async function () {
+      var res = await Promise.all([
+        loadOffices(), api.get("/glaccounts"),
+        api.paymentTypes().catch(function () { return []; }),
+        api.get("/accountingrules").catch(function () { return []; })
+      ]);
+      var offices = res[0];
+      var gls = Array.isArray(res[1]) ? res[1] : [];
+      glOpts = gls.filter(function (g) { return g.usage && g.usage.id === 1 && !g.disabled && g.manualEntriesAllowed; })
+        .sort(function (a, b) { return String(a.glCode).localeCompare(String(b.glCode)); })
+        .map(function (g) { return { id: g.id, label: (g.glCode || "") + " " + g.name }; });
+      $("je-office-sel").innerHTML = offices.map(function (o) { return '<option value="' + esc(o.id) + '">' + esc(o.name) + "</option>"; }).join("");
+      $("je-office-sel").value = defaultOffice(offices);
+      $("je-date").value = api.todayISO();
+      $("je-date").max = api.todayISO();
+      $("je-paytype").innerHTML = '<option value="">— None —</option>' + res[2].map(function (p) { return '<option value="' + esc(p.id) + '">' + esc(p.name) + "</option>"; }).join("");
+      var rules = Array.isArray(res[3]) ? res[3] : [];
+      $("je-rule").innerHTML = '<option value="">— None —</option>' + rules.map(function (r) { return '<option value="' + esc(r.id) + '">' + esc(r.name) + "</option>"; }).join("");
+      if (api.qs("rule")) $("je-rule").value = api.qs("rule");
+      if (!glOpts.length) jeError("No GL accounts allow manual entries. Create or enable one under Chart of accounts.");
+      resetForm();
+    })().catch(fail);
+    onSubmitForm(form, async function () {
+      jeError("");
+      var officeSel = $("je-office-sel");
+      var date = $("je-date").value;
+      var narration = $("je-narration").value.trim();
+      var r = readLines();
+      if (!officeSel.value) return jeError("Choose an office.");
+      if (!api.isISODate(date)) return jeError("Choose a valid value date.");
+      if (!narration) return jeError("Narration is required.");
+      if (r.error) return jeError(r.error);
+      if (!r.debits.length || !r.credits.length) return jeError("Enter at least one debit line and one credit line.");
+      if (r.dr !== r.cr) return jeError("Debits (" + api.formatNumber(r.dr) + ") must equal credits (" + api.formatNumber(r.cr) + ").");
+      var body = withDate({
+        officeId: Number(officeSel.value), transactionDate: date, currencyCode: CCY, comments: narration,
+        debits: r.debits.map(function (d) { return { glAccountId: d.glAccountId, amount: d.amount }; }),
+        credits: r.credits.map(function (c) { return { glAccountId: c.glAccountId, amount: c.amount }; })
+      });
+      if ($("je-ref").value.trim()) body.referenceNumber = $("je-ref").value.trim();
+      if ($("je-paytype").value) body.paymentTypeId = Number($("je-paytype").value);
+      if ($("je-rule").value) body.accountingRule = Number($("je-rule").value);
+      var lines = [["Office", officeSel.options[officeSel.selectedIndex].text], ["Value date", date]];
+      r.debits.forEach(function (d) { lines.push(["Dr " + d.label, api.formatMoney(d.amount)]); });
+      r.credits.forEach(function (c) { lines.push(["Cr " + c.label, api.formatMoney(c.amount)]); });
+      lines.push(["Total", api.formatMoney(r.dr)]);
+      var result = null;
+      var ok = await api.confirmDialog({
+        title: "Post journal entry", summary: "Confirm journal", lines: lines, confirmLabel: "Post journal of " + api.formatMoney(r.dr),
+        onConfirm: function () { return api.post("/journalentries", body).then(function (x) { result = x; }); }
+      });
+      if (!ok) return;
+      api.toast("Journal posted" + (result && result.transactionId ? " · " + result.transactionId : ""), "success");
+      resetForm();
+    });
+  }
+
+  /* ================================================================ LOAN APPLICATION / LOAN DETAIL — see loans.js */
+
+  /* ================================================================ SAVINGS */
+  async function openSavingsDialog(preset) {
+    var products = await api.get("/savingsproducts");
+    products = Array.isArray(products) ? products : [];
+    if (!products.length) throw new Error("No savings products are configured.");
+    var canActivate = api.can(["APPROVE_SAVINGSACCOUNT"]) && api.can(["ACTIVATE_SAVINGSACCOUNT"]);
+    var fields = [
+      preset ? null : { key: "clientId", label: "Member", type: "search", required: true, search: api.searchClients },
+      { key: "productId", label: "Product", type: "select", required: true, placeholder: "— Select product —", value: products.length === 1 ? String(products[0].id) : "", options: products.map(function (p) { return { value: p.id, label: p.name }; }) },
+      dateField("Submitted on"),
+      canActivate ? { key: "activate", label: "After submitting", type: "select", value: "yes", options: [{ value: "yes", label: "Approve and activate now" }, { value: "no", label: "Leave pending approval" }] } : null
+    ].filter(Boolean);
+    var result = null;
+    var warning = "";
+    var v = await api.openDialog({
+      title: "Open savings account" + (preset ? " for " + preset.name : ""), submitLabel: "Open account", fields: fields,
+      onSubmit: async function (val) {
+        var clientId = preset ? preset.id : val.clientId;
+        var tpl = await api.get("/savingsaccounts/template?clientId=" + encodeURIComponent(clientId) + "&productId=" + encodeURIComponent(val.productId));
+        var created = await api.post("/savingsaccounts", withDate({ clientId: Number(clientId), productId: Number(val.productId), submittedOnDate: val.date }));
+        var id = created.savingsId || created.resourceId;
+        result = id;
+        /* The product's default charges (withdrawal fee, entrance fee) are attached one by one after creation:
+           sending them in the create call crashes this Fineract build (NPE in SavingsAccountCharge). */
+        var failedCharges = [];
+        for (var ci = 0; ci < (tpl.charges || []).length; ci++) {
+          var c = tpl.charges[ci];
+          var cbody = { chargeId: c.chargeId || c.id, amount: c.amount };
+          if (c.chargeTimeType && c.chargeTimeType.id === 2) cbody.dueDate = val.date;
           try {
-            var debits = [], credits = [];
-            form.querySelectorAll("tbody tr").forEach(function (tr) {
-              var gl = tr.querySelector("select");
-              var inputs = tr.querySelectorAll("input");
-              var d = api.parseAmount(inputs[0] && inputs[0].value);
-              var cAmt = api.parseAmount(inputs[1] && inputs[1].value);
-              if (d > 0) debits.push({ glAccountId: Number(gl.value), amount: d });
-              if (cAmt > 0) credits.push({ glAccountId: Number(gl.value), amount: cAmt });
-            });
-            if (!debits.length || !credits.length) throw new Error("Enter at least one debit and one credit");
-            var dateEl = form.querySelector('input[type="date"]');
-            var textInputs = form.querySelectorAll(".form-grid input");
-            var ref = textInputs[1];
-            var narr = form.querySelector("textarea");
-            var body = {
-              officeId: Number(selects[0].value),
-              transactionDate: (dateEl && dateEl.value) || api.todayISO(),
-              currencyCode: "UGX",
-              comments: (narr && narr.value) || "Manual journal",
-              locale: "en", dateFormat: "yyyy-MM-dd", debits: debits, credits: credits
-            };
-            if (ref && ref.value) body.referenceNumber = ref.value;
-            if (selects[3] && selects[3].value) body.paymentTypeId = Number(selects[3].value);
-            if (selects[2] && selects[2].value) body.accountingRule = Number(selects[2].value);
-            var res = await api.post("/journalentries", body);
-            api.toast("Journal posted " + (res.transactionId || res.resourceId || ""), "success");
-          } catch (err) { api.toast(err.message || String(err), "error"); }
-        });
-      })().catch(function (err) { api.toast(err.message, "error"); api.setLiveBanner(false, err.message); });
+            await api.post("/savingsaccounts/" + encodeURIComponent(id) + "/charges", withDate(cbody));
+          } catch (err) {
+            failedCharges.push(c.name);
+          }
+        }
+        if (failedCharges.length) warning = "Charges not attached: " + failedCharges.join(", ") + ". Add them on the account before activating.";
+        if (val.activate === "yes" && !failedCharges.length) {
+          /* The account exists now — never let a retry create a second one. */
+          try {
+            await api.post("/savingsaccounts/" + encodeURIComponent(id) + "?command=approve", withDate({ approvedOnDate: val.date }));
+            await api.post("/savingsaccounts/" + encodeURIComponent(id) + "?command=activate", withDate({ activatedOnDate: val.date }));
+          } catch (err) {
+            warning = err.message || String(err);
+          }
+        }
+      }
+    });
+    if (v && result) {
+      api.toast(warning ? "Account created but not activated: " + warning : "Savings account opened", warning ? "error" : "success");
+      setTimeout(function () { location.href = "savings-detail.html?id=" + encodeURIComponent(result); }, warning ? 2500 : 300);
     }
   }
-
-  if (page === "loan-apply") {
-    (async function () {
-      var clients = await api.get("/clients?limit=200");
-      var products = await api.get("/loanproducts");
-      var clientSel = null, productSel = null;
-      document.querySelectorAll("label").forEach(function (lab) {
-        var t = lab.textContent.trim().toLowerCase();
-        var sel = lab.parentElement.querySelector("select");
-        if (t === "client") clientSel = sel;
-        if (t === "product") productSel = sel;
-      });
-      if (clientSel) clientSel.innerHTML = (clients.pageItems || []).map(function (c) { return '<option value="' + c.id + '">' + api.escapeHtml(c.displayName || c.id) + "</option>"; }).join("");
-      if (productSel) productSel.innerHTML = (Array.isArray(products) ? products : []).map(function (p) { return '<option value="' + p.id + '">' + api.escapeHtml(p.name) + "</option>"; }).join("");
-      var wizard = document.querySelector("[data-wizard]");
-      if (!wizard) return;
-      wizard.addEventListener("wizard:complete", async function (ev) {
-        ev.preventDefault();
-        try {
-          var clientId = clientSel ? Number(clientSel.value) : 1;
-          var productId = productSel ? Number(productSel.value) : 1;
-          var tmpl = await api.get("/loans/template?templateType=individual&clientId=" + clientId + "&productId=" + productId);
-          function idOf(o) { return o && (o.id !== undefined ? o.id : o); }
-          var principalInput = null, termInput = null, disb = null, submitted = null;
-          document.querySelectorAll(".form-row").forEach(function (row) {
-            var lab = row.querySelector("label");
-            var key = lab ? lab.textContent.trim().toLowerCase() : "";
-            var input = row.querySelector("input");
-            if (key.indexOf("principal") >= 0) principalInput = input;
-            if (key.indexOf("term") >= 0) termInput = input;
-            if (key.indexOf("disbursement") >= 0) disb = input;
-            if (key.indexOf("submitted") >= 0) submitted = input;
-          });
-          var principal = api.parseAmount(principalInput && principalInput.value) || tmpl.principal;
-          var term = Number(termInput && String(termInput.value).replace(/\D/g, "")) || tmpl.numberOfRepayments || 12;
-          var submittedOn = (submitted && submitted.value) || api.todayISO();
-          var expected = (disb && disb.value) || submittedOn;
-          var created = await api.post("/loans", {
-            clientId: clientId, productId: productId, principal: principal,
-            loanTermFrequency: term, loanTermFrequencyType: idOf(tmpl.termPeriodFrequencyType) || 2,
-            numberOfRepayments: tmpl.numberOfRepayments || term, repaymentEvery: tmpl.repaymentEvery || 1,
-            repaymentFrequencyType: idOf(tmpl.repaymentFrequencyType) || 2,
-            interestRatePerPeriod: tmpl.interestRatePerPeriod,
-            amortizationType: idOf(tmpl.amortizationType), interestType: idOf(tmpl.interestType),
-            interestCalculationPeriodType: idOf(tmpl.interestCalculationPeriodType),
-            transactionProcessingStrategyCode: tmpl.transactionProcessingStrategyCode,
-            expectedDisbursementDate: expected, submittedOnDate: submittedOn, loanType: "individual",
-            dateFormat: "yyyy-MM-dd", locale: "en"
-          });
-          var loanId = created.loanId || created.resourceId;
-          api.toast("Loan application #" + loanId + " submitted", "success");
-          try {
-            await api.post("/loans/" + loanId + "?command=approve", { approvedOnDate: submittedOn, approvedLoanAmount: principal, expectedDisbursementDate: expected, locale: "en", dateFormat: "yyyy-MM-dd" });
-            await api.post("/loans/" + loanId + "?command=disburse", { actualDisbursementDate: expected, transactionAmount: principal, paymentTypeId: 4, locale: "en", dateFormat: "yyyy-MM-dd" });
-            api.toast("Approved and disbursed loan #" + loanId, "success");
-          } catch (stepErr) { api.toast("Loan #" + loanId + " saved but approve/disburse failed: " + stepErr.message, "error"); }
-          setTimeout(function () { location.href = "loan-detail.html?id=" + loanId; }, 600);
-        } catch (err) { api.toast(err.message || String(err), "error"); }
-      });
-      api.setLiveBanner(true, "LIVE — POST /loans from template, then approve and disburse");
-    })().catch(function (err) { api.toast(err.message, "error"); });
-  }
-
-  if (page === "loan-detail") {
-    api.claimMocks(["Repay", "Disburse"]);
-    buttonsNamed("Repay").forEach(function (btn) {
-      on(btn, async function () {
-        var id = api.qs("id");
-        if (!id) throw new Error("Open a loan with ?id=");
-        var v = await api.openDialog({ title: "Repay loan #" + id, submitLabel: "Post repayment", fields: [
-          { key: "amount", label: "Amount (UGX)", type: "number", value: "50000" },
-          { key: "date", label: "Date", type: "date", value: api.todayISO() }
-        ]});
-        if (!v) return;
-        await api.post("/loans/" + id + "/transactions?command=repayment", { locale: "en", dateFormat: "yyyy-MM-dd", transactionDate: v.date, transactionAmount: String(api.parseAmount(v.amount)), paymentTypeId: 4 });
-        api.toast("Repayment posted", "success");
-        location.reload();
-      });
-    });
-    buttonsNamed("Disburse").forEach(function (btn) {
-      on(btn, async function () {
-        var id = api.qs("id");
-        if (!id) throw new Error("Open a loan with ?id=");
-        var loan = await api.get("/loans/" + id);
-        var v = await api.openDialog({ title: "Disburse loan #" + id, submitLabel: "Disburse", fields: [
-          { key: "amount", label: "Amount (UGX)", type: "number", value: String(loan.principal || loan.approvedPrincipal || "") },
-          { key: "date", label: "Date", type: "date", value: api.todayISO() }
-        ]});
-        if (!v) return;
-        await api.post("/loans/" + id + "?command=disburse", { actualDisbursementDate: v.date, transactionAmount: String(api.parseAmount(v.amount)), paymentTypeId: 4, locale: "en", dateFormat: "yyyy-MM-dd" });
-        api.toast("Disbursed", "success");
-        location.reload();
-      });
-    });
-  }
+  if (page === "savings") onAction("open-savings", function () { return openSavingsDialog(null); });
 
   if (page === "savings-detail") {
-    api.claimMocks(["Deposit", "Withdraw"]);
-    function savTxn(command) {
-      return async function () {
-        var id = api.qs("id");
-        if (!id) throw new Error("Open a savings account with ?id=");
-        var v = await api.openDialog({ title: (command === "deposit" ? "Deposit" : "Withdraw") + " #" + id, submitLabel: command, fields: [
-          { key: "amount", label: "Amount (UGX)", type: "number", value: "10000" },
-          { key: "date", label: "Date", type: "date", value: api.todayISO() },
-          { key: "note", label: "Note", value: command }
-        ]});
-        if (!v) return;
-        await api.post("/savingsaccounts/" + id + "/transactions?command=" + command, { locale: "en", dateFormat: "yyyy-MM-dd", transactionDate: v.date, transactionAmount: String(api.parseAmount(v.amount)), paymentTypeId: 4, note: v.note });
-        api.toast(command + " posted", "success");
-        location.reload();
+    var account = null;
+    document.addEventListener("desk:savings", function (e) {
+      account = e.detail;
+      var active = !!(account.status && account.status.active);
+      actions("deposit").forEach(function (b) { b.hidden = !(active && api.can("DEPOSIT_SAVINGSACCOUNT")); });
+      actions("withdrawal").forEach(function (b) { b.hidden = !(active && api.can("WITHDRAWAL_SAVINGSACCOUNT")); });
+    });
+    var post = function (command, msg) {
+      return function () {
+        if (!account) throw new Error("Account not loaded yet.");
+        return savingsTxnDialog(command, account).then(function (r) { if (r) { api.toast(msg, "success"); refresh(); } });
       };
-    }
-    buttonsNamed("Deposit").forEach(function (btn) { on(btn, savTxn("deposit")); });
-    buttonsNamed("Withdraw").forEach(function (btn) { on(btn, savTxn("withdrawal")); });
+    };
+    onAction("deposit", post("deposit", "Deposit posted"));
+    onAction("withdrawal", post("withdrawal", "Withdrawal posted"));
   }
 
-  if (page === "savings") {
-    api.claimMocks(["Open savings"]);
-    buttonsNamed("Open savings").forEach(function (btn) {
-      on(btn, async function () {
-        var clients = await api.get("/clients?limit=200");
-        var products = await api.get("/savingsproducts");
-        var v = await api.openDialog({ title: "Open savings account", submitLabel: "Open", fields: [
-          { key: "clientId", label: "Client", type: "select", options: (clients.pageItems || []).map(function (c) { return { value: c.id, label: c.displayName }; }) },
-          { key: "productId", label: "Product", type: "select", options: (Array.isArray(products) ? products : []).map(function (p) { return { value: p.id, label: p.name }; }) },
-          { key: "date", label: "Date", type: "date", value: api.todayISO() }
-        ]});
-        if (!v) return;
-        var created = await api.post("/savingsaccounts", { clientId: Number(v.clientId), productId: Number(v.productId), submittedOnDate: v.date, locale: "en", dateFormat: "yyyy-MM-dd" });
-        var id = created.savingsId || created.resourceId;
-        await api.post("/savingsaccounts/" + id + "?command=approve", { approvedOnDate: v.date, locale: "en", dateFormat: "yyyy-MM-dd" });
-        await api.post("/savingsaccounts/" + id + "?command=activate", { activatedOnDate: v.date, locale: "en", dateFormat: "yyyy-MM-dd" });
-        api.toast("Savings #" + id + " active", "success");
-        location.href = "savings-detail.html?id=" + id;
-      });
-    });
-  }
+  /* GROUPS / CENTRES: create, members, activation are in assets/members.js. */
 
-  function fillBody(tb, html) { if (tb) tb.innerHTML = html; }
-  if (page === "groups") {
-    api.claimMocks(["Create group"]);
-    var tb = document.querySelector("table.data tbody");
-    async function draw() {
-      var data = await api.get("/groups?limit=200");
-      var items = data.pageItems || [];
-      fillBody(tb, items.map(function (g) {
-        return "<tr><td class=\"strong\">" + api.escapeHtml(g.name || "") + "</td><td>" + api.escapeHtml(g.officeName || "") + "</td><td>" + api.escapeHtml(g.centerName || "—") + "</td><td>—</td><td>" + api.escapeHtml(api.statusLabel(g.status)) + "</td></tr>";
-      }).join("") || '<tr><td colspan="5">No groups</td></tr>');
-      api.setLiveBanner(true, "LIVE — /groups");
-    }
-    buttonsNamed("Create group").forEach(function (btn) {
-      on(btn, async function () {
-        var offices = await loadOffices();
-        var v = await api.openDialog({ title: "Create group", submitLabel: "Create", fields: [
-          { key: "name", label: "Name", value: "" },
-          { key: "officeId", label: "Office", type: "select", options: offices.map(function (o) { return { value: o.id, label: o.name }; }) },
-          { key: "date", label: "Activation", type: "date", value: api.todayISO() }
-        ]});
-        if (!v || !v.name) return;
-        var res = await api.post("/groups", { officeId: Number(v.officeId), name: v.name.trim(), active: true, activationDate: v.date, submittedOnDate: v.date, locale: "en", dateFormat: "yyyy-MM-dd" });
-        api.toast("Group #" + (res.resourceId || res.groupId || "") + " created", "success");
-        await draw();
-      });
-    });
-    if (tb) draw().catch(function (e) { api.toast(e.message, "error"); });
-  }
-  if (page === "centres") {
-    api.claimMocks(["Create centre"]);
-    var tbC = document.querySelector("table.data tbody");
-    async function drawC() {
-      var data = await api.get("/centers?limit=200");
-      var items = data.pageItems || [];
-      fillBody(tbC, items.map(function (c) {
-        return "<tr><td class=\"strong\">" + api.escapeHtml(c.name || "") + "</td><td>" + api.escapeHtml(c.officeName || "") + "</td><td>" + api.escapeHtml(c.staffName || "—") + "</td><td>—</td><td>" + api.escapeHtml(api.statusLabel(c.status)) + "</td></tr>";
-      }).join("") || '<tr><td colspan="5">No centres</td></tr>');
-      api.setLiveBanner(true, "LIVE — /centers");
-    }
-    buttonsNamed("Create centre").forEach(function (btn) {
-      on(btn, async function () {
-        var offices = await loadOffices();
-        var v = await api.openDialog({ title: "Create centre", submitLabel: "Create", fields: [
-          { key: "name", label: "Name", value: "" },
-          { key: "officeId", label: "Office", type: "select", options: offices.map(function (o) { return { value: o.id, label: o.name }; }) },
-          { key: "date", label: "Activation", type: "date", value: api.todayISO() }
-        ]});
-        if (!v || !v.name) return;
-        var res = await api.post("/centers", { officeId: Number(v.officeId), name: v.name.trim(), active: true, activationDate: v.date, submittedOnDate: v.date, locale: "en", dateFormat: "yyyy-MM-dd" });
-        api.toast("Centre #" + (res.resourceId || "") + " created", "success");
-        await drawC();
-      });
-    });
-    if (tbC) drawC().catch(function (e) { api.toast(e.message, "error"); });
-  }
-  if (page === "collections") {
-    api.claimMocks(["Follow up"]);
-    (async function () {
-      var data = await api.get("/loans?limit=200");
-      var items = data.pageItems || [];
-      var overdue = items.filter(function (l) { return l.inArrears || (l.summary && Number(l.summary.totalOverdue) > 0); });
-      var show = overdue.length ? overdue : items;
-      var tb = document.querySelector("table.data tbody");
-      fillBody(tb, show.map(function (l) {
-        var due = (l.summary && l.summary.totalOverdue) || l.totalOutstanding || l.principal;
-        return '<tr><td><a href="client-detail.html?id=' + (l.clientId || "") + '">' + api.escapeHtml(l.clientName || "") + '</a></td><td class="mono">' + api.escapeHtml(l.accountNo || "") + "</td><td>" + api.escapeHtml(api.statusLabel(l.status)) + '</td><td class="mono text-right">' + api.formatMoney(due) + "</td><td>" + api.escapeHtml(l.loanOfficerName || "—") + '</td><td><a class="btn btn-sm" href="loan-detail.html?id=' + l.id + '">Open loan</a></td></tr>';
-      }).join("") || '<tr><td colspan="6">No loans yet</td></tr>');
-      api.setLiveBanner(true, overdue.length ? ("LIVE — " + overdue.length + " overdue") : "LIVE — no overdue loans; showing the portfolio");
-    })().catch(function (e) { api.toast(e.message, "error"); });
-  }
-  async function runReport(name, params) {
-    var q = new URLSearchParams(params || {});
-    q.set("output-type", "JSON");
-    return api.get("/runreports/" + encodeURIComponent(name) + "?" + q.toString());
-  }
-  function renderReport(data) {
-    var headers = (data && data.columnHeaders) || [];
-    var rows = (data && data.data) || [];
-    if (!headers.length) return "<p>Report returned no table.</p>";
-    var th = headers.map(function (h) { return "<th>" + api.escapeHtml(h.columnName || "") + "</th>"; }).join("");
-    var body = rows.slice(0, 100).map(function (r) {
-      var cells = r.row || [];
-      return "<tr>" + cells.map(function (c) { return "<td>" + api.escapeHtml(c === null || c === undefined ? "" : String(c)) + "</td>"; }).join("") + "</tr>";
-    }).join("");
-    return '<div class="table-wrap"><table class="data"><thead><tr>' + th + "</tr></thead><tbody>" + (body || '<tr><td colspan="6">No rows</td></tr>') + "</tbody></table></div>";
-  }
-  if (page === "reports") {
-    api.claimMocks(["Run PAR", "Users", "Settings"]);
-    buttonsNamed("Run PAR").forEach(function (btn) {
-      on(btn, async function () {
-        api.toast("Portfolio at Risk exists in /reports but its SQL fails on this database (BadSqlGrammar). Use Collections for live loans.", "error");
-        api.setLiveBanner(true, "LIVE — PAR report unsupported on this DB; collections uses /loans");
-      });
-    });
-    buttonsNamed("Users").forEach(function (btn) {
-      on(btn, async function () {
-        var users = await api.get("/users");
-        var lines = (Array.isArray(users) ? users : []).map(function (u) { return u.username + " · " + (u.firstname || "") + " " + (u.lastname || ""); }).join("\n");
-        window.alert(lines || "No users");
-      });
-    });
-    buttonsNamed("Settings").forEach(function (btn) {
-      on(btn, async function () { api.toast("There is no single settings write API. Codes, offices, and payment types are the live config surfaces.", "error"); });
-    });
-    api.setLiveBanner(true, "LIVE — Run uses /runreports");
-  }
-  if (page === "statement") {
-    api.claimMocks(["Run statement"]);
-    (async function () {
-      var clients = await api.get("/clients?limit=200");
-      var sel = document.querySelector(".filters select");
-      if (sel) sel.innerHTML = (clients.pageItems || []).map(function (c) { return '<option value="' + c.id + '">' + api.escapeHtml(c.displayName || "") + "</option>"; }).join("");
-      buttonsNamed("Run statement").forEach(function (btn) {
-        on(btn, async function () {
-          var id = sel ? sel.value : "1";
-          var accounts = await api.get("/clients/" + id + "/accounts");
-          var client = await api.get("/clients/" + id);
-          var html = "";
-          var savs = accounts.savingsAccounts || [];
-          for (var i = 0; i < savs.length; i++) {
-            var full = await api.get("/savingsaccounts/" + savs[i].id + "?associations=transactions");
-            html += "<h3>Savings " + api.escapeHtml(full.accountNo || "") + " · " + api.formatMoney(full.summary && full.summary.accountBalance) + "</h3><table class=\"data\"><tbody>" +
-              (full.transactions || []).map(function (t) { return "<tr><td>" + api.formatDate(t.date) + "</td><td>" + api.escapeHtml((t.transactionType && t.transactionType.value) || "") + "</td><td class=\"mono\">" + api.formatMoney(t.amount) + "</td><td class=\"mono\">" + api.formatMoney(t.runningBalance) + "</td></tr>"; }).join("") +
-              "</tbody></table>";
-          }
-          var loans = accounts.loanAccounts || [];
-          for (var j = 0; j < loans.length; j++) {
-            var loan = await api.get("/loans/" + loans[j].id + "?associations=transactions");
-            html += "<h3>Loan " + api.escapeHtml(loan.accountNo || "") + "</h3><table class=\"data\"><tbody>" +
-              (loan.transactions || []).map(function (t) { return "<tr><td>" + api.formatDate(t.date) + "</td><td>" + api.escapeHtml((t.type && t.type.value) || "") + "</td><td class=\"mono\">" + api.formatMoney(t.amount) + "</td></tr>"; }).join("") +
-              "</tbody></table>";
-          }
-          var box = document.querySelector(".statement");
-          if (box) box.innerHTML = "<div class=\"strong\">" + api.escapeHtml(client.displayName || "") + " · #" + api.escapeHtml(client.accountNo || id) + "</div>" + (html || "<p>No account transactions</p>");
-          api.toast("Statement loaded", "success");
-          api.setLiveBanner(true, "LIVE — client account transactions");
-        });
-      });
-    })().catch(function (e) { api.toast(e.message, "error"); });
-  }
-
-  async function mountNamedReport(pageName, reportName) {
-    if (page !== pageName) return;
-    var btn = document.querySelector("[data-mock]");
-    async function go() {
-      var params = { R_officeId: "1", R_endDate: api.todayISO(), locale: "en", dateFormat: "yyyy-MM-dd" };
-      if (reportName.indexOf("Balance Sheet") < 0) params.R_startDate = api.todayISO().slice(0, 4) + "-01-01";
-      var data = await runReport(reportName, params);
-      var host = document.querySelector("table.data");
-      if (host && host.parentElement) host.parentElement.innerHTML = renderReport(data);
-      else {
-        var card = document.querySelector(".card-b");
-        if (card) card.innerHTML = renderReport(data);
-      }
-      api.setLiveBanner(true, "LIVE — /runreports/" + reportName);
-      api.toast(reportName + " loaded", "success");
-    }
-    if (btn) { api.markWired(btn); on(btn, go); }
-  }
-  mountNamedReport("trial", "Trial Balance Table");
-  mountNamedReport("is", "Income Statement Table");
-  mountNamedReport("bs", "Balance Sheet Table");
-
+  /* ================================================================ ACCOUNTING */
   if (page === "accounting") {
-    api.claimMocks(["Create GL", "POST /glaccounts"]);
-    buttonsNamed("Create GL").concat(buttonsNamed("POST /glaccounts")).forEach(function (btn) {
-      on(btn, async function () {
-        var v = await api.openDialog({ title: "Create GL account", submitLabel: "Save", fields: [
-          { key: "name", label: "Name", value: "" },
-          { key: "glCode", label: "GL code", value: "" },
-          { key: "type", label: "Type", type: "select", value: "1", options: [
-            { value: "1", label: "Asset" }, { value: "2", label: "Liability" }, { value: "3", label: "Equity" }, { value: "4", label: "Income" }, { value: "5", label: "Expense" }
-          ]},
-          { key: "usage", label: "Usage", type: "select", value: "1", options: [{ value: "1", label: "Detail" }, { value: "2", label: "Header" }] }
-        ]});
-        if (!v || !v.name || !v.glCode) return;
-        var res = await api.post("/glaccounts", { name: v.name.trim(), glCode: v.glCode.trim(), type: Number(v.type), usage: Number(v.usage), manualEntriesAllowed: true, description: v.name.trim() });
-        api.toast("GL created #" + (res.resourceId || ""), "success");
-        location.reload();
-      });
+    var glParent = $("gl-parent");
+    var fillParents = async function () {
+      var gls = await api.get("/glaccounts");
+      var type = $("gl-type").value;
+      var headers = (Array.isArray(gls) ? gls : []).filter(function (g) { return g.usage && g.usage.id === 2 && String(g.type && g.type.id) === type; });
+      glParent.innerHTML = '<option value="">— None —</option>' + headers.map(function (g) {
+        return '<option value="' + esc(g.id) + '">' + esc((g.glCode || "") + " " + g.name) + "</option>";
+      }).join("");
+    };
+    if (glParent) {
+      $("gl-type").addEventListener("change", function () { fillParents().catch(fail); });
+      fillParents().catch(fail);
+    }
+    onSubmitForm($("gl-form"), async function (f) {
+      var name = $("gl-name").value.trim();
+      var code = $("gl-code").value.trim();
+      if (!name || !code) throw new Error("Name and GL code are required.");
+      var body = { name: name, glCode: code, type: Number($("gl-type").value), usage: Number($("gl-usage").value), manualEntriesAllowed: $("gl-manual").value === "true", description: name };
+      if (glParent.value) body.parentId = Number(glParent.value);
+      await api.post("/glaccounts", body);
+      api.toast("GL account created", "success");
+      f.reset();
+      await fillParents();
+      refresh();
     });
   }
+
   if (page === "closing") {
-    api.claimMocks(["Create GL closure", "Delete closure"]);
-    (async function () {
-      var rows = await api.get("/glclosures");
-      var tb = document.querySelector("table.data tbody");
-      var list = Array.isArray(rows) ? rows : [];
-      fillBody(tb, list.map(function (c) {
-        return "<tr><td>" + api.escapeHtml(c.officeName || "") + "</td><td>" + api.formatDate(c.closingDate) + "</td><td>" + api.escapeHtml(c.comments || "") + "</td><td>" + api.escapeHtml(c.createdByUsername || "") + '</td><td><button class="btn btn-sm btn-ghost" data-del="' + c.id + '">Delete</button></td></tr>';
-      }).join("") || '<tr><td colspan="5">No closures</td></tr>');
-      if (tb) tb.querySelectorAll("[data-del]").forEach(function (b) {
-        b.addEventListener("click", async function () {
-          try { await api.del("/glclosures/" + b.getAttribute("data-del")); api.toast("Closure deleted", "success"); location.reload(); }
-          catch (e) { api.toast(e.message, "error"); }
-        });
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-del-closure]");
+      if (!b) return;
+      api.confirmDialog({
+        title: "Delete period closure", message: "Delete the closure “" + b.getAttribute("data-label") + "”? Journal entries on or before that date will be allowed again.",
+        confirmLabel: "Delete closure",
+        onConfirm: function () { return api.del("/glclosures/" + encodeURIComponent(b.getAttribute("data-del-closure"))); }
+      }).then(function (ok) { if (ok) { api.toast("Closure deleted", "success"); refresh(); } }).catch(fail);
+    });
+    onAction("create-closure", async function () {
+      var offices = await loadOffices();
+      var officeField = { key: "officeId", label: "Office", type: "select", required: true, value: defaultOffice(offices), options: officeOpts(offices) };
+      var v = await api.openDialog({
+        title: "Close period", submitLabel: "Review",
+        fields: [officeField, dateField("Closing date", "closingDate"), { key: "comments", label: "Comments", required: true }],
+        confirm: function (val) {
+          return { title: "Confirm period close", lines: [["Office", optionLabel(officeField, val.officeId)], ["Closing date", val.closingDate]], note: "Journal entries dated on or before this date will be blocked for this office.", confirmLabel: "Close period" };
+        },
+        onSubmit: function (val) { return api.post("/glclosures", withDate({ officeId: Number(val.officeId), closingDate: val.closingDate, comments: val.comments })); }
       });
-      buttonsNamed("Create GL closure").forEach(function (btn) {
-        on(btn, async function () {
-          var offices = await loadOffices();
-          var v = await api.openDialog({ title: "Close period", submitLabel: "Close", fields: [
-            { key: "officeId", label: "Office", type: "select", options: offices.map(function (o) { return { value: o.id, label: o.name }; }) },
-            { key: "closingDate", label: "Closing date", type: "date", value: api.todayISO() },
-            { key: "comments", label: "Comments", value: "Period close" }
-          ]});
-          if (!v) return;
-          await api.post("/glclosures", { officeId: Number(v.officeId), closingDate: v.closingDate, comments: v.comments, locale: "en", dateFormat: "yyyy-MM-dd" });
-          api.toast("Period closed", "success");
-          location.reload();
-        });
-      });
-      api.setLiveBanner(true, "LIVE — /glclosures");
-    })().catch(function (e) { api.toast(e.message, "error"); });
+      if (v) { api.toast("Period closed", "success"); refresh(); }
+    });
   }
+
   if (page === "rules") {
-    api.claimMocks(["Create rule", "Post via rule"]);
-    (async function () {
-      var rules = await api.get("/accountingrules");
-      if (!Array.isArray(rules)) rules = [];
-      var tb = document.querySelector("table.data tbody");
-      var RW = window.PivotDeskWrites;
-      function sideLabel(list) {
-        var items = Array.isArray(list) ? list : (list ? [list] : []);
-        if (!items.length) return "—";
-        return items.map(function (g) { return ((g.glCode || "") + " " + (g.name || g.id || "")).trim(); }).join(", ");
-      }
-      if (tb && Array.isArray(rules)) {
-        tb.innerHTML = rules.map(function (r) {
-          return "<tr><td>" + api.escapeHtml(r.name || "") + "</td><td>" + api.escapeHtml(sideLabel(r.debitAccounts || r.accountToDebit)) +
-            "</td><td>" + api.escapeHtml(sideLabel(r.creditAccounts || r.accountToCredit)) + "</td></tr>";
-        }).join("") || '<tr><td colspan="3">No rules yet. Create one that debits vault 1110 or teller 1120 and credits a liability or expense.</td></tr>';
-      }
-      buttonsNamed("Create rule").forEach(function (btn) {
-        on(btn, async function () {
-          var gls = await api.get("/glaccounts");
-          gls = Array.isArray(gls) ? gls : [];
-          var opts = (RW ? RW.glOptions(gls, null) : gls.filter(function (g) { return g.usage && g.usage.id === 1; }).map(function (g) { return { value: g.id, label: g.glCode + " " + g.name }; }));
-          if (!opts.length) throw new Error("Chart of accounts has no GL to post");
-          var offices = await loadOffices();
-          var defaults = RW ? RW.accountingRuleDefaults(gls) : { debitId: null, creditId: null };
-          var suggested = rules.length ? "" : "Vault to deposits";
-          await api.openDialog({
-            title: rules.length ? "Accounting rule" : "Create the first accounting rule",
-            submitLabel: "Create",
-            message: rules.length ? "" : "Debit defaults to vault 1110 (or teller 1120). Credit defaults to member deposits.",
-            fields: [
-              { key: "name", label: "Name", value: suggested },
-              { key: "officeId", label: "Office", type: "select", options: offices.map(function (o) { return { value: o.id, label: o.name }; }) },
-              { key: "debit", label: "Debit GL", type: "select", value: defaults.debitId ? String(defaults.debitId) : "", options: opts },
-              { key: "credit", label: "Credit GL", type: "select", value: defaults.creditId ? String(defaults.creditId) : "", options: opts }
-            ],
-            onSubmit: async function (v) {
-              var body = RW ? RW.accountingRulePayload(v) : { name: v.name.trim(), officeId: Number(v.officeId), description: v.name.trim(), accountToDebit: Number(v.debit), accountToCredit: Number(v.credit) };
-              await api.post("/accountingrules", body);
-              api.toast("Rule created", "success");
-              location.reload();
-            }
-          });
-        });
-      });
-      buttonsNamed("Post via rule").forEach(function (btn) { on(btn, async function () { location.href = "journal-entry.html"; }); });
-      api.setLiveBanner(true, "LIVE — /accountingrules");
-    })().catch(function (e) { api.toast(e.message, "error"); });
-  }
-  if (page === "mappings") {
-    api.claimMocks(["Create mapping", "Edit"]);
-    (async function () {
-      var rows = await api.get("/financialactivityaccounts");
-      var tb = document.querySelector("table.data tbody");
-      if (tb && Array.isArray(rows)) {
-        tb.innerHTML = rows.map(function (m) {
-          var act = m.financialActivityData || {}; var gl = m.glAccountData || {};
-          return "<tr><td>" + api.escapeHtml((act.name || "") + " (" + (act.id || "") + ")") + "</td><td>" + api.escapeHtml((gl.glCode || "") + " " + (gl.name || "")) + "</td><td>mapped</td></tr>";
-        }).join("") || '<tr><td colspan="3">None</td></tr>';
-      }
-      buttonsNamed("Create mapping").forEach(function (btn) {
-        on(btn, async function () {
-          var gls = await api.get("/glaccounts");
-          var opts = (Array.isArray(gls) ? gls : []).map(function (g) { return { value: g.id, label: (g.glCode || "") + " " + g.name }; });
-          var v = await api.openDialog({ title: "Map financial activity", submitLabel: "Map", fields: [
-            { key: "financialActivityId", label: "Activity", type: "select", options: [
-              { value: "100", label: "100 assetTransfer" }, { value: "101", label: "101 cashAtMainVault" }, { value: "102", label: "102 cashAtTeller" }, { value: "103", label: "103 fundSource" }, { value: "200", label: "200 liabilityTransfer" }, { value: "300", label: "300 openingBalances" }
-            ]},
-            { key: "glAccountId", label: "GL", type: "select", options: opts }
-          ]});
-          if (!v) return;
-          await api.post("/financialactivityaccounts", { financialActivityId: Number(v.financialActivityId), glAccountId: Number(v.glAccountId) });
-          api.toast("Mapping saved", "success");
-          location.reload();
-        });
-      });
-      buttonsNamed("Edit").forEach(function (btn) { on(btn, async function () { api.toast("Post the same activity id again to replace the GL. Delete is not a stable call on this build.", "error"); }); });
-      api.setLiveBanner(true, "LIVE — /financialactivityaccounts");
-    })().catch(function (e) { api.toast(e.message, "error"); });
-  }
-  if (page === "accruals") {
-    var W = window.PivotDeskWrites;
-    api.claimMocks(["Run accruals", "Create provisioning", "Create provisioning entry"]);
-    buttonsNamed("Run accruals").forEach(function (btn) {
-      on(btn, async function () {
-        var v = await api.openDialog({ title: "Run accruals", submitLabel: "Run", fields: [{ key: "tillDate", label: "Till date", type: "date", value: api.todayISO() }] });
-        if (!v) return;
-        await api.post("/runaccruals", { tillDate: v.tillDate, locale: "en", dateFormat: "yyyy-MM-dd" });
-        api.toast("Accrual run posted", "success");
-      });
-    });
-    (async function () {
-      var tb = document.getElementById("provisioning-entries");
-      if (!tb) return;
-      var pageData = await api.get("/provisioningentries?limit=20").catch(function () { return { pageItems: [] }; });
-      var items = (pageData && pageData.pageItems) || (Array.isArray(pageData) ? pageData : []);
-      tb.innerHTML = items.map(function (e) {
-        var when = api.formatDate(e.createdDate || e.createdUser || e.date);
-        var journal = e.journalEntry ? "Yes" : "No";
-        return "<tr><td>" + api.escapeHtml(when || ("#" + e.id)) + "</td><td>" + journal + "</td><td>#" + api.escapeHtml(String(e.id || "")) + "</td></tr>";
-      }).join("") || '<tr><td colspan="3">No provisioning entries</td></tr>';
-    })().catch(function (e) { api.toast(e.message, "error"); });
-    buttonsNamed("Create provisioning").forEach(function (btn) {
-      on(btn, async function () {
-        if (!W) throw new Error("Provisioning helpers did not load");
-        var cats = W.asList(await api.get("/provisioningcategory"));
-        if (!cats.length) throw new Error("No provisioning categories are seeded");
-        var gls = W.asList(await api.get("/glaccounts"));
-        var liability = W.glOptions(gls, 2);
-        var expense = W.glOptions(gls, 5);
-        if (!liability.length || !expense.length) throw new Error("Cash provisioning needs a liability GL and an expense GL");
-        await api.openDialog({
-          title: "Create provisioning criteria", submitLabel: "Create", width: "min(640px,100%)",
-          message: "One age bucket is posted so the ranges cannot overlap.",
-          fields: [
-            { key: "criteriaName", label: "Name", value: "Standard" },
-            { key: "categoryId", label: "Category", type: "select", options: cats.map(function (c) { return { value: c.id, label: c.categoryName || c.name || c.id }; }) },
-            { key: "minAge", label: "Min age (days)", type: "number", value: "0" },
-            { key: "maxAge", label: "Max age (days)", type: "number", value: "30" },
-            { key: "provisioningPercentage", label: "Percent", type: "number", value: "5" },
-            { key: "liabilityAccount", label: "Liability GL", type: "select", options: liability },
-            { key: "expenseAccount", label: "Expense GL", type: "select", options: expense }
-          ],
-          onSubmit: async function (v) {
-            await api.post("/provisioningcriteria", W.provisioningCriteriaPayload(v));
-            api.toast("Provisioning criteria created", "success");
-          }
-        });
-      });
-    });
-    buttonsNamed("Create provisioning entry").forEach(function (btn) {
-      on(btn, async function () {
-        if (!W) throw new Error("Provisioning helpers did not load");
-        await api.openDialog({
-          title: "Create provisioning entry", submitLabel: "Create",
-          fields: [
-            { key: "date", label: "Date", type: "date", value: api.todayISO() },
-            { key: "createjournalentries", label: "Create journal", type: "select", value: "false", options: [{ value: "false", label: "No" }, { value: "true", label: "Yes" }] }
-          ],
-          onSubmit: async function (v) {
-            await api.post("/provisioningentries", W.provisioningEntryPayload(v));
-            api.toast("Provisioning entry created", "success");
-            location.reload();
-          }
-        });
-      });
-    });
-    api.setLiveBanner(true, "LIVE — POST /runaccruals · /provisioningcriteria · /provisioningentries");
-  }
-  if (page === "client-detail" || page === "onboard") {
-    api.claimMocks(["Upload client image", "Update photo", "Close client", "Transfer client", "Open savings", "Edit client", "Add family", "Add address"]);
-    document.querySelectorAll("[data-mock='Upload client image'], [data-mock='Update photo']").forEach(function (btn) {
-      on(btn, async function () {
-        var id = api.qs("id");
-        if (!id) { api.toast("Create the client first. Image upload needs /clients/{id}/images.", "error"); return; }
-        var input = document.createElement("input");
-        input.type = "file"; input.accept = "image/*";
-        input.onchange = async function () {
-          var file = input.files && input.files[0];
-          if (!file) return;
-          try { var fd = new FormData(); fd.append("file", file); await api.postForm("/clients/" + id + "/images", fd); api.toast("Photo uploaded", "success"); }
-          catch (e) { api.toast(e.message || String(e), "error"); }
-        };
-        input.click();
-      });
-    });
-  }
-  if (page === "client-detail") {
-    buttonsNamed("Open savings").forEach(function (btn) { on(btn, async function () { location.href = "savings.html"; }); });
-    buttonsNamed("Edit client").forEach(function (btn) {
-      on(btn, async function () {
-        var id = api.qs("id");
-        var c = await api.get("/clients/" + id);
-        var v = await api.openDialog({ title: "Edit client", submitLabel: "Save", fields: [
-          { key: "firstname", label: "First name", value: c.firstname || "" },
-          { key: "lastname", label: "Last name", value: c.lastname || "" },
-          { key: "mobileNo", label: "Mobile", value: c.mobileNo || "" }
-        ]});
-        if (!v) return;
-        await api.put("/clients/" + id, { firstname: v.firstname, lastname: v.lastname, mobileNo: v.mobileNo });
-        api.toast("Client updated", "success");
-        location.reload();
-      });
-    });
-    buttonsNamed("Close client").forEach(function (btn) {
-      on(btn, async function () {
-        var id = api.qs("id");
-        var v = await api.openDialog({ title: "Close client", submitLabel: "Close", fields: [
-          { key: "date", label: "Closure date", type: "date", value: api.todayISO() },
-          { key: "closureReasonId", label: "Reason id", value: "1" }
-        ]});
-        if (!v) return;
-        await api.post("/clients/" + id + "?command=close", { closureDate: v.date, closureReasonId: Number(v.closureReasonId), locale: "en", dateFormat: "yyyy-MM-dd" });
-        api.toast("Client closed", "success");
-      });
-    });
-    buttonsNamed("Transfer client").forEach(function (btn) {
-      on(btn, async function () {
-        var id = api.qs("id");
-        var offices = await loadOffices();
-        var v = await api.openDialog({ title: "Propose transfer", submitLabel: "Transfer", fields: [
-          { key: "officeId", label: "Office", type: "select", options: offices.map(function (o) { return { value: o.id, label: o.name }; }) },
-          { key: "date", label: "Date", type: "date", value: api.todayISO() }
-        ]});
-        if (!v) return;
-        await api.post("/clients/" + id + "?command=proposeTransfer", { destinationOfficeId: Number(v.officeId), transferDate: v.date, note: "Desk transfer", locale: "en", dateFormat: "yyyy-MM-dd" });
-        api.toast("Transfer proposed", "success");
-      });
-    });
-    buttonsNamed("Add family").forEach(function (btn) {
-      on(btn, async function () { api.toast("Family records are not a single REST create on this tenant.", "error"); });
-    });
-    buttonsNamed("Add address").forEach(function (btn) {
-      on(btn, async function () {
-        var W = window.PivotDeskWrites;
-        var id = api.qs("id");
-        if (!id) throw new Error("Open a client before adding an address");
-        if (!W) throw new Error("Address helpers did not load");
-        var cfg = await api.get("/configurations/name/enable-address");
-        if (!cfg || !cfg.enabled) {
-          await api.put("/configurations/name/enable-address", { enabled: true });
-        }
-        var template = await api.get("/client/addresses/template");
-        var types = template.addressTypeIdOptions || [];
-        if (!types.length) throw new Error("No address types are configured");
-        var countries = template.countryIdOptions || [];
-        var states = template.stateProvinceIdOptions || [];
-        var fields = [
-          { key: "addressTypeId", label: "Type", type: "select", options: types.map(function (t) { return { value: t.id, label: t.name }; }) },
-          { key: "addressLine1", label: "Address line", value: "" },
-          { key: "city", label: "City", value: "" },
-          { key: "postalCode", label: "Postal code", value: "" }
-        ];
-        if (countries.length) fields.push({ key: "countryId", label: "Country", type: "select", options: countries.map(function (c) { return { value: c.id, label: c.name }; }) });
-        if (states.length) fields.push({ key: "stateProvinceId", label: "State / province", type: "select", options: states.map(function (s) { return { value: s.id, label: s.name }; }) });
-        await api.openDialog({
-          title: "Add address", submitLabel: "Save", fields: fields,
-          onSubmit: async function (v) {
-            var body = W.addressPayload(v);
-            await api.post("/client/" + id + "/addresses?type=" + body.addressTypeId, body);
-            api.toast("Address saved", "success");
-            location.reload();
-          }
-        });
-      });
-    });
-  }
-  if (page === "products") {
-    var forms = window.PivotProductForms;
-    var W = window.PivotDeskWrites;
-    if (!forms && !W) return;
-    api.claimMocks([
-      "Create loan product", "Create savings product", "Create charge", "Edit rate",
-      "Create floating rate", "Create share product", "Create fixed deposit", "Create recurring deposit"
-    ]);
-    var currencyCache = null;
-    async function orgCurrencies() {
-      if (!forms) throw new Error("Product form helpers did not load");
-      if (currencyCache) return currencyCache;
-      var data = null;
-      try { data = await api.get("/currencies"); } catch (e) { data = null; }
-      currencyCache = forms.currencyPack(data);
-      return currencyCache;
-    }
-    async function refreshProducts() {
-      if (window.PivotProducts && window.PivotProducts.reload) await window.PivotProducts.reload();
-    }
-    function enumId(obj, fallback) {
-      if (obj == null) return fallback;
-      if (typeof obj === "number" || typeof obj === "string") return String(obj);
-      if (obj.id != null) return String(obj.id);
-      return fallback;
-    }
-    function chargeFields(pack, existing) {
-      var applies = existing ? enumId(existing.chargeAppliesTo, "1") : "1";
-      var appliesOptions = applies === "2"
-        ? [{ value: "2", label: "Savings" }]
-        : (existing ? [{ value: "1", label: "Loan" }] : [{ value: "1", label: "Loan" }, { value: "2", label: "Savings" }]);
-      var timeDefault = existing ? enumId(existing.chargeTimeType, applies === "2" ? "5" : "1") : (applies === "2" ? "5" : "1");
-      var calcDefault = existing ? enumId(existing.chargeCalculationType, "1") : "1";
-      var currencyDefault = pack.code;
-      if (existing && existing.currency && existing.currency.code) currencyDefault = existing.currency.code;
-      var currencyOptions = pack.options.slice();
-      if (!currencyOptions.some(function (o) { return o.value === currencyDefault; })) {
-        currencyOptions.unshift({ value: currencyDefault, label: currencyDefault });
-      }
-      return [
-        { key: "name", label: "Name", required: true, full: true, value: existing ? (existing.name || "") : "" },
-        { key: "chargeAppliesTo", label: "Applies to", type: "select", value: applies, options: appliesOptions },
-        { key: "chargeCalculationType", label: "Calculation", type: "select", value: calcDefault, options: forms.CALC },
-        { key: "chargeTimeType", label: "When", type: "select", value: timeDefault, dependsOn: "chargeAppliesTo", optionsBy: { "1": forms.LOAN_TIME, "2": forms.SAVINGS_TIME } },
-        { key: "amount", label: "Amount or percent", type: "number", step: "any", required: true, value: existing && existing.amount != null ? String(existing.amount) : (pack.code === "UGX" ? "10000" : "10") },
-        { key: "currencyCode", label: "Currency", type: "select", value: currencyDefault, options: currencyOptions },
-        { key: "active", label: "Status", type: "select", value: existing && existing.active === false ? "false" : "true", options: [{ value: "true", label: "Active" }, { value: "false", label: "Inactive" }] },
-        { type: "note", label: "Monthly and annual savings fees need a due date, so they are not offered here. Loan charges are collected the regular way." }
-      ];
-    }
-    async function chargeDialog(existing) {
-      if (!forms) throw new Error("Product form helpers did not load");
-      var pack = await orgCurrencies();
-      var editing = !!existing;
-      var paymentMode = existing && existing.chargePaymentMode && existing.chargePaymentMode.id != null
-        ? existing.chargePaymentMode.id : 0;
-      return api.openDialog({
-        title: editing ? "Edit charge" : "Create charge",
-        submitLabel: editing ? "Save" : "Create",
-        message: "Currency defaults to UGX when it is selected for the organisation, otherwise the first selected currency.",
-        fields: chargeFields(pack, existing),
+    onAction("create-rule", async function () {
+      var res = await Promise.all([api.get("/glaccounts"), loadOffices()]);
+      var opts = (Array.isArray(res[0]) ? res[0] : []).filter(function (g) { return g.usage && g.usage.id === 1 && !g.disabled; })
+        .map(function (g) { return { value: g.id, label: (g.glCode || "") + " " + g.name }; });
+      var v = await api.openDialog({
+        title: "Create accounting rule", submitLabel: "Create",
+        fields: [
+          { key: "name", label: "Name", required: true },
+          { key: "officeId", label: "Office", type: "select", required: true, value: defaultOffice(res[1]), options: officeOpts(res[1]) },
+          { key: "debit", label: "Debit GL", type: "select", required: true, placeholder: "— Select —", options: opts },
+          { key: "credit", label: "Credit GL", type: "select", required: true, placeholder: "— Select —", options: opts },
+          { key: "description", label: "Description" }
+        ],
+        validate: function (val) { return val.debit === val.credit ? "Debit and credit accounts must differ." : ""; },
         onSubmit: function (val) {
-          var body = forms.chargePayload(val, { editing: editing, pack: pack, paymentMode: paymentMode });
-          if (editing) return api.put("/charges/" + existing.id, body);
-          return api.post("/charges", body);
+          return api.post("/accountingrules", { name: val.name.trim(), officeId: Number(val.officeId), description: val.description || val.name.trim(), accountToDebit: Number(val.debit), accountToCredit: Number(val.credit) });
         }
       });
-    }
-    buttonsNamed("Create charge").forEach(function (btn) {
-      on(btn, async function () {
-        var created = await chargeDialog(null);
-        if (!created) return;
-        api.toast("Charge created", "success");
-        await refreshProducts();
-      });
+      if (v) { api.toast("Rule created", "success"); refresh(); }
     });
-    var chargesTable = document.getElementById("charges-table");
-    if (chargesTable) {
-      chargesTable.addEventListener("click", function (e) {
-        var btn = e.target.closest("[data-edit-charge]");
-        if (!btn) return;
-        e.preventDefault();
-        var id = btn.getAttribute("data-edit-charge");
-        var known = window.PivotProducts && window.PivotProducts.getCharge(id);
-        var load = known ? Promise.resolve(known) : api.get("/charges/" + id);
-        load.then(function (charge) {
-          var applies = enumId(charge.chargeAppliesTo, "");
-          if (applies !== "1" && applies !== "2") {
-            api.toast("Only loan and savings charges can be edited here.", "error");
-            return null;
-          }
-          return chargeDialog(charge);
-        }).then(function (saved) {
-          if (!saved) return null;
-          api.toast("Charge updated", "success");
-          return refreshProducts();
-        }).catch(function (err) { api.toast(err.message || String(err), "error"); });
-      });
-    }
-    buttonsNamed("Create loan product").forEach(function (btn) {
-      on(btn, async function () {
-        if (!forms) throw new Error("Product form helpers did not load");
-        var pack = await orgCurrencies();
-        var defaults = forms.principalDefaults(pack.code);
-        var created = await api.openDialog({
-          title: "Create loan product",
-          submitLabel: "Create",
-          width: 640,
-          message: "Accounting is NONE, so this does not ask for general-ledger accounts. Interest is declining balance, equal instalments, per month. Use Edit afterwards to switch to cash.",
-          fields: [
-            { key: "name", label: "Name", required: true, full: true, value: "" },
-            { key: "shortName", label: "Short name", required: true, maxLength: 4, placeholder: "SDL", value: "" },
-            { key: "currencyCode", label: "Currency", type: "select", value: pack.code, options: pack.options },
-            { key: "principal", label: "Principal (default)", type: "number", step: "any", value: defaults.principal },
-            { key: "minPrincipal", label: "Minimum principal", type: "number", step: "any", value: defaults.minPrincipal },
-            { key: "maxPrincipal", label: "Maximum principal", type: "number", step: "any", value: defaults.maxPrincipal },
-            { key: "numberOfRepayments", label: "Repayments", type: "number", value: "12" },
-            { key: "minNumberOfRepayments", label: "Minimum repayments", type: "number", value: "3" },
-            { key: "maxNumberOfRepayments", label: "Maximum repayments", type: "number", value: "36" },
-            { key: "repaymentEvery", label: "Repay every (months)", type: "number", value: "1" },
-            { key: "interestRatePerPeriod", label: "Interest % per month", type: "number", step: "any", value: "2" },
-            { key: "minInterestRatePerPeriod", label: "Minimum interest %", type: "number", step: "any", value: "0.5" },
-            { key: "maxInterestRatePerPeriod", label: "Maximum interest %", type: "number", step: "any", value: "5" },
-            { type: "note", label: "Strategy mifos-standard-strategy. Schedule frequency is months. New products use accounting NONE. Edit can switch the product to cash once the chart is seeded." }
-          ],
-          onSubmit: function (val) { return api.post("/loanproducts", forms.loanProductPayload(val, pack)); }
-        });
-        if (!created) return;
-        api.toast("Loan product created", "success");
-        await refreshProducts();
-      });
-    });
-    buttonsNamed("Create savings product").forEach(function (btn) {
-      on(btn, async function () {
-        if (!forms) throw new Error("Product form helpers did not load");
-        var pack = await orgCurrencies();
-        var created = await api.openDialog({
-          title: "Create savings product",
-          submitLabel: "Create",
-          width: 640,
-          message: "Accounting is NONE. Interest compounds and posts monthly on the daily balance, using a 365-day year. Use Edit afterwards to switch to cash.",
-          fields: [
-            { key: "name", label: "Name", required: true, full: true, value: "" },
-            { key: "shortName", label: "Short name", required: true, maxLength: 4, placeholder: "VS", value: "" },
-            { key: "currencyCode", label: "Currency", type: "select", value: pack.code, options: pack.options },
-            { key: "nominalAnnualInterestRate", label: "Nominal annual interest %", type: "number", step: "any", value: "3" },
-            { key: "description", label: "Description", type: "textarea", full: true, value: "" },
-            { type: "note", label: "Same shape as the voluntary savings fallback in the seed script. No general-ledger accounts are sent on create. Edit can switch the product to cash." }
-          ],
-          onSubmit: function (val) { return api.post("/savingsproducts", forms.savingsProductPayload(val, pack)); }
-        });
-        if (!created) return;
-        api.toast("Savings product created", "success");
-        await refreshProducts();
-      });
-    });
-    function writes() {
-      if (!W) throw new Error("Product helpers did not load");
-      return W;
-    }
-    async function books() {
-      var pack = await Promise.all([
-        api.get("/glaccounts").catch(function () { return []; }),
-        api.get("/currencies").catch(function () { return {}; })
-      ]);
-      return { gls: writes().asList(pack[0]), currency: writes().currencyPack(pack[1]) };
-    }
-    async function nextRateDate() {
-      var rows = await api.get("/businessdate").catch(function () { return []; });
-      return writes().addDays(writes().businessDateIso(rows, api.todayISO()), 1);
-    }
-    function yesNo(key, label, value) {
-      return { key: key, label: label, type: "select", value: value || "true", options: [{ value: "true", label: "Yes" }, { value: "false", label: "No" }] };
-    }
-    function productFields(extra, gls, specs, rule) {
-      return extra.concat([writes().accountingField(rule)]).concat(writes().glDialogFields(gls, specs, {}));
-    }
-    buttonsNamed("Create floating rate").forEach(function (btn) {
-      on(btn, async function () {
-        var start = await nextRateDate();
-        await api.openDialog({
-          title: "Create floating rate", submitLabel: "Create", width: "min(640px,100%)",
-          message: "The first period must start after the business date.",
-          fields: [
-            { key: "name", label: "Name", value: "BOU base" },
-            yesNo("isBaseLendingRate", "Base lending rate", "false"),
-            yesNo("isActive", "Active", "true"),
-            { key: "fromDate", label: "From date", type: "date", value: start },
-            { key: "interestRate", label: "Interest rate %", type: "number", value: "10" }
-          ],
-          onSubmit: async function (v) {
-            await api.post("/floatingrates", writes().floatingRatePayload(v));
-            api.toast("Floating rate created", "success");
-            location.reload();
-          }
-        });
-      });
-    });
-    buttonsNamed("Create share product").forEach(function (btn) {
-      on(btn, async function () {
-        var book = await books();
-        var rule = writes().accountingRuleDefault(book.gls, writes().SHARE_CASH_FIELDS);
-        var price = book.currency.code === "UGX" ? "10000" : "10";
-        await api.openDialog({
-          title: "Create share product", submitLabel: "Create", width: "min(720px,100%)",
-          fields: productFields([
-            { key: "name", label: "Name", value: "Member shares" },
-            { key: "shortName", label: "Short name", value: "MSHR", maxLength: 4 },
-            { key: "totalShares", label: "Total shares", type: "number", value: "10000" },
-            { key: "nominalShares", label: "Nominal shares", type: "number", value: "1" },
-            { key: "unitPrice", label: "Unit price", type: "number", value: price }
-          ], book.gls, writes().SHARE_CASH_FIELDS, rule),
-          onSubmit: async function (v) {
-            await api.post("/products/share", writes().shareProductPayload(v, book.currency, book.gls));
-            api.toast("Share product created", "success");
-            location.reload();
-          }
-        });
-      });
-    });
-    function depositDialog(title, path, build) {
-      return async function () {
-        var book = await books();
-        var rule = writes().accountingRuleDefault(book.gls, writes().DEPOSIT_CASH_FIELDS);
-        var amount = book.currency.code === "UGX" ? "500000" : "500";
-        await api.openDialog({
-          title: title, submitLabel: "Create", width: "min(720px,100%)",
-          message: "A 6–24 month chart is posted with the product. Cash uses teller GL 1120 when it is on the chart.",
-          fields: productFields([
-            { key: "name", label: "Name", value: title },
-            { key: "shortName", label: "Short name", value: "", maxLength: 4, hint: "Up to 4 letters. Leave blank to take them from the name." },
-            { key: "interestRate", label: "Annual interest %", type: "number", value: "8" },
-            { key: "depositAmount", label: "Deposit amount", type: "number", value: amount }
-          ], book.gls, writes().DEPOSIT_CASH_FIELDS, rule),
-          onSubmit: async function (v) {
-            await api.post(path, build(v, book.currency, book.gls));
-            api.toast(title + " created", "success");
-            location.reload();
-          }
-        });
-      };
-    }
-    buttonsNamed("Create fixed deposit").forEach(function (btn) {
-      on(btn, depositDialog("Fixed deposit", "/fixeddepositproducts", function (v, ccy, gls) { return writes().fixedDepositPayload(v, ccy, gls); }));
-    });
-    buttonsNamed("Create recurring deposit").forEach(function (btn) {
-      on(btn, depositDialog("Recurring deposit", "/recurringdepositproducts", function (v, ccy, gls) { return writes().recurringDepositPayload(v, ccy, gls); }));
-    });
-    document.addEventListener("click", function (ev) {
-      var rateBtn = ev.target.closest("[data-edit-rate]");
-      var loanBtn = ev.target.closest("[data-edit-loan]");
-      var savBtn = ev.target.closest("[data-edit-savings]");
-      if (!rateBtn && !loanBtn && !savBtn) return;
-      ev.preventDefault();
-      var job = (async function () {
-        if (rateBtn) {
-          var rate = await api.get("/floatingrates/" + rateBtn.getAttribute("data-edit-rate"));
-          var start = await nextRateDate();
-          var current = (rate.ratePeriods && rate.ratePeriods[0] && rate.ratePeriods[0].interestRate) || "";
-          await api.openDialog({
-            title: "Edit floating rate", submitLabel: "Save", width: "min(640px,100%)",
-            message: "Saving adds a future period. Periods that have already started stay as they are.",
-            fields: [
-              { key: "name", label: "Name", value: rate.name || "" },
-              yesNo("isBaseLendingRate", "Base lending rate", rate.isBaseLendingRate ? "true" : "false"),
-              yesNo("isActive", "Active", rate.isActive === false ? "false" : "true"),
-              { key: "fromDate", label: "New period from", type: "date", value: start },
-              { key: "interestRate", label: "Interest rate %", type: "number", value: String(current) }
-            ],
-            onSubmit: async function (v) {
-              await api.put("/floatingrates/" + rate.id, writes().floatingRatePayload(v));
-              api.toast("Floating rate updated", "success");
-              location.reload();
-            }
-          });
-          return;
-        }
-        var book = await books();
-        if (loanBtn) {
-          var loan = await api.get("/loanproducts/" + loanBtn.getAttribute("data-edit-loan"));
-          var loanRule = String(writes().enumId(loan.accountingRule) || writes().accountingRuleDefault(book.gls, writes().LOAN_CASH_FIELDS));
-          await api.openDialog({
-            title: "Edit loan product", submitLabel: "Save", width: "min(720px,100%)",
-            fields: productFields([
-              { key: "name", label: "Name", value: loan.name || "" },
-              { key: "shortName", label: "Short name", value: loan.shortName || "", maxLength: 4 },
-              { key: "principal", label: "Principal", type: "number", value: String(loan.principal || loan.minPrincipal || "") },
-              { key: "numberOfRepayments", label: "Repayments", type: "number", value: String(loan.numberOfRepayments || "") },
-              { key: "interestRatePerPeriod", label: "Interest % per period", type: "number", value: String(loan.interestRatePerPeriod != null ? loan.interestRatePerPeriod : "") }
-            ], book.gls, writes().LOAN_CASH_FIELDS, loanRule),
-            onSubmit: async function (v) {
-              await api.put("/loanproducts/" + loan.id, writes().loanProductUpdate(v, book.gls));
-              api.toast("Loan product updated", "success");
-              location.reload();
-            }
-          });
-          return;
-        }
-        var sav = await api.get("/savingsproducts/" + savBtn.getAttribute("data-edit-savings"));
-        var savRule = String(writes().enumId(sav.accountingRule) || writes().accountingRuleDefault(book.gls, writes().SAVINGS_CASH_FIELDS));
-        await api.openDialog({
-          title: "Edit savings product", submitLabel: "Save", width: "min(720px,100%)",
-          fields: productFields([
-            { key: "name", label: "Name", value: sav.name || "" },
-            { key: "shortName", label: "Short name", value: sav.shortName || "", maxLength: 4 },
-            { key: "description", label: "Description", value: sav.description || sav.name || "" },
-            { key: "nominalAnnualInterestRate", label: "Annual interest %", type: "number", value: String(sav.nominalAnnualInterestRate != null ? sav.nominalAnnualInterestRate : "") }
-          ], book.gls, writes().SAVINGS_CASH_FIELDS, savRule),
-          onSubmit: async function (v) {
-            await api.put("/savingsproducts/" + sav.id, writes().savingsProductUpdate(v, book.gls));
-            api.toast("Savings product updated", "success");
-            location.reload();
-          }
-        });
-      })();
-      job.catch(function (err) { api.toast(err.message || String(err), "error"); });
+    onSubmitForm($("rule-post-form"), async function () {
+      var id = $("rule-post-select").value;
+      if (!id) throw new Error("Choose a rule.");
+      location.href = "journal-entry.html?rule=" + encodeURIComponent(id);
     });
   }
-  if (page === "clients") {
-    api.claimMocks(["Import", "Approve KYC"]);
-    buttonsNamed("Import").forEach(function (btn) { on(btn, async function () { api.toast("CSV import is a bulk job, not a simple POST. Onboard one client from the wizard instead.", "error"); }); });
-    buttonsNamed("Approve KYC").forEach(function (btn) { on(btn, async function () { api.toast("KYC review is not a Fineract command. Client activation already happens on create.", "error"); }); });
+
+  if (page === "mappings") {
+    onAction("create-mapping", async function () {
+      var gls = await api.get("/glaccounts");
+      var opts = (Array.isArray(gls) ? gls : []).filter(function (g) { return g.usage && g.usage.id === 1; })
+        .map(function (g) { return { value: g.id, label: (g.glCode || "") + " " + g.name }; });
+      var v = await api.openDialog({
+        title: "Map financial activity", submitLabel: "Save mapping",
+        fields: [
+          { key: "financialActivityId", label: "Activity", type: "select", required: true, placeholder: "— Select —", options: [
+            { value: "100", label: "Asset transfer" }, { value: "101", label: "Cash at main vault" }, { value: "102", label: "Cash at teller" },
+            { value: "103", label: "Fund source" }, { value: "200", label: "Liability transfer" }, { value: "300", label: "Opening balances contra" }
+          ] },
+          { key: "glAccountId", label: "GL account", type: "select", required: true, placeholder: "— Select —", options: opts }
+        ],
+        onSubmit: function (val) { return api.post("/financialactivityaccounts", { financialActivityId: Number(val.financialActivityId), glAccountId: Number(val.glAccountId) }); }
+      });
+      if (v) { api.toast("Mapping saved", "success"); refresh(); }
+    });
+  }
+
+  if (page === "accruals") {
+    var till = $("accrual-till");
+    if (till) { till.value = api.todayISO(); till.max = api.todayISO(); }
+    onSubmitForm($("accruals-form"), async function () {
+      if (!api.isISODate(till.value)) throw new Error("Choose a valid till date.");
+      var ok = await api.confirmDialog({
+        title: "Run accruals", summary: "Confirm accrual run", lines: [["Till date", till.value]], confirmLabel: "Run accruals",
+        onConfirm: function () { return api.post("/runaccruals", withDate({ tillDate: till.value })); }
+      });
+      if (ok) api.toast("Accruals run up to " + till.value, "success");
+    });
+  }
+
+  /* ================================================================ CLIENT DETAIL
+   * Member onboarding and profile actions live in assets/members.js; only the
+   * "Open savings" button stays here because it reuses openSavingsDialog. */
+  if (page === "client-detail") {
+    var memberForSavings = null;
+    document.addEventListener("desk:client", function (e) { memberForSavings = e.detail; });
+    on($("btn-open-savings"), function () {
+      if (!memberForSavings) throw new Error("Member not loaded yet.");
+      return openSavingsDialog({ id: memberForSavings.id, name: fullName(memberForSavings) });
+    });
+  }
+
+  /* ================================================================ STAFF / USERS */
+  /*
+   * Fineract model: a teller (till) has cashiers; a cashier is a staff member of the teller's office;
+   * a user (login) links to one staff record, which is how the desk finds "my" cashier drawer.
+   */
+  var PHONE_RE = /^\+?\d{7,15}$/;
+  var YES_NO = [{ value: "false", label: "No" }, { value: "true", label: "Yes" }];
+  function staffName(s) {
+    return s.displayName || ((s.lastname || "") + ", " + (s.firstname || "")).replace(/^, |, $/g, "") || ("#" + s.id);
+  }
+
+  async function staffDialog(existing) {
+    var offices = await loadOffices();
+    if (!offices.length) throw new Error("No offices are available to you.");
+    var fields = [
+      { key: "firstname", label: "First name", required: true, value: existing ? existing.firstname || "" : "" },
+      { key: "lastname", label: "Last name", required: true, value: existing ? existing.lastname || "" : "" },
+      { key: "officeId", label: "Office", type: "select", required: true, value: existing ? String(existing.officeId) : defaultOffice(offices), options: officeOpts(offices) },
+      { key: "isLoanOfficer", label: "Loan officer", type: "select", value: existing && existing.isLoanOfficer ? "true" : "false", options: YES_NO },
+      { key: "mobileNo", label: "Mobile number", type: "tel", placeholder: "e.g. 0772123456", value: existing ? existing.mobileNo || "" : "",
+        help: "Optional. 7–15 digits, optional leading +." + (existing ? " A saved number can be changed but not removed." : "") },
+      { key: "externalId", label: "External ID", placeholder: "optional, e.g. payroll number", value: existing ? existing.externalId || "" : "",
+        help: existing ? "Can be changed but not removed." : "" }
+    ];
+    if (existing) {
+      fields.push({ key: "isActive", label: "Status", type: "select", value: existing.isActive ? "true" : "false",
+        options: [{ value: "true", label: "Active" }, { value: "false", label: "Inactive" }],
+        help: "Inactive staff cannot be assigned as cashier. Staff with clients or loans cannot be deactivated." });
+    } else {
+      fields.push({ key: "joiningDate", label: "Joining date", type: "date", required: true, value: api.todayISO(), max: api.todayISO() });
+    }
+    return api.openDialog({
+      title: existing ? "Edit staff · " + staffName(existing) : "Add staff", submitLabel: existing ? "Save" : "Add staff",
+      message: existing ? "" : "Staff members can be assigned to a teller as cashier and linked to a user login.",
+      fields: fields,
+      validate: function (v) {
+        if (v.firstname.trim().length > 50 || v.lastname.trim().length > 50) return "First and last name must be 50 characters or fewer.";
+        if (v.mobileNo.trim() && !PHONE_RE.test(v.mobileNo.trim())) return "Mobile number must be 7–15 digits (an optional leading + is allowed).";
+        if (v.externalId.trim().length > 100) return "External ID must be 100 characters or fewer.";
+        if (!existing && v.joiningDate > api.todayISO()) return "Joining date cannot be in the future.";
+        return "";
+      },
+      onSubmit: function (v) {
+        var body = { officeId: Number(v.officeId), firstname: v.firstname.trim(), lastname: v.lastname.trim(), isLoanOfficer: v.isLoanOfficer === "true" };
+        if (v.mobileNo.trim()) body.mobileNo = v.mobileNo.trim();
+        if (v.externalId.trim()) body.externalId = v.externalId.trim();
+        if (existing) {
+          /* PUT /staff ignores joiningDate and does not take locale / dateFormat. */
+          body.isActive = v.isActive === "true";
+          return api.put("/staff/" + encodeURIComponent(existing.id), body);
+        }
+        body.isActive = true;
+        body.joiningDate = v.joiningDate;
+        return api.post("/staff", withDate(body));
+      }
+    });
+  }
+
+  if (page === "staff") {
+    var staffBody = document.querySelector("#staff-list tbody");
+    var staffOffice = $("staff-office");
+    var canEditStaff = api.can("UPDATE_STAFF");
+    var reloadStaff = async function () {
+      var oid = staffOffice ? staffOffice.value : "";
+      var pair = await Promise.all([
+        api.get("/staff?status=all" + (oid ? "&officeId=" + encodeURIComponent(oid) : "")),
+        staffOffice && staffOffice.options.length <= 1 ? loadOffices() : Promise.resolve(null)
+      ]);
+      if (pair[1]) {
+        staffOffice.innerHTML = '<option value="">All offices</option>' + pair[1].map(function (o) {
+          return '<option value="' + esc(o.id) + '">' + esc(o.name) + "</option>";
+        }).join("");
+      }
+      var list = Array.isArray(pair[0]) ? pair[0] : ((pair[0] && pair[0].pageItems) || []);
+      staffBody.innerHTML = list.map(function (s) {
+        return '<tr><td class="strong">' + esc(staffName(s)) + "</td><td>" + esc(s.officeName || "") + "</td><td>" +
+          (s.isLoanOfficer ? "Yes" : "No") + '</td><td class="mono">' + esc(s.mobileNo || "—") + "</td><td>" + esc(api.formatDate(s.joiningDate)) +
+          "</td><td>" + api.statusBadge(s.isActive ? "Active" : "Inactive") + '</td><td class="btn-group">' +
+          (canEditStaff ? '<button type="button" class="btn btn-sm btn-ghost" data-edit-staff="' + esc(s.id) + '">Edit</button>' : "") + "</td></tr>";
+      }).join("") || api.emptyRow(7, oid ? "No staff in this office yet." : "No staff yet. Add a staff member, then assign them to a teller as cashier.");
+    };
+    staffBody.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-edit-staff]");
+      if (!b) return;
+      api.get("/staff/" + encodeURIComponent(b.getAttribute("data-edit-staff"))).then(staffDialog).then(function (res) {
+        if (res) { api.toast("Staff updated", "success"); return reloadStaff(); }
+      }).catch(fail);
+    });
+    if (staffOffice) staffOffice.addEventListener("change", function () { reloadStaff().catch(fail); });
+    onAction("create-staff", async function () {
+      var res = await staffDialog(null);
+      if (!res) return;
+      api.toast("Staff added. Assign them to a teller under Tellers & cashiers, or give them a login under Users.", "success");
+      await reloadStaff();
+    });
+    reloadStaff().catch(fail);
+  }
+
+  /* Client-side mirror of Fineract's built-in password policies (the server still validates). */
+  var PW_POLICIES = {
+    simple: /^.{1,50}$/,
+    secure: /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?!.*\s).{6,50}$/,
+    strong: /^(?!.*(.)\1)(?!.*\s)(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^\w\s]).{12,50}$/
+  };
+  var STRONG_TEXT = "Password must be 12 to 50 characters long, containing at least one uppercase letter, one lowercase letter, " +
+    "one numeric digit, and one special character, with no spaces or consecutive repeating characters";
+  var pwPolicy = null;
+  async function passwordPolicy() {
+    if (pwPolicy) return pwPolicy;
+    var p = await api.get("/passwordpreferences").catch(function () { return null; });
+    pwPolicy = { key: (p && p.key) || "strong", description: (p && p.description) || STRONG_TEXT };
+    return pwPolicy;
+  }
+  function passwordProblem(pw, policy) {
+    var re = PW_POLICIES[policy.key];
+    if (!re) return "";
+    return re.test(pw) ? "" : policy.description + ".";
+  }
+  async function staffOptionsFor(officeId, keep) {
+    if (!officeId) return [];
+    var list = await api.get("/staff?status=active&officeId=" + encodeURIComponent(officeId));
+    list = Array.isArray(list) ? list : [];
+    if (keep && String(keep.officeId) === String(officeId) && !list.some(function (s) { return String(s.id) === String(keep.id); })) list = [keep].concat(list);
+    return list.map(function (s) { return { value: s.id, label: staffName(s) }; });
+  }
+
+  async function userDialog(existing) {
+    var res = await Promise.all([loadOffices(), api.get("/roles"), passwordPolicy()]);
+    var offices = res[0];
+    var policy = res[2];
+    var selected = existing ? (existing.selectedRoles || []).map(function (r) { return String(r.id); }) : [];
+    var roleOpts = (Array.isArray(res[1]) ? res[1] : []).filter(function (r) {
+      return !r.disabled || selected.indexOf(String(r.id)) >= 0;
+    }).map(function (r) { return { value: r.id, label: r.name }; });
+    if (!roleOpts.length) throw new Error("No roles are enabled in Fineract. An administrator must create a role first.");
+    var linked = existing && existing.staff ? existing.staff : null;
+    var officeId = existing ? String(existing.officeId) : defaultOffice(offices);
+    var staffOpts = await staffOptionsFor(officeId, linked);
+    var fields = [];
+    if (!existing) fields.push({ key: "username", label: "Username", required: true, autocomplete: "off" });
+    fields.push(
+      { key: "firstname", label: "First name", required: true, value: existing ? existing.firstname || "" : "" },
+      { key: "lastname", label: "Last name", required: true, value: existing ? existing.lastname || "" : "" },
+      { key: "email", label: "Email", type: "email", required: true, value: existing ? existing.email || "" : "", autocomplete: "off" },
+      { key: "officeId", label: "Office", type: "select", required: true, value: officeId, options: officeOpts(offices),
+        onChange: async function (val, dlg) { dlg.setOptions("staffId", await staffOptionsFor(val, linked), linked && String(linked.officeId) === String(val) ? linked.id : ""); } },
+      { key: "staffId", label: "Staff record", type: "select", placeholder: "— None —", value: linked ? String(linked.id) : "", options: staffOpts, full: true,
+        help: "Required for tellers / cashiers: link the user to the staff member assigned as cashier (same office). Create staff on the Staff page." },
+      { key: "roles", label: "Roles", type: "checkboxes", required: true, value: selected, options: roleOpts },
+      { key: "password", label: existing ? "New password" : "Password", type: "password", required: !existing, autocomplete: "new-password",
+        help: (existing ? "Leave blank to keep the current password. " : "") + policy.description + "." },
+      { key: "repeatPassword", label: "Repeat password", type: "password", required: !existing, autocomplete: "new-password" }
+    );
+    return api.openDialog({
+      title: existing ? "Edit user · " + existing.username : "Add user", submitLabel: existing ? "Save" : "Create user",
+      message: existing ? "" : "The user must change this password the first time they sign in. Share it with them privately.",
+      fields: fields,
+      validate: function (v) {
+        if (!existing && (/\s/.test(v.username) || v.username.length > 100)) return "Username must have no spaces and be 100 characters or fewer.";
+        if (v.firstname.trim().length > 100 || v.lastname.trim().length > 100) return "First and last name must be 100 characters or fewer.";
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email.trim()) || v.email.trim().length > 254) return "Enter a valid email address.";
+        if (!existing || v.password || v.repeatPassword) {
+          if (!v.password) return "Enter the new password in both fields.";
+          if (v.password !== v.repeatPassword) return "The two passwords do not match.";
+          var problem = passwordProblem(v.password, policy);
+          if (problem) return problem;
+        }
+        return "";
+      },
+      onSubmit: function (v) {
+        var body = {
+          firstname: v.firstname.trim(), lastname: v.lastname.trim(), email: v.email.trim(),
+          officeId: Number(v.officeId), roles: v.roles.map(Number)
+        };
+        if (v.staffId) body.staffId = Number(v.staffId);
+        else if (linked) body.staffId = null;
+        if (v.password) { body.password = v.password; body.repeatPassword = v.repeatPassword; }
+        if (existing) return api.put("/users/" + encodeURIComponent(existing.id), body);
+        body.username = v.username.trim();
+        body.sendPasswordToEmail = false;
+        return api.post("/users", body);
+      }
+    });
+  }
+
+  if (page === "users") {
+    var usersBody = document.querySelector("#users-list tbody");
+    var canEditUser = api.can("UPDATE_USER");
+    var reloadUsers = async function () {
+      var users = await api.get("/users");
+      users = Array.isArray(users) ? users : [];
+      usersBody.innerHTML = users.map(function (u) {
+        var name = ((u.firstname || "") + " " + (u.lastname || "")).trim();
+        var staff = u.staff ? staffName(u.staff) : "";
+        return '<tr><td class="mono strong">' + esc(u.username) + "</td><td>" + esc(name || "—") + "</td><td>" + esc(u.officeName || "") + "</td><td>" +
+          (staff ? esc(staff) : '<span class="text-muted">Not linked</span>') + "</td><td>" +
+          esc((u.selectedRoles || []).map(function (r) { return r.name; }).join(", ") || "—") + '</td><td class="btn-group">' +
+          (canEditUser ? '<button type="button" class="btn btn-sm btn-ghost" data-edit-user="' + esc(u.id) + '">Edit</button>' : "") + "</td></tr>";
+      }).join("") || api.emptyRow(6, "No users");
+    };
+    passwordPolicy().then(function (p) {
+      var el = $("password-policy");
+      if (el) el.textContent = "Password policy: " + p.description + ". New users must change their password at first sign-in.";
+    }).catch(fail);
+    usersBody.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-edit-user]");
+      if (!b) return;
+      api.get("/users/" + encodeURIComponent(b.getAttribute("data-edit-user"))).then(userDialog).then(function (res) {
+        if (res) { api.toast("User updated", "success"); return reloadUsers(); }
+      }).catch(fail);
+    });
+    onAction("create-user", async function () {
+      var res = await userDialog(null);
+      if (!res) return;
+      api.toast("User created. They must change the password at first sign-in.", "success");
+      await reloadUsers();
+    });
+    reloadUsers().catch(fail);
+  }
+
+  /* ================================================================ PRODUCTS */
+  if (page === "products") {
+    onAction("create-charge", async function () {
+      var v = await api.openDialog({
+        title: "Create loan charge", submitLabel: "Create",
+        message: "Creates a flat loan charge collected at disbursement.",
+        fields: [{ key: "name", label: "Name", required: true }, amountField()],
+        onSubmit: function (val) {
+          return api.post("/charges", {
+            name: val.name.trim(), amount: val.amount, currencyCode: CCY, chargeAppliesTo: 1, chargeTimeType: 1,
+            chargeCalculationType: 1, chargePaymentMode: 0, active: true, locale: "en"
+          });
+        }
+      });
+      if (v) { api.toast("Charge created", "success"); refresh(); }
+    });
+  }
+
+  /* ================================================================ REPORTS / ADMIN */
+  if (page === "reports") {
+    onAction("list-users", async function () {
+      var users = await api.get("/users");
+      users = Array.isArray(users) ? users : [];
+      $("users-output").innerHTML = '<table class="data"><thead><tr><th>Username</th><th>Name</th><th>Office</th><th>Roles</th></tr></thead><tbody>' +
+        (users.map(function (u) {
+          return "<tr><td class=\"mono\">" + esc(u.username) + "</td><td>" + esc(((u.firstname || "") + " " + (u.lastname || "")).trim()) + "</td><td>" +
+            esc(u.officeName || "") + "</td><td>" + esc((u.selectedRoles || []).map(function (r) { return r.name; }).join(", ")) + "</td></tr>";
+        }).join("") || api.emptyRow(4, "No users")) + "</tbody></table>";
+    });
   }
 })();

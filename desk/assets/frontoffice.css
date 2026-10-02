@@ -1,35 +1,17 @@
-/* Front office module plus roles extras. Colors come from app.css tokens (Phaneroo green/cream). */
-.fo-notice { border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: var(--teal-soft); color: var(--navy); }
-.fo-notice.ok { background: var(--success-soft); color: var(--success); }
-.perm-toolbar, .perm-sticky { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
-.perm-toolbar input[type="search"] { min-width: 220px; }
-.perm-sticky { position: sticky; bottom: 0; background: var(--surface); padding: 10px 0; border-top: 1px solid var(--border); }
-.perm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; margin: 8px 0 16px; }
-.perm-item { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
-.perm-name { display: block; }
-.perm-code { display: block; color: var(--muted); font-size: 11px; }
-.perm-group-actions { margin: 8px 0; }
-details[data-group] { border-bottom: 1px solid var(--border); padding: 8px 0; }
-details[data-group] summary { cursor: pointer; }
-
-/* Soft Dev front-office layout. Token colors stay the green/cream set in app.css. */
-.fo-notice.warn { background: var(--amber-soft); color: var(--text); }
-.fo-notice.info { background: var(--info-soft); color: var(--navy); }
+/* Pivot SACCO Desk — front office module (tellers, EOD, dashboard, offices, roles). Loaded only by those pages. */
+.fo-notice { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin: 0 0 16px; font-size: 13px; line-height: 1.5; background: #fff; }
+.fo-notice.warn { border-color: #F5D48A; background: var(--amber-soft); }
+.fo-notice.info { border-color: var(--info); background: var(--info-soft); }
+.fo-notice.ok { border-color: #A7D4B8; background: var(--success-soft); }
 .fo-notice .btn { margin-left: 6px; }
+
 .kpi-card.fo-alert { border-left: 3px solid var(--danger); }
 .kpi-value.fo-small { font-size: 18px; }
 
+/* denominations */
 .denom-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; }
 .denom-head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 4px; }
-.denom-cols .denom-row {
-  display: grid;
-  grid-template-columns: minmax(64px, 1fr) 72px minmax(64px, 1fr);
-  align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  margin-bottom: 4px;
-  background: transparent;
-}
+.denom-cols .denom-row { display: grid; grid-template-columns: minmax(64px, 1fr) 72px minmax(64px, 1fr); align-items: center; gap: 8px; padding: 4px 8px; margin-bottom: 4px; }
 .denom-cols .denom-row input { width: 100%; }
 .denom-cols .denom-row label { font-size: 13px; }
 .denom-sub { text-align: right; font-size: 12px; color: var(--muted); }
@@ -41,6 +23,7 @@ details[data-group] summary { cursor: pointer; }
 .fo-mode label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
 .fo-counted { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0 0; }
 
+/* dashboard queues */
 .fo-queues { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
 .fo-queue h3 { font-size: 13px; margin: 0 0 6px; display: flex; justify-content: space-between; gap: 8px; }
 .fo-queue h3 .mono { color: var(--amber); }
@@ -48,13 +31,29 @@ details[data-group] summary { cursor: pointer; }
 .fo-queue li { padding: 5px 0; border-bottom: 1px solid var(--border); }
 .fo-queue li:last-child { border-bottom: 0; }
 
+/* offices */
 .fo-office { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 2px 4px; border-radius: 6px; }
 .fo-office.active { background: var(--amber-soft); }
 .fo-linkbtn { background: none; border: 0; padding: 0; font: inherit; font-weight: 650; color: var(--teal); cursor: pointer; text-decoration: underline; }
 
+/* roles / permissions */
+.perm-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
+.perm-toolbar input[type="search"] { flex: 1 1 220px; min-width: 0; }
+.perm-toolbar label.check { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+#perm-groups details { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: #fff; }
+#perm-groups summary { cursor: pointer; padding: 10px 12px; font-size: 13px; }
+.perm-group-actions { padding: 0 12px 6px; }
+.perm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2px 12px; padding: 0 12px 12px; }
+.perm-item { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; padding: 4px 0; }
+.perm-item input { margin-top: 3px; }
+.perm-name { display: block; }
+.perm-code { display: block; font-size: 11px; color: var(--muted); word-break: break-all; }
+.perm-sticky { position: sticky; bottom: 0; background: #fff; border-top: 1px solid var(--border); padding: 10px 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* EOD print sheet */
 .print-only { display: none; }
 .fo-sign { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 40px; font-size: 13px; }
-.fo-sign div { border-top: 1px solid var(--text); padding-top: 6px; }
+.fo-sign div { border-top: 1px solid #333; padding-top: 6px; }
 @media print {
   .no-print, .fo-notice, [data-perm] form { display: none !important; }
   .print-only { display: block !important; }
@@ -62,6 +61,7 @@ details[data-group] summary { cursor: pointer; }
   .grid-2 { display: block !important; }
 }
 
+/* keep two-column layouts inside the viewport on phones */
 .grid-2 > * { min-width: 0; }
 .card-h { flex-wrap: wrap; }
 .card-h .chip { white-space: normal; }

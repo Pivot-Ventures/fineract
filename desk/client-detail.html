@@ -3,66 +3,65 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Client · Nakato Grace · Phaneroo SACCO</title>
+  <title>Member · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
   <link rel="stylesheet" href="assets/members.css" />
 </head>
 <body data-page="client-detail">
-<div class="banner-mock">MOCK DATA ONLY — Phaneroo SACCO UI mockup. Not connected to Apache Fineract.</div>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div class="status-bar" id="status-bar" role="alert" hidden></div>
 <div class="app-shell">
 
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
-    <div class="brand-mark">P</div>
+    <div class="brand-mark" aria-hidden="true">P</div>
     <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
-  <nav class="sidebar-nav">
+  <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
-      <a class="nav-link" data-nav="dashboard" href="dashboard.html"><span class="nav-icon">▣</span> Dashboard</a>
+      <a class="nav-link" data-nav="dashboard" href="dashboard.html"><span class="nav-icon" aria-hidden="true">▣</span> Dashboard</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Front office</div>
-      <a class="nav-link" data-nav="teller" href="teller.html"><span class="nav-icon">💱</span> Teller day desk</a>
-      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon">🖥</span> Tellers &amp; cashiers</a>
-      <a class="nav-link" data-nav="cashier-eod" href="cashier-eod.html"><span class="nav-icon">⚖</span> Cashier EOD / settle</a>
-      <a class="nav-link" data-nav="collections" href="collections.html"><span class="nav-icon">📥</span> Collections / overdue</a>
+      <a class="nav-link" data-nav="teller" href="teller.html"><span class="nav-icon" aria-hidden="true">💱</span> Teller day desk</a>
+      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon" aria-hidden="true">🖥</span> Tellers &amp; cashiers</a>
+      <a class="nav-link" data-nav="cashier-eod" href="cashier-eod.html"><span class="nav-icon" aria-hidden="true">⚖</span> Cashier EOD / settle</a>
+      <a class="nav-link" data-nav="collections" href="collections.html"><span class="nav-icon" aria-hidden="true">📥</span> Collections / overdue</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Members</div>
-      <a class="nav-link" data-nav="clients" href="clients.html"><span class="nav-icon">👤</span> Clients</a>
-      <a class="nav-link" data-nav="onboard" href="client-onboard.html"><span class="nav-icon">＋</span> Onboard member</a>
-      <a class="nav-link" data-nav="groups" href="groups.html"><span class="nav-icon">👥</span> Groups</a>
-      <a class="nav-link" data-nav="centres" href="centres.html"><span class="nav-icon">⌖</span> Centres</a>
-      <a class="nav-link" data-nav="clients" href="clients.html#kyc"><span class="nav-icon">🪪</span> KYC queue</a>
+      <a class="nav-link" data-nav="clients" href="clients.html"><span class="nav-icon" aria-hidden="true">👤</span> Clients</a>
+      <a class="nav-link" data-nav="onboard" href="client-onboard.html"><span class="nav-icon" aria-hidden="true">＋</span> Onboard member</a>
+      <a class="nav-link" data-nav="groups" href="groups.html"><span class="nav-icon" aria-hidden="true">👥</span> Groups</a>
+      <a class="nav-link" data-nav="centres" href="centres.html"><span class="nav-icon" aria-hidden="true">⌖</span> Centres</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Portfolio</div>
-      <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon">📋</span> Loans</a>
-      <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon">✎</span> Loan application</a>
-      <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
+      <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
+      <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
       <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
       <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
       <a class="nav-link" data-nav="recurring-deposits" href="recurring-deposits.html"><span class="nav-icon" aria-hidden="true">↻</span> Recurring deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
-      <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon">🏷</span> Products &amp; charges</a>
+      <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Accounting</div>
-      <a class="nav-link" data-nav="accounting" href="accounting.html"><span class="nav-icon">📒</span> Chart of accounts</a>
-      <a class="nav-link" data-nav="journals" href="journals.html"><span class="nav-icon">☰</span> Journal entries</a>
-      <a class="nav-link" data-nav="journal" href="journal-entry.html"><span class="nav-icon">✎</span> Create journal</a>
-      <a class="nav-link" data-nav="closing" href="closing-entries.html"><span class="nav-icon">🔒</span> Closing entries</a>
-      <a class="nav-link" data-nav="mappings" href="financial-mappings.html"><span class="nav-icon">↔</span> Financial mappings</a>
-      <a class="nav-link" data-nav="rules" href="accounting-rules.html"><span class="nav-icon">⚙</span> Rules / frequent</a>
-      <a class="nav-link" data-nav="accruals" href="accruals.html"><span class="nav-icon">⏱</span> Accruals / provisioning</a>
-      <a class="nav-link" data-nav="trial" href="trial-balance.html"><span class="nav-icon">⚖</span> Trial balance</a>
-      <a class="nav-link" data-nav="is" href="income-statement.html"><span class="nav-icon">📈</span> Income statement</a>
-      <a class="nav-link" data-nav="bs" href="balance-sheet.html"><span class="nav-icon">📊</span> Balance sheet</a>
+      <a class="nav-link" data-nav="accounting" href="accounting.html"><span class="nav-icon" aria-hidden="true">📒</span> Chart of accounts</a>
+      <a class="nav-link" data-nav="journals" href="journals.html"><span class="nav-icon" aria-hidden="true">☰</span> Journal entries</a>
+      <a class="nav-link" data-nav="journal" href="journal-entry.html"><span class="nav-icon" aria-hidden="true">✎</span> Create journal</a>
+      <a class="nav-link" data-nav="closing" href="closing-entries.html"><span class="nav-icon" aria-hidden="true">🔒</span> Closing entries</a>
+      <a class="nav-link" data-nav="mappings" href="financial-mappings.html"><span class="nav-icon" aria-hidden="true">↔</span> Financial mappings</a>
+      <a class="nav-link" data-nav="rules" href="accounting-rules.html"><span class="nav-icon" aria-hidden="true">⚙</span> Rules / frequent</a>
+      <a class="nav-link" data-nav="accruals" href="accruals.html"><span class="nav-icon" aria-hidden="true">⏱</span> Accruals / provisioning</a>
+      <a class="nav-link" data-nav="trial" href="trial-balance.html"><span class="nav-icon" aria-hidden="true">⚖</span> Trial balance</a>
+      <a class="nav-link" data-nav="is" href="income-statement.html"><span class="nav-icon" aria-hidden="true">📈</span> Income statement</a>
+      <a class="nav-link" data-nav="bs" href="balance-sheet.html"><span class="nav-icon" aria-hidden="true">📊</span> Balance sheet</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Organization</div>
-      <a class="nav-link" data-nav="offices" href="offices.html"><span class="nav-icon">🏢</span> Offices / staff</a>
-      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon">🖥</span> Tellers setup</a>
+      <a class="nav-link" data-nav="offices" href="offices.html"><span class="nav-icon" aria-hidden="true">🏢</span> Offices / staff</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Reports</div>
-      <a class="nav-link" data-nav="reports" href="reports.html"><span class="nav-icon">📊</span> Report catalog</a>
-      <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon">📄</span> Member statement</a>
+      <a class="nav-link" data-nav="reports" href="reports.html"><span class="nav-icon" aria-hidden="true">📊</span> Report catalog</a>
+      <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
       <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
@@ -72,119 +71,148 @@
       <a class="nav-link" data-nav="system" href="system.html"><span class="nav-icon" aria-hidden="true">⏲</span> System</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><span class="mock-badge">MOCK UI</span><div style="margin-top:6px">Tenant: default · env: local</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
 
 <header class="topbar">
-  <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Menu">☰</button>
-  <div class="topbar-search"><span class="search-ico">⌕</span>
-    <input type="search" placeholder="Search member by name, ID, phone…" /></div>
-  <span class="chip">Branch: Kampala Main</span>
-  <span class="chip green">Teller: Open</span>
-  <div class="topbar-right"><span class="chip amber">MOCK</span><div class="avatar">OM</div></div>
+  <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Open menu" aria-controls="sidebar">☰</button>
+  <div class="topbar-search" role="search"><span class="search-ico" aria-hidden="true">⌕</span>
+    <label for="global-search" class="sr-only">Search members, loans and savings</label>
+    <input id="global-search" type="search" placeholder="Search member, account no, phone…" /></div>
+  <span class="chip" id="office-chip" hidden></span>
+  <div class="topbar-right">
+    <span class="user-name" id="user-name"></span>
+    <div class="avatar" id="user-avatar" aria-hidden="true">?</div>
+    <button type="button" class="btn btn-sm btn-ghost" id="logout-btn">Log out</button>
+  </div>
 </header>
 
-    <div class="content">
+    <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Client · Nakato Grace</h1><p class="page-sub">Ugandan SACCO operations · Currency UGX · Kampala Main</p></div>
-        <div class="api-chip"><span>Fineract</span> /clients/{id} · /images · /loans · /savingsaccounts · /documents</div>
+        <div><h1 id="client-title">Member</h1><p class="page-sub" id="page-sub">Loading…</p></div>
+        <a class="btn btn-ghost btn-sm" href="clients.html">‹ All members</a>
       </div>
 
+      <div class="notice-bar" id="client-notice" role="status" hidden></div>
+
       <div class="card"><div class="card-b"><div class="profile-head">
-        <div class="avatar-xl">NG</div>
-        <div style="flex:1">
-          <h2 style="margin:0 0 4px;font-size:20px">Nakato Grace <span class="status active">Active</span></h2>
-          <div class="text-muted">#0001284 · Female · DOB 14 Mar 1988 · Kampala Main · Staff: Kato Musa</div>
-          <div class="btn-group" style="margin-top:10px">
-            <button class="btn btn-sm btn-ghost" data-mock="Upload client image">Update photo</button>
-            <a class="btn btn-sm btn-ghost" href="member-statement.html">Statement</a>
-            <button class="btn btn-sm btn-ghost" data-mock="Transfer client">Transfer office</button>
-            <button class="btn btn-sm btn-ghost" data-mock="Close client">Close client</button>
+        <div class="avatar-xl" id="client-avatar" aria-hidden="true">?</div>
+        <div class="grow">
+          <h2 class="profile-title"><span id="client-name">—</span> <span id="client-status"></span></h2>
+          <div class="text-muted" id="client-summary">—</div>
+          <div class="btn-group mt-10" id="client-lifecycle">
+            <button type="button" class="btn btn-sm btn-amber" id="btn-activate" data-perm="ACTIVATE_CLIENT" hidden>Activate member</button>
+            <button type="button" class="btn btn-sm btn-amber" id="btn-accept-transfer" data-perm="ACCEPTTRANSFER_CLIENT" hidden>Accept transfer</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="btn-reject-transfer" data-perm="REJECTTRANSFER_CLIENT" hidden>Reject transfer</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="btn-withdraw-transfer" data-perm="WITHDRAWTRANSFER_CLIENT" hidden>Cancel transfer</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="btn-update-photo" data-perm="CREATE_CLIENTIMAGE">Update photo</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="btn-remove-photo" data-perm="DELETE_CLIENTIMAGE" hidden>Remove photo</button>
+            <a class="btn btn-sm btn-ghost" id="link-statement" href="member-statement.html">Statement</a>
+            <button type="button" class="btn btn-sm btn-ghost" id="btn-transfer" data-perm="PROPOSETRANSFER_CLIENT PROPOSEANDACCEPTTRANSFER_CLIENT" hidden>Transfer office</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="btn-close" data-perm="CLOSE_CLIENT" hidden>Close member</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="btn-reactivate" data-perm="REACTIVATE_CLIENT" hidden>Reactivate</button>
           </div>
         </div>
         <div class="btn-group">
-          <a class="btn btn-amber" href="loan-apply.html">New loan</a>
-          <button class="btn btn-ghost" data-mock="Open savings">Open savings</button>
-          <button class="btn btn-ghost" data-mock="Edit client">Edit</button>
+          <a class="btn btn-amber" id="link-new-loan" href="loan-apply.html" data-perm="CREATE_LOAN">New loan</a>
+          <button type="button" class="btn btn-ghost" id="btn-open-savings" data-perm="CREATE_SAVINGSACCOUNT">Open savings</button>
+          <button type="button" class="btn btn-ghost" id="btn-edit" data-perm="UPDATE_CLIENT">Edit profile</button>
         </div>
       </div>
       <div class="meta-list">
-        <div class="meta-item"><div class="k">Mobile</div><div class="v">+256 772 441 203</div></div>
-        <div class="meta-item"><div class="k">NIN</div><div class="v">CM8803141XXXXX</div></div>
-        <div class="meta-item"><div class="k">Address</div><div class="v">Plot 12, Makerere Hill Rd</div></div>
-        <div class="meta-item"><div class="k">Activation</div><div class="v">12 Jan 2023</div></div>
-        <div class="meta-item"><div class="k">External ID</div><div class="v">SACCO-UG-1284</div></div>
-        <div class="meta-item"><div class="k">Savings total</div><div class="v mono">UGX 2,270,000</div></div>
+        <div class="meta-item"><div class="k">Member no.</div><div class="v" id="client-external">—</div></div>
+        <div class="meta-item"><div class="k">Mobile</div><div class="v" id="client-mobile">—</div></div>
+        <div class="meta-item"><div class="k">National ID / ID</div><div class="v" id="client-identifier">—</div></div>
+        <div class="meta-item"><div class="k">Date of birth</div><div class="v" id="client-dob">—</div></div>
+        <div class="meta-item"><div class="k">Office</div><div class="v" id="client-office">—</div></div>
+        <div class="meta-item"><div class="k">Loan officer</div><div class="v" id="client-staff">—</div></div>
+        <div class="meta-item"><div class="k">Activated</div><div class="v" id="client-activation">—</div></div>
+        <div class="meta-item"><div class="k">Groups</div><div class="v" id="client-groups">—</div></div>
+        <div class="meta-item"><div class="k">Savings balance</div><div class="v mono" id="client-savings-total">—</div></div>
+        <div class="meta-item"><div class="k">Loan balance</div><div class="v mono" id="client-loan-total">—</div></div>
       </div></div></div>
-      <div data-tabs>
-        <div class="tabs">
-          <button class="tab active" data-tab="loans" type="button">Loans</button>
-          <button class="tab" data-tab="savings" type="button">Savings</button>
-          <button class="tab" data-tab="family" type="button">Family</button>
-          <button class="tab" data-tab="addr" type="button">Addresses</button>
-          <button class="tab" data-tab="docs" type="button">Documents</button>
-          <button class="tab" data-tab="txns" type="button">Txns</button>
+
+      <div class="card" id="mobile-banking" data-perm="UPDATE_CLIENT" hidden>
+        <div class="card-h"><h2>Mobile banking</h2> <span id="mb-status" class="chip gray">—</span></div>
+        <div class="card-b">
+          <p class="text-muted" id="mb-detail">Loading…</p>
+          <div class="notice-bar" id="mb-code" role="status" hidden></div>
+          <div class="btn-group mt-10">
+            <button type="button" class="btn btn-sm btn-amber" id="mb-issue" hidden>Issue activation code</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="mb-unlock" hidden>Clear PIN lock</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="mb-block" hidden>Block mobile banking</button>
+          </div>
         </div>
-        <div class="tab-panel active" data-panel="loans"><div class="card"><div class="card-b table-wrap"><table class="data">
-          <thead><tr><th>Account</th><th>Product</th><th class="text-right">Principal</th><th class="text-right">Outstanding</th><th>Status</th><th></th></tr></thead>
-          <tbody>
-            <tr><td class="mono">0004821</td><td>Business Growth</td><td class="mono text-right">3,000,000</td><td class="mono text-right">1,240,000</td><td><span class="status active">Active</span></td><td><a class="btn btn-sm btn-ghost" href="loan-detail.html">Open</a></td></tr>
-            <tr><td class="mono">0003110</td><td>Emergency</td><td class="mono text-right">500,000</td><td class="mono text-right">0</td><td><span class="status closed">Closed</span></td><td><a class="btn btn-sm btn-ghost" href="loan-detail.html">Open</a></td></tr>
-          </tbody>
-        </table></div></div></div>
-        <div class="tab-panel" data-panel="savings"><div class="card"><div class="card-b table-wrap"><table class="data">
-          <thead><tr><th>Account</th><th>Product</th><th class="text-right">Balance</th><th></th></tr></thead>
-          <tbody>
-            <tr><td class="mono">SA-90112</td><td>Compulsory</td><td class="mono text-right">1,850,000</td><td><a class="btn btn-sm btn-ghost" href="savings-detail.html">Open</a></td></tr>
-            <tr><td class="mono">SA-90188</td><td>Voluntary</td><td class="mono text-right">420,000</td><td><a class="btn btn-sm btn-ghost" href="savings-detail.html">Open</a></td></tr>
-          </tbody>
-        </table></div></div></div>
-        <div class="tab-panel" data-panel="family"><div class="card"><div class="card-b table-wrap"><table class="data">
-          <thead><tr><th>Name</th><th>Relationship</th><th>Mobile</th></tr></thead>
-          <tbody>
-            <tr><td>Wasswa John</td><td>Spouse</td><td>+256 700 112 233</td></tr>
-            <tr><td>Nakato Junior</td><td>Child</td><td>—</td></tr>
-            <tr><td>Nalule Mary</td><td>Next of kin</td><td>+256 772 998 001</td></tr>
-          </tbody>
-        </table><button class="btn btn-sm" style="margin-top:10px" data-mock="Add family">＋ Add</button></div></div></div>
-        <div class="tab-panel" data-panel="addr"><div class="card"><div class="card-b">
-          <div id="client-addresses" class="text-muted">Addresses load when the address module is on.</div>
-          <button class="btn btn-sm" style="margin-top:10px" data-mock="Add address">＋ Address</button>
-        </div></div></div>
-        <div class="tab-panel" data-panel="docs"><div class="card"><div class="card-b"><div class="doc-gallery">
-          <div class="doc-tile"><div class="doc-thumb photo">NG</div><div class="strong">Profile photo</div></div>
-          <div class="doc-tile"><div class="doc-thumb nin">NIN</div><div class="strong">National ID</div></div>
-          <div class="doc-tile"><div class="doc-thumb">PDF</div><div class="strong">Membership form</div></div>
-          <div class="doc-tile"><div class="upload-zone">＋ Upload</div></div>
-        </div></div></div></div>
-        <div class="tab-panel" data-panel="txns"><div class="card"><div class="card-b table-wrap"><table class="data">
-          <thead><tr><th>Date</th><th>Type</th><th>Account</th><th class="text-right">Amount</th></tr></thead>
-          <tbody>
-            <tr><td>30 Sep 2026</td><td>Repayment</td><td class="mono">0004821</td><td class="mono text-right">250,000</td></tr>
-            <tr><td>22 Sep 2026</td><td>Deposit</td><td class="mono">SA-90112</td><td class="mono text-right">50,000</td></tr>
-          </tbody>
-        </table></div></div></div>
-      </div>
-      <div class="card" id="standing-instructions">
-        <div class="card-h"><h2>Standing instructions</h2>
-          <button type="button" class="btn btn-sm btn-amber" id="si-add">＋ Instruction</button>
-        </div>
-        <div class="card-b table-wrap"><table class="data" id="si-table">
-          <thead><tr><th>Name</th><th>From → to</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-          <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
-        </table></div>
       </div>
 
-    </div>
+      <div data-tabs>
+        <div class="tabs">
+          <button class="tab active" data-tab="accounts" type="button">Accounts</button>
+          <button class="tab" data-tab="ids" type="button">Identifiers</button>
+          <button class="tab" data-tab="family" type="button">Next of kin / family</button>
+          <button class="tab" data-tab="docs" type="button">Documents</button>
+          <button class="tab" data-tab="charges" type="button">Charges</button>
+          <button class="tab" data-tab="addr" type="button" id="tab-addr" hidden>Addresses</button>
+        </div>
+        <div class="tab-panel active" data-panel="accounts">
+          <div class="card"><div class="card-h"><h2>Loans</h2></div><div class="card-b table-wrap"><table class="data" id="client-loans">
+            <thead><tr><th>Account</th><th>Product</th><th>Status</th><th class="text-right">Principal</th><th class="text-right">Outstanding</th><th><span class="sr-only">Open</span></th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="6">Loading…</td></tr></tbody>
+          </table></div></div>
+          <div class="card"><div class="card-h"><h2>Savings</h2></div><div class="card-b table-wrap"><table class="data" id="client-savings">
+            <thead><tr><th>Account</th><th>Product</th><th>Status</th><th class="text-right">Balance</th><th><span class="sr-only">Open</span></th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+          </table></div></div>
+          <div class="card"><div class="card-h"><h2>Shares</h2></div><div class="card-b table-wrap"><table class="data" id="client-shares">
+            <thead><tr><th>Account</th><th>Product</th><th>Status</th><th class="text-right">Approved shares</th><th class="text-right">Pending shares</th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+          </table></div></div>
+        </div>
+        <div class="tab-panel" data-panel="ids"><div class="card">
+          <div class="card-h"><h2>Identity documents</h2>
+            <button type="button" class="btn btn-sm btn-amber" id="btn-add-id" data-perm="CREATE_CLIENTIDENTIFIER">＋ Add identifier</button></div>
+          <div class="card-b table-wrap"><table class="data" id="client-ids">
+            <thead><tr><th>Type</th><th>Number</th><th>Description</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+          </table></div></div></div>
+        <div class="tab-panel" data-panel="family"><div class="card">
+          <div class="card-h"><h2>Next of kin and family members</h2>
+            <button type="button" class="btn btn-sm btn-amber" id="btn-add-family" data-perm="CREATE_FAMILYMEMBERS">＋ Add person</button></div>
+          <div class="card-b table-wrap"><table class="data" id="client-family">
+            <thead><tr><th>Name</th><th>Relationship</th><th>Mobile</th><th>Gender</th><th>Date of birth</th><th>Dependent</th><th><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="7">Loading…</td></tr></tbody>
+          </table></div></div></div>
+        <div class="tab-panel" data-panel="docs"><div class="card">
+          <div class="card-h"><h2>Documents</h2>
+            <button type="button" class="btn btn-sm btn-amber" id="btn-add-doc" data-perm="CREATE_DOCUMENT">＋ Upload document</button></div>
+          <div class="card-b table-wrap"><table class="data" id="client-docs">
+            <thead><tr><th>Name</th><th>File</th><th>Description</th><th class="text-right">Size</th><th><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+          </table></div></div></div>
+        <div class="tab-panel" data-panel="charges"><div class="card">
+          <div class="card-h"><h2>Member charges</h2></div>
+          <div class="card-b table-wrap"><table class="data" id="client-charges">
+            <thead><tr><th>Charge</th><th>Due</th><th class="text-right">Amount</th><th class="text-right">Paid</th><th class="text-right">Outstanding</th><th>Status</th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="6">Loading…</td></tr></tbody>
+          </table>
+          <p class="text-muted small-note">Membership and withdrawal fees are charged on the member's savings account (see the savings account page).</p></div></div></div>
+        <div class="tab-panel" data-panel="addr"><div class="card">
+          <div class="card-h"><h2>Addresses</h2></div>
+          <div class="card-b table-wrap"><table class="data" id="client-addr">
+            <thead><tr><th>Type</th><th>Address</th><th>City / district</th><th>Status</th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
+          </table></div></div></div>
+      </div>
+    </main>
   </div>
 </div>
   <script src="assets/api.js"></script>
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
-  <script src="assets/desk-writes.js"></script>
   <script src="assets/actions.js"></script>
-  <script src="assets/desk-remaining.js"></script>
+  <script src="assets/members.js"></script>
+  <script src="assets/mobile-banking.js"></script>
 </body>
 </html>

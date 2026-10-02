@@ -7,61 +7,60 @@
   <link rel="stylesheet" href="assets/app.css" />
 </head>
 <body data-page="loan-apply">
-<div class="banner-mock">MOCK DATA ONLY — Phaneroo SACCO UI mockup. Not connected to Apache Fineract.</div>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div class="status-bar" id="status-bar" role="alert" hidden></div>
 <div class="app-shell">
 
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
-    <div class="brand-mark">P</div>
+    <div class="brand-mark" aria-hidden="true">P</div>
     <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
-  <nav class="sidebar-nav">
+  <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
-      <a class="nav-link" data-nav="dashboard" href="dashboard.html"><span class="nav-icon">▣</span> Dashboard</a>
+      <a class="nav-link" data-nav="dashboard" href="dashboard.html"><span class="nav-icon" aria-hidden="true">▣</span> Dashboard</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Front office</div>
-      <a class="nav-link" data-nav="teller" href="teller.html"><span class="nav-icon">💱</span> Teller day desk</a>
-      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon">🖥</span> Tellers &amp; cashiers</a>
-      <a class="nav-link" data-nav="cashier-eod" href="cashier-eod.html"><span class="nav-icon">⚖</span> Cashier EOD / settle</a>
-      <a class="nav-link" data-nav="collections" href="collections.html"><span class="nav-icon">📥</span> Collections / overdue</a>
+      <a class="nav-link" data-nav="teller" href="teller.html"><span class="nav-icon" aria-hidden="true">💱</span> Teller day desk</a>
+      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon" aria-hidden="true">🖥</span> Tellers &amp; cashiers</a>
+      <a class="nav-link" data-nav="cashier-eod" href="cashier-eod.html"><span class="nav-icon" aria-hidden="true">⚖</span> Cashier EOD / settle</a>
+      <a class="nav-link" data-nav="collections" href="collections.html"><span class="nav-icon" aria-hidden="true">📥</span> Collections / overdue</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Members</div>
-      <a class="nav-link" data-nav="clients" href="clients.html"><span class="nav-icon">👤</span> Clients</a>
-      <a class="nav-link" data-nav="onboard" href="client-onboard.html"><span class="nav-icon">＋</span> Onboard member</a>
-      <a class="nav-link" data-nav="groups" href="groups.html"><span class="nav-icon">👥</span> Groups</a>
-      <a class="nav-link" data-nav="centres" href="centres.html"><span class="nav-icon">⌖</span> Centres</a>
-      <a class="nav-link" data-nav="clients" href="clients.html#kyc"><span class="nav-icon">🪪</span> KYC queue</a>
+      <a class="nav-link" data-nav="clients" href="clients.html"><span class="nav-icon" aria-hidden="true">👤</span> Clients</a>
+      <a class="nav-link" data-nav="onboard" href="client-onboard.html"><span class="nav-icon" aria-hidden="true">＋</span> Onboard member</a>
+      <a class="nav-link" data-nav="groups" href="groups.html"><span class="nav-icon" aria-hidden="true">👥</span> Groups</a>
+      <a class="nav-link" data-nav="centres" href="centres.html"><span class="nav-icon" aria-hidden="true">⌖</span> Centres</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Portfolio</div>
-      <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon">📋</span> Loans</a>
-      <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon">✎</span> Loan application</a>
-      <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
+      <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
+      <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
       <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
       <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
       <a class="nav-link" data-nav="recurring-deposits" href="recurring-deposits.html"><span class="nav-icon" aria-hidden="true">↻</span> Recurring deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
-      <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon">🏷</span> Products &amp; charges</a>
+      <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Accounting</div>
-      <a class="nav-link" data-nav="accounting" href="accounting.html"><span class="nav-icon">📒</span> Chart of accounts</a>
-      <a class="nav-link" data-nav="journals" href="journals.html"><span class="nav-icon">☰</span> Journal entries</a>
-      <a class="nav-link" data-nav="journal" href="journal-entry.html"><span class="nav-icon">✎</span> Create journal</a>
-      <a class="nav-link" data-nav="closing" href="closing-entries.html"><span class="nav-icon">🔒</span> Closing entries</a>
-      <a class="nav-link" data-nav="mappings" href="financial-mappings.html"><span class="nav-icon">↔</span> Financial mappings</a>
-      <a class="nav-link" data-nav="rules" href="accounting-rules.html"><span class="nav-icon">⚙</span> Rules / frequent</a>
-      <a class="nav-link" data-nav="accruals" href="accruals.html"><span class="nav-icon">⏱</span> Accruals / provisioning</a>
-      <a class="nav-link" data-nav="trial" href="trial-balance.html"><span class="nav-icon">⚖</span> Trial balance</a>
-      <a class="nav-link" data-nav="is" href="income-statement.html"><span class="nav-icon">📈</span> Income statement</a>
-      <a class="nav-link" data-nav="bs" href="balance-sheet.html"><span class="nav-icon">📊</span> Balance sheet</a>
+      <a class="nav-link" data-nav="accounting" href="accounting.html"><span class="nav-icon" aria-hidden="true">📒</span> Chart of accounts</a>
+      <a class="nav-link" data-nav="journals" href="journals.html"><span class="nav-icon" aria-hidden="true">☰</span> Journal entries</a>
+      <a class="nav-link" data-nav="journal" href="journal-entry.html"><span class="nav-icon" aria-hidden="true">✎</span> Create journal</a>
+      <a class="nav-link" data-nav="closing" href="closing-entries.html"><span class="nav-icon" aria-hidden="true">🔒</span> Closing entries</a>
+      <a class="nav-link" data-nav="mappings" href="financial-mappings.html"><span class="nav-icon" aria-hidden="true">↔</span> Financial mappings</a>
+      <a class="nav-link" data-nav="rules" href="accounting-rules.html"><span class="nav-icon" aria-hidden="true">⚙</span> Rules / frequent</a>
+      <a class="nav-link" data-nav="accruals" href="accruals.html"><span class="nav-icon" aria-hidden="true">⏱</span> Accruals / provisioning</a>
+      <a class="nav-link" data-nav="trial" href="trial-balance.html"><span class="nav-icon" aria-hidden="true">⚖</span> Trial balance</a>
+      <a class="nav-link" data-nav="is" href="income-statement.html"><span class="nav-icon" aria-hidden="true">📈</span> Income statement</a>
+      <a class="nav-link" data-nav="bs" href="balance-sheet.html"><span class="nav-icon" aria-hidden="true">📊</span> Balance sheet</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Organization</div>
-      <a class="nav-link" data-nav="offices" href="offices.html"><span class="nav-icon">🏢</span> Offices / staff</a>
-      <a class="nav-link" data-nav="tellers" href="tellers.html"><span class="nav-icon">🖥</span> Tellers setup</a>
+      <a class="nav-link" data-nav="offices" href="offices.html"><span class="nav-icon" aria-hidden="true">🏢</span> Offices / staff</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Reports</div>
-      <a class="nav-link" data-nav="reports" href="reports.html"><span class="nav-icon">📊</span> Report catalog</a>
-      <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon">📄</span> Member statement</a>
+      <a class="nav-link" data-nav="reports" href="reports.html"><span class="nav-icon" aria-hidden="true">📊</span> Report catalog</a>
+      <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
       <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
@@ -71,73 +70,103 @@
       <a class="nav-link" data-nav="system" href="system.html"><span class="nav-icon" aria-hidden="true">⏲</span> System</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><span class="mock-badge">MOCK UI</span><div style="margin-top:6px">Tenant: default · env: local</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
 
 <header class="topbar">
-  <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Menu">☰</button>
-  <div class="topbar-search"><span class="search-ico">⌕</span>
-    <input type="search" placeholder="Search member by name, ID, phone…" /></div>
-  <span class="chip">Branch: Kampala Main</span>
-  <span class="chip green">Teller: Open</span>
-  <div class="topbar-right"><span class="chip amber">MOCK</span><div class="avatar">OM</div></div>
+  <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Open menu" aria-controls="sidebar">☰</button>
+  <div class="topbar-search" role="search"><span class="search-ico" aria-hidden="true">⌕</span>
+    <label for="global-search" class="sr-only">Search members, loans and savings</label>
+    <input id="global-search" type="search" placeholder="Search member, account no, phone…" /></div>
+  <span class="chip" id="office-chip" hidden></span>
+  <div class="topbar-right">
+    <span class="user-name" id="user-name"></span>
+    <div class="avatar" id="user-avatar" aria-hidden="true">?</div>
+    <button type="button" class="btn btn-sm btn-ghost" id="logout-btn">Log out</button>
+  </div>
 </header>
 
-    <div class="content">
+    <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Loan application</h1><p class="page-sub">Ugandan SACCO operations · Currency UGX · Kampala Main</p></div>
-        <div class="api-chip"><span>Fineract</span> POST /loans · /loans/template</div>
+        <div><h1>Loan application</h1><p class="page-sub">Submits an application. Approval and disbursement happen on the loan page.</p></div>
       </div>
 
-      <div class="card"><div class="card-b" data-wizard data-step="0">
-        <ul class="wizard-steps">
-          <li><span class="n">1</span> Client &amp; product</li>
+      <div class="card"><div class="card-b" data-wizard data-step="0" id="loan-wizard">
+        <ol class="wizard-steps">
+          <li><span class="n">1</span> Member &amp; product</li>
           <li><span class="n">2</span> Terms</li>
           <li><span class="n">3</span> Charges</li>
-          <li><span class="n">4</span> Preview</li>
-        </ul>
+          <li><span class="n">4</span> Schedule &amp; submit</li>
+        </ol>
         <div class="wizard-panel active"><div class="form-grid">
-          <div class="form-row"><label>Client</label><select><option>Nakato Grace · 0001284</option><option>Okello Daniel</option></select></div>
-          <div class="form-row"><label>Product</label><select><option>Business Growth</option><option>Agricultural</option><option>School Fees</option><option>Emergency</option></select></div>
-          <div class="form-row"><label>Submitted</label><input type="date" value="2026-09-30" /></div>
-          <div class="form-row"><label>Officer</label><select><option>Kato Musa</option></select></div>
-        </div></div>
+          <div class="form-row"><label for="la-client">Member *</label><input id="la-client" type="text" placeholder="Search name, account no or phone" /></div>
+          <div class="form-row"><label for="la-product">Product *</label><select id="la-product" required><option value="">— Select product —</option></select></div>
+          <div class="form-row"><label for="la-submitted">Submitted on *</label><input id="la-submitted" type="date" required /></div>
+          <div class="form-row"><label for="la-officer">Loan officer</label><select id="la-officer"><option value="">— None —</option></select></div>
+        </div>
+        <p class="text-muted small-note" id="la-client-note">Choose a member from the search results.</p>
+        <p class="small-note loan-note" id="la-product-note" hidden></p></div>
         <div class="wizard-panel"><div class="form-grid">
-          <div class="form-row"><label>Principal</label><input class="mono" value="2,500,000" /></div>
-          <div class="form-row"><label>Term (months)</label><input value="12" /></div>
-          <div class="form-row"><label>Frequency</label><select><option>1 Month</option><option>2 Weeks</option></select></div>
-          <div class="form-row"><label>Interest</label><input value="2.5% / month" /></div>
-          <div class="form-row"><label>Amortization</label><select><option>Equal installments</option></select></div>
-          <div class="form-row"><label>Expected disbursement</label><input type="date" value="2026-10-05" /></div>
+          <div class="form-row"><label for="la-principal">Principal (UGX) *</label><input id="la-principal" class="mono" inputmode="numeric" autocomplete="off" required aria-describedby="la-principal-help" /><span class="field-help" id="la-principal-help"></span></div>
+          <div class="form-row"><label for="la-repayments">Number of repayments *</label><input id="la-repayments" type="number" min="1" step="1" required aria-describedby="la-repayments-help" /><span class="field-help" id="la-repayments-help"></span></div>
+          <div class="form-row"><label for="la-interest">Interest rate per period (%) *</label><input id="la-interest" type="number" step="0.01" min="0" required aria-describedby="la-interest-help" /><span class="field-help" id="la-interest-help"></span></div>
+          <div class="form-row"><label for="la-frequency">Repayment frequency</label><input id="la-frequency" readonly /></div>
+          <div class="form-row"><label for="la-amortization">Amortization / interest method</label><input id="la-amortization" readonly /></div>
+          <div class="form-row"><label for="la-purpose">Loan purpose</label><select id="la-purpose"><option value="">— Not specified —</option></select></div>
+          <div class="form-row"><label for="la-disbursement">Expected disbursement *</label><input id="la-disbursement" type="date" required /></div>
+          <div class="form-row"><label for="la-first-repayment">First repayment on</label><input id="la-first-repayment" type="date" aria-describedby="la-first-repayment-help" /><span class="field-help" id="la-first-repayment-help">Optional. Leave blank to start one period after disbursement.</span></div>
+          <div class="form-row full"><label for="la-link-savings">Linked savings account</label><select id="la-link-savings" aria-describedby="la-link-savings-help"><option value="">— None —</option></select><span class="field-help" id="la-link-savings-help">Needed to disburse into savings or to repay from savings.</span></div>
         </div></div>
-        <div class="wizard-panel"><table class="data">
-          <thead><tr><th>Charge</th><th class="text-right">Amount</th></tr></thead>
-          <tbody><tr><td>Processing fee 1%</td><td class="mono text-right">25,000</td></tr>
-            <tr><td>Insurance</td><td class="mono text-right">15,000</td></tr></tbody>
-        </table></div>
-        <div class="wizard-panel"><div class="recon-box ok">
-          <p class="strong">Submit application (mock)</p>
-          <div class="meta-list">
-            <div class="meta-item"><div class="k">Client</div><div class="v">Nakato Grace</div></div>
-            <div class="meta-item"><div class="k">Principal</div><div class="v mono">UGX 2,500,000</div></div>
-            <div class="meta-item"><div class="k">Term</div><div class="v">12 months</div></div>
+        <div class="wizard-panel">
+          <table class="data" id="la-charges">
+            <caption class="sr-only">Charges on this loan</caption>
+            <thead><tr><th>Include</th><th>Charge</th><th>Collected</th><th class="text-right">Rate / amount</th><th class="text-right">Estimated (UGX)</th></tr></thead>
+            <tbody><tr class="empty-row"><td colspan="5">Choose a member and product first.</td></tr></tbody>
+          </table>
+          <div class="filters inline mt-10">
+            <label for="la-add-charge" class="sr-only">Add another charge</label>
+            <select id="la-add-charge"><option value="">— Add another charge —</option></select>
+            <button type="button" class="btn btn-sm btn-ghost" id="la-add-charge-btn">Add charge</button>
           </div>
-        </div></div>
+          <p class="text-muted small-note">Product default charges are ticked. Penalties for late payment are applied automatically by Fineract.</p>
+        </div>
+        <div class="wizard-panel"><div class="recon-box ok">
+          <p class="strong">Submit application</p>
+          <p class="text-muted small-note">The loan is created as “Submitted and pending approval”.</p>
+          <div class="meta-list">
+            <div class="meta-item"><div class="k">Member</div><div class="v" id="la-review-client">—</div></div>
+            <div class="meta-item"><div class="k">Product</div><div class="v" id="la-review-product">—</div></div>
+            <div class="meta-item"><div class="k">Principal</div><div class="v mono" id="la-review-principal">—</div></div>
+            <div class="meta-item"><div class="k">Repayments</div><div class="v" id="la-review-term">—</div></div>
+            <div class="meta-item"><div class="k">Expected disbursement</div><div class="v" id="la-review-disb">—</div></div>
+            <div class="meta-item"><div class="k">Total interest</div><div class="v mono" id="la-review-interest">—</div></div>
+            <div class="meta-item"><div class="k">Fees</div><div class="v mono" id="la-review-fees">—</div></div>
+            <div class="meta-item"><div class="k">Total repayable</div><div class="v mono" id="la-review-total">—</div></div>
+          </div>
+          <p class="small-note loan-note" id="la-review-guarantee" hidden></p>
+        </div>
+        <h3 class="section-title mt-16">Repayment schedule preview</h3>
+        <div class="table-wrap"><table class="data" id="la-schedule">
+          <caption class="sr-only">Repayment schedule preview</caption>
+          <thead><tr><th>#</th><th>Due</th><th class="text-right">Principal</th><th class="text-right">Interest</th><th class="text-right">Fees</th><th class="text-right">Total due</th><th class="text-right">Balance</th></tr></thead>
+          <tbody><tr class="empty-row"><td colspan="7">The schedule is calculated when you open this step.</td></tr></tbody>
+        </table></div></div>
+        <p class="dialog-error" id="la-error" role="alert" hidden></p>
         <div class="form-actions">
           <button type="button" class="btn btn-ghost" data-wizard-prev>Back</button>
-          <button type="button" class="btn btn-amber" data-wizard-next>Continue</button>
+          <button type="button" class="btn btn-amber" data-wizard-next data-final-label="Submit application">Continue</button>
           <a class="btn btn-ghost" href="loans.html">Cancel</a>
         </div>
       </div></div>
-
-    </div>
+    </main>
   </div>
 </div>
   <script src="assets/api.js"></script>
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
   <script src="assets/actions.js"></script>
+  <script src="assets/loans.js"></script>
 </body>
 </html>

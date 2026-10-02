@@ -1,6 +1,8 @@
-# Phaneroo SACCO desk — Live Fineract wiring
+# Pivot SACCO Desk — Live Fineract wiring
 
-Status as of 2026-09-30 (Africa/Kampala): **Fineract UP**, UI proxy on **:5173**, progressive LIVE screens.
+Every screen reads from and writes to Apache Fineract. There is no sample or placeholder
+data in the pages: where Fineract has no data, the page shows an empty state; where a
+feature is not built yet, the control is disabled and labelled "Not available yet".
 
 ## Architecture
 
@@ -11,7 +13,8 @@ Browser  http://127.0.0.1:5173/
 Docker   apache/fineract (image tag fineract:latest) + postgres
 ```
 
-CORS is avoided by serving the UI and API under the same origin via `server.py`.
+The UI and API share one origin, so there is no CORS. In production Caddy serves the static
+files and reverse-proxies `/fineract-provider/`. `server.py` is for local development only.
 
 ## 1. Start Fineract (Docker)
 
@@ -35,143 +38,115 @@ curl -sk https://localhost:8443/fineract-provider/actuator/health
 # → {"status":"UP", ...}
 ```
 
-Confirm auth (JSON body required):
-
-```bash
-curl -sk -u mifos:password \
-  -H 'Fineract-Platform-TenantId: default' \
-  -H 'Content-Type: application/json' \
-  -d '{"username":"mifos","password":"password"}' \
-  -X POST https://localhost:8443/fineract-provider/api/v1/authentication
-```
-
-**Credentials:** `mifos` / `password` · tenant `default`
-
-## 2. Start UI + proxy
+## 2. Start the development server
 
 ```bash
 cd desk
-./start-desk.sh
-# or: python3 server.py
+./start-desk.sh              # port 5173; exits with a message if the port is busy
+# or: PORT=5191 python3 server.py
 ```
 
-Open **http://127.0.0.1:5173/** → login.html
+Open **http://127.0.0.1:5173/** and sign in with your Fineract user. The tenant defaults to
+`default` (change `DEFAULT_TENANT` in `assets/api.js` for another deployment).
 
-Do **not** use `python -m http.server` — it has no API proxy and browsers will hit CORS.
+`server.py` (development only):
 
-## 3. Smoke checklist
+- serves only `*.html`, `assets/**` and a favicon; everything else (including `server.py`,
+  `scripts/`, READMEs and dotfiles) is 404, with no directory listings;
+- rejects requests whose `Host` is not `127.0.0.1:PORT` / `localhost:PORT` (DNS rebinding);
+- sends no CORS headers (same origin only) and caps request bodies at 20 MB;
+- returns a generic `502 Upstream unavailable` and logs the detail to stderr;
+- disables TLS verification only when `FINERACT_HOST` is localhost / 127.0.0.1 /
+  host.docker.internal; any other upstream is verified.
 
-| Check | Result |
-|-------|--------|
-| Docker daemon | OK (Docker Desktop 4.93, engine 29.8) |
-| Health URL | `https://localhost:8443/fineract-provider/actuator/health` → UP |
-| Proxy URL | `http://127.0.0.1:5173/` |
-| Login | LIVE — POST `/authentication` stores `base64EncodedAuthenticationKey` |
-| List clients | LIVE — GET `/clients` |
-| Create client | LIVE — POST `/clients` (onboard wizard final step) |
-| Client detail | LIVE — GET `/clients/{id}` + `/accounts` |
-| List loans | LIVE — GET `/loans` (empty until products/loans exist) |
-| Loan detail | LIVE — GET `/loans/{id}?associations=all` |
-| Savings list/detail | LIVE — `/savingsaccounts` |
-| Tellers / cashiers | LIVE — `/tellers`, `/tellers/{id}/cashiers` |
-| Chart of accounts | LIVE — GET `/glaccounts` |
-| Journal entries | LIVE — GET `/journalentries` |
-| Offices / staff | LIVE — GET `/offices`, `/staff` |
-| Loan / savings products | LIVE — GET `/loanproducts`, `/savingsproducts` |
-| Dashboard KPIs | LIVE counts from clients/loans/savings |
+## 3. Session and security
 
-## 4. LIVE vs still MOCK / thin
+- Sign-in uses `POST /authentication`. There is no fallback: a failed sign-in shows the real error.
+- `shouldRenewPassword` (Fineract answers `403` with a key) → the user must set a new password
+  (`POST /users/{id}/pwd` with `password` + `repeatPassword`; a plain `PUT /users/{id}` is refused), then Desk signs in again.
+- `isTwoFactorAuthenticationRequired` → sign-in is refused with "Two-factor authentication is
+  not supported in Desk yet — contact your administrator".
+- The session key lives in `sessionStorage` (per tab) and is never logged.
+- Idle timeout 30 minutes (warning at 28), absolute timeout 12 hours. Any `401` clears the
+  session and returns to `login.html?expired=1`.
+- Every page redirects to sign-in without a session. A **Log out** button is in the top bar.
+- Buttons for actions the user's Fineract permissions do not allow are hidden
+  (`ALL_FUNCTIONS` allows everything).
 
-### LIVE (session hits real API)
-- login.html
-- dashboard.html (counts; activity = recent clients)
-- clients.html, client-detail.html, client-onboard.html
-- loans.html, loan-detail.html
-- savings.html, savings-detail.html
-- tellers.html, teller-detail.html, teller.html (list/status; txn desk limited)
-- accounting.html, journals.html
-- offices.html, products-loans.html
+## 4. What is live
 
-### LIVE writes added 2026-09-30 (afternoon, Kampala)
-- **Create teller** — `tellers.html` POST `/tellers` with numeric status (`300` active, `100` pending, `400` inactive, `600` closed). List refreshes. Edit is PUT `/tellers/{id}` (click a row, then Edit).
-- **Assign / edit cashier** — `teller-detail.html` POST/PUT `/tellers/{id}/cashiers` using `/cashiers/template` staff list, date range, `isFullDay`.
-- **Allocate** — POST `/tellers/{tellerId}/cashiers/{cashierId}/allocate` (not under `/transactions`). Body: `txnDate`, `txnAmount`, `currencyCode`, `txnNote`, `locale`, `dateFormat`.
-- **Settle** — POST `.../settle` with the same body. EOD page and teller desk both post it.
-- **Cash in / cash out** — this Fineract build has no cashier cash-in POST. Types 103/104 are savings deposits and withdrawals (and loan cash) joined onto the cashier whose **staff id matches the logged-in user**. Desk buttons POST `/savingsaccounts/{id}/transactions?command=deposit|withdrawal` with `paymentTypeId` 4 (Cash). `mifos` was linked to staff #2 (Joseph, cashier #1) so those txns show on that drawer.
-- **Journal** — POST `/journalentries` with live GL ids.
-- **Loan apply** — POST `/loans` from template, then approve and disburse when the API accepts the dates.
-- **Loan repay / disburse**, **savings deposit / withdraw / open**.
-- **Groups** POST `/groups`, **centres** POST `/centers`, **collections** from GET `/loans`.
-- **Trial balance / income statement / balance sheet** — `/runreports/Trial Balance Table`, `Income Statement Table`, `Balance Sheet Table` with `R_startDate`, `R_endDate`, `R_officeId`.
-- **Member statement** — real savings and loan transactions.
-- **GL create, closures, accounting rules, financial activity mappings, run accruals, client image** (multipart `/clients/{id}/images`).
-- **Create charge** — `products-loans.html` POST `/charges`. The dialog picks loan or savings, flat or percent of amount, and a time type that is valid for that choice (no monthly/annual fee date). Currency defaults to UGX when UGX is in GET `/currencies` `selectedCurrencyOptions`; otherwise the first selected currency. A USD-only organisation is not rejected. Loan charges send `chargePaymentMode: 0`.
-- **Edit charge** — PUT `/charges/{id}` from the charges table for loan and savings charges. Applies-to stays as stored.
-- **Create loan product** — POST `/loanproducts` with `accountingRule: 1` (NONE) and `transactionProcessingStrategyCode: mifos-standard-strategy`. Fields follow the NONE retry in `scripts/seed-fineract.py` (principal min/default/max, repayments, monthly interest, no GL account ids). The loan product grid reloads after a successful save.
-- **Create savings product** — POST `/savingsproducts` with the voluntary savings NONE fallback (`accountingRule: 1`, monthly compounding and posting, daily balance, 365-day year, no GL account ids).
+| Area | Reads | Writes |
+|------|-------|--------|
+| Dashboard | Active members (`/clients?status=active`), active / pending / approved loans (`/loans?status=300/100/200`), savings accounts, recent members | — |
+| Clients | Paged `/clients` with name search (`displayName`, case-sensitive) and status filter | Onboard (`POST /clients`, photo `/images`, identifier `/identifiers`), edit, close (reason from `ClientClosureReason` code), propose transfer, update photo |
+| Global search | `/search?resource=clients,loans,savings` typeahead in the top bar | — |
+| Loans | Paged `/loans` with status filter; search via `/search` | Apply = **submit only** (`POST /loans`). On the loan page: Approve / Reject (pending), Disburse (approved), Repay (active) |
+| Savings | Paged `/savingsaccounts`; search via `/search` | Open account (optionally approve + activate), deposit, withdraw |
+| Groups / centres | Paged `/groups`, `/centers` with name search | Create |
+| Teller desk | Cashier summary + transactions | Allocate, settle, cash in/out (savings deposit / withdrawal), loan repayment |
+| Tellers / cashiers | `/tellers`, `/tellers/{id}/cashiers` (cashier names per teller on the list) | Create / edit teller, assign cashier from the list or the teller page (`POST /tellers/{id}/cashiers`, staff from `/cashiers/template`), edit cashier, allocate |
+| Cashier EOD | Summary, denomination count and variance | Settle to vault |
+| Collections | Active loans (`status=300`, up to 2,000) filtered to those in arrears | — |
+| Accounting | Chart of accounts, paged journal entries (date / office / manual / transaction filters), closures, mappings, rules, provisioning entries | GL account, manual journal, period close / delete closure, mapping, rule, run accruals |
+| Financial reports | Trial balance, income statement, balance sheet via `/runreports/…` with `R_officeId`, `R_startDate` (not for the balance sheet), `R_endDate`, `locale`, `dateFormat`, `genericResultSet=true`. They run on page load and on **Run** | — |
+| Member statement | Savings transactions via `/savingsaccounts/{id}/transactions/search?fromDate&toDate`, loan transactions filtered to the date range | — |
+| Products | Loan and savings products, charges, floating rates | Create flat loan charge |
+| Offices | Office tree, staff | — |
+| Staff (`staff.html`) | `/staff?status=all[&officeId=]` | Add (`POST /staff`: officeId, firstname, lastname, isLoanOfficer, isActive, mobileNo?, externalId?, joiningDate + locale/dateFormat), edit (`PUT /staff/{id}`; Fineract ignores joiningDate there and cannot clear mobile / external ID) |
+| Users (`users.html`) | `/users`, `/roles`, `/passwordpreferences` | Add (`POST /users`: username, firstname, lastname, email, officeId, staffId?, roles [ids], password + repeatPassword, sendPasswordToEmail=false), edit (`PUT /users/{id}`; password only when filled, `staffId: null` unlinks). Passwords are checked against the active policy client-side and by Fineract |
 
-### LIVE writes added 2026-10-01 (follow-up, chart seeded)
-Live inventory used here: 39 GL accounts and 7 financial-activity mappings, with activity 101 on vault `1110` and activity 102 on teller `1120`. Cash product dialogs prefer those codes, then the first GL of the right type.
+### Money-moving actions
 
-- **Floating rates** — `products-loans.html` POST/PUT `/floatingrates`. The period date must be after the business date (`GET /businessdate`). Edit adds one future period; past periods are left alone.
-- **Share product** — POST `/products/share`. Accounting None, or Cash with `shareReferenceId` (1120), `shareSuspenseId`, `shareEquityId`, `incomeFromFeeAccountId`.
-- **Fixed deposit** — POST `/fixeddepositproducts` with a 6–24 month chart, `interestPostingPeriodType` 4, and `depositAmount`. Cash uses the savings reference/control set (reference defaults to 1120).
-- **Recurring deposit** — POST `/recurringdepositproducts` with the same chart plus monthly `recurringFrequency`.
-- **Edit loan / savings product** — PUT `/loanproducts/{id}` and PUT `/savingsproducts/{id}`. Accounting can stay None or switch to Cash (rule 2) with GL pickers. Create still posts accounting NONE; cash is chosen on edit.
-- **Provisioning** — `accruals.html` POST `/provisioningcriteria` (one age bucket) and POST `/provisioningentries`.
-- **Client address** — `client-detail.html` turns on `configurations/name/enable-address` when it is off, then POST `/client/{id}/addresses?type=`. Family stays unwired.
-- **Accounting rule** — when none exist, the create dialog debits vault 1110 (else teller 1120) and credits a liability.
-- **Buy shares** — teller desk, only after a share product exists. POST `/accounts/share`, then `command=approve` and `command=activate`. The client must already have a savings account.
+Deposit, withdraw, repay, disburse, approve, allocate, settle, journal post and transfer all:
 
-### Desk screens added for existing Fineract APIs (2026-10-01)
-These call the live REST API. A failed call stays a toast. Nothing here is a mock success.
+- start with an **empty** amount — no pre-filled figures;
+- accept only a positive whole number of UGX (`5000` or `5,000`; no decimals, signs or exponents);
+- default dates to today in Africa/Kampala, set at runtime;
+- use a payment type chosen from `/paymenttypes` (defaults to the cash type), not a hard-coded id;
+- show a confirmation step with the amount and the member / account before posting;
+- disable the submit button while the request is in flight, so a double click cannot post twice.
 
-- **Recurring deposits** — `recurring-deposits.html`, `rd-detail.html`. POST/PUT `/recurringdepositproducts`. POST `/recurringdepositaccounts`, then `command=approve`, `command=activate`, `transactions?command=deposit`, `command=prematureClose`, `command=close`.
-- **Settings** — `settings.html`. GET/PUT `/configurations` (including `enable-address`). GET/PUT `/currencies`. GET/POST/PUT `/paymenttypes`. GET/POST/PUT `/funds`. GET/POST `/holidays` and `command=activate`. GET/PUT `/workingdays`. GET/POST `/taxes/component` and `/taxes/group`. GET/POST `/delinquency/ranges` and `/delinquency/buckets` when that API exists; a 404 disables create and says so.
-- **System** — `system.html`. GET `/jobs`, POST `/jobs/{id}?command=executeJob`, GET `/jobs/{id}/runhistory`. GET `/audits` with action, entity, and maker date filters. GET `/makercheckers`, POST `/makercheckers/{auditId}?command=approve|reject`. POST `/scheduler?command=start|stop`. PUT `/caches`. GET `/hooks` is list-only.
-- **Staff and users** — `staff.html` GET/POST/PUT `/staff`. `users.html` GET/POST/PUT `/users` using `/users/template`. `roles.html` stays on the roles and permissions APIs.
-- **Shares and fixed deposits** — `shares.html`, `share-detail.html`, `fixed-deposits.html`, `fd-detail.html` are in git (they were droplet-only). Dividends: POST `/shareproduct/{id}/dividend` and `command=approve`.
-- **Standing instructions** — savings and client detail. GET/POST `/standinginstructions`, PUT `?command=delete` to cancel.
-- **Loan reschedule** — loan detail. POST `/rescheduleloans`, then `command=approve` or `command=reject`. Reasons come from code `LoanRescheduleReason`.
-- **Member import** — Clients. GET `/clients/downloadtemplate?legalFormType=CLIENTS_PERSON`, POST multipart `/clients/uploadtemplate`, GET `/imports?entityType=client`. A `.csv` file is refused and is not uploaded. A successful upload reports the import id only. Desk does not claim members were created.
+## 5. Intentionally not available yet
 
-Portfolio at Risk stays a Desk calculation over loan data. The SQL report still throws BadSqlGrammar on this database, and Collections does not depend on it.
+Shown as disabled controls or "Not available yet" / "Not set up yet" notes:
 
-### Still not a working write (labeled in the UI)
-- KYC queue, family datatable, reversing the old mock journal refs.
-- New loan and savings products are created with accounting NONE. Edit can switch an existing product to cash when the chart is seeded.
-- Cash in/out will **not** hit a cashier whose staff is not the logged-in user. Joseph's drawer is the one tied to `mifos`.
-- Hook create is not posted. The hooks list is the whole screen.
+- Share accounts and buying shares.
+- CSV import of members, and a KYC review queue.
+- Member family, addresses and documents tabs (photo upload works).
+- Portfolio at Risk report (its SQL fails on this database — use Collections).
+- Loan product creation, floating-rate editing, provisioning entry creation, a settings screen.
 
-Smoke (already run): POST teller #2, POST cashier #2 (Mary), POST allocate 50,000 on cashier #1, savings deposit 25,000 shows as Cash In, POST settle 1,000. Drawer net after that was UGX 574,000.
+## 6. Required Fineract configuration
 
-LIVE chip appears in topbar/sidebar when session exists; banner turns teal **LIVE**.
+- **ClientClosureReason** code values — closing a member needs at least one. Without them Desk
+  explains that an administrator must add them.
+- **Customer Identifier** code values — needed to capture ID numbers during onboarding.
+- **Payment types** — at least one (ideally one marked as cash) for deposits, withdrawals,
+  repayments and disbursements.
+- Cash in / out shows on the cashier drawer whose staff member is the signed-in user.
 
-## 5. Files added
+### Teller → cashier → staff → user
+
+A **teller** is a till in an office. A **cashier** is a **staff** member of that office assigned to the teller
+for a date range. A **user** (login) is linked to one staff record. So to give someone a till: add them under
+**Staff**, assign them as cashier under **Tellers & cashiers**, then create their login under **Users** with that
+staff record. New users get `shouldRenewPassword` and must set a new password at first sign-in (`POST /users/{id}/pwd`).
+
+## 7. Files
 
 | File | Role |
 |------|------|
-| `server.py` | Static + `/fineract-provider` reverse proxy |
-| `start-desk.sh` | Kill :5173 conflict, start proxy |
-| `assets/api.js` | Auth, get/post/put/del, session, helpers |
-| `assets/pages.js` | Per-page LIVE wiring |
-| `assets/app.js` | Shared UI (tabs, wizard, search) |
-| `docker-compose.override.yml.example` (repo root) | Drop host `:5000` (copy to `docker-compose.override.yml`) |
+| `server.py` | Development static server + `/fineract-provider` proxy |
+| `start-desk.sh` | Starts `server.py`; fails if the port is busy |
+| `assets/api.js` | API client, session and timeouts, permissions, dialogs, typeahead, helpers |
+| `assets/app.js` | Shell: auth guard, top bar, navigation, tabs, wizard |
+| `assets/pages.js` | Read views for each page, server-side paging |
+| `assets/actions.js` | All writes |
 
-## 6. Gaps / blockers
+## 8. Known gaps
 
-1. **Empty demo seed** — a fresh Fineract database comes up with Head Office only: **0** GL accounts, loan/savings products, staff, tellers. Client create works. Load the starter chart, products, staff, and teller with `desk/scripts/seed-fineract.sh` (or create them from Desk). Mifos X web-app is not part of this product.
-2. **Port 5000** — macOS AirPlay Receiver binds `:5000`. `docker-compose.override.yml.example` publishes only `8443`. Copy it to `docker-compose.override.yml`. Do not drop that override while AirPlay still holds port 5000.
-3. **Docker PATH** — use `export PATH="$HOME/.docker/bin:$PATH"`.
-4. **No volumes deleted** — DB data persists in Docker volumes.
-5. **Complex commands** (disburse, settle cashier, journal create) — templates exist upstream; UI posts only where payload is clear; failures show error toasts.
-6. Proxy is a foreground/nohup Python process — re-run `./start-desk.sh` after reboot.
-
-## 7. Quick restart
-
-```bash
-# repository root
-docker compose up -d
-cd desk && ./start-desk.sh
-# open http://127.0.0.1:5173/login.html
-```
+1. **Empty seed** — a fresh Fineract database has Head Office only: no GL accounts, products,
+   staff or tellers. Load a starter set with `desk/scripts/seed-fineract.sh`, or create them in Fineract.
+2. **Search is case-sensitive** — Fineract's `/search` and `displayName` filters match case-sensitively.
+3. **Port 5000** — macOS AirPlay Receiver binds `:5000`. Keep the `docker-compose.override.yml` copy.
+4. **Docker PATH** — use `export PATH="$HOME/.docker/bin:$PATH"` if `docker` is not found.

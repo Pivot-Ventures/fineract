@@ -704,17 +704,3 @@ input[aria-invalid="true"] { border-color: var(--danger) !important; }
   body[data-page="savings-detail"] #sav-txns td:last-child { display: none !important; }
 }
 /* ===== /SAVINGS/SHARES/FD ===== */
-
-.search-results { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
-.search-results .btn { justify-content: flex-start; text-align: left; }
-.fo-notice { border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: var(--teal-soft); color: var(--navy); }
-.fo-notice.ok { background: var(--success-soft); color: var(--success); }
-.perm-toolbar, .perm-sticky { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
-.perm-sticky { position: sticky; bottom: 0; background: var(--surface); padding: 10px 0; border-top: 1px solid var(--border); }
-.perm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; margin: 8px 0 16px; }
-.perm-item { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
-.perm-code { display: block; color: var(--muted); font-size: 11px; }
-.perm-group-actions { margin: 8px 0; }
-.callout { background: var(--amber-soft); color: var(--text); border-radius: 8px; padding: 10px 12px; margin: 0 0 12px; font-size: 13px; }
-.currency-list, .day-list { display: flex; flex-wrap: wrap; gap: 10px 16px; }
-.currency-list .check, .day-list .check { min-width: 140px; }
