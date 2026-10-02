@@ -1,7 +1,8 @@
 "use strict";
 
 const crypto = require("crypto");
-const { buildContext, renderText, placeholderValues } = require("./render");
+const { renderText, placeholderValues } = require("./render");
+const { maskPhone, maskDigits } = require("./phone");
 const at = require("./providers/africas-talking");
 const lipe = require("./providers/lipechat");
 
@@ -9,241 +10,166 @@ function deliveryId() {
   return "dlv_" + crypto.randomBytes(8).toString("hex");
 }
 
+function phoneKey(phone) {
+  return crypto.createHash("sha256").update("alerts-phone:" + phone).digest("hex").slice(0, 32);
+}
+
+/* Provider errors can echo keys or numbers back; never store either. */
 function scrub(text, secrets) {
   let out = String(text || "");
   (secrets || []).forEach(function (secret) {
     if (secret && String(secret).length > 4) out = out.split(String(secret)).join("[redacted]");
   });
-  return out.slice(0, 300);
+  return maskDigits(out).slice(0, 200);
 }
 
+/* Stored and returned rows: masked phone, no message body. */
 function record(fields) {
   return {
     id: deliveryId(),
     at: new Date().toISOString(),
     type: fields.type,
-    channel: fields.channel,
-    provider: fields.provider,
+    source: fields.source || "",
+    channel: fields.channel || "",
+    provider: fields.provider || "",
     status: fields.status,
     providerId: fields.providerId || "",
     error: fields.error || "",
-    to: fields.to || "",
-    reference: fields.reference || "",
+    to: maskPhone(fields.phone),
     dryRun: Boolean(fields.dryRun),
-    preview: String(fields.preview || "").slice(0, 320)
+    length: Number(fields.length) || 0
   };
 }
 
-async function sendSms(options) {
-  const built = at.buildSmsRequest({
-    username: options.config.at.username,
-    apiKey: options.config.at.apiKey,
-    from: options.config.at.senderId,
-    to: options.event.phone,
-    message: options.message,
-    baseUrl: options.config.at.baseUrl
-  });
-  const secrets = [options.config.at.apiKey, options.config.apiKey];
-  if (options.dryRun) {
-    options.log(JSON.stringify({
-      msg: "alerts.dry_run",
-      channel: "sms",
-      provider: "africastalking",
-      to: options.event.phone,
-      request: at.redactRequest(built)
-    }));
-    return record({
-      type: options.event.type,
-      channel: "sms",
-      provider: "africastalking",
-      status: "dry_run",
-      to: options.event.phone,
-      reference: options.event.reference,
-      dryRun: true,
-      preview: options.message
-    });
-  }
-  try {
-    const res = await options.http(built);
-    const parsed = at.parseSmsResponse(res);
-    return record({
-      type: options.event.type,
-      channel: "sms",
-      provider: "africastalking",
-      status: parsed.ok ? "sent" : "failed",
-      providerId: parsed.providerId,
-      error: scrub(parsed.error, secrets),
-      to: options.event.phone,
-      reference: options.event.reference,
-      preview: options.message
-    });
-  } catch (err) {
-    return record({
-      type: options.event.type,
-      channel: "sms",
-      provider: "africastalking",
-      status: "failed",
-      error: scrub(err.message, secrets),
-      to: options.event.phone,
-      reference: options.event.reference,
-      preview: options.message
-    });
-  }
-}
-
-async function sendWhatsApp(options) {
-  const messageId = crypto.randomUUID();
-  const built = lipe.buildWhatsAppRequest({
-    apiKey: options.config.lipe.apiKey,
-    baseUrl: options.config.lipe.baseUrl,
-    messageId: messageId,
-    to: options.event.phone,
-    from: options.config.lipe.from,
-    templateName: options.template.whatsappTemplateName,
-    languageCode: options.template.whatsappLanguageCode || "en",
-    placeholders: options.placeholders
-  });
-  const secrets = [options.config.lipe.apiKey, options.config.apiKey];
-  const preview = options.template.whatsappTemplateName + " [" + options.placeholders.join(" | ") + "]";
-  if (!options.template.whatsappTemplateName) {
-    return record({
-      type: options.event.type,
-      channel: "whatsapp",
-      provider: "lipechat",
-      status: "failed",
-      error: "whatsapp template name is empty",
-      to: options.event.phone,
-      reference: options.event.reference,
-      preview: preview
-    });
-  }
-  if (options.dryRun) {
-    options.log(JSON.stringify({
-      msg: "alerts.dry_run",
-      channel: "whatsapp",
-      provider: "lipechat",
-      to: options.event.phone,
-      request: lipe.redactRequest(built)
-    }));
-    return record({
-      type: options.event.type,
-      channel: "whatsapp",
-      provider: "lipechat",
-      status: "dry_run",
-      to: options.event.phone,
-      reference: options.event.reference,
-      dryRun: true,
-      preview: preview
-    });
-  }
-  try {
-    const res = await options.http(built);
-    const parsed = lipe.parseWhatsAppResponse(res);
-    return record({
-      type: options.event.type,
-      channel: "whatsapp",
-      provider: "lipechat",
-      status: parsed.ok ? "sent" : "failed",
-      providerId: parsed.providerId,
-      error: scrub(parsed.error, secrets),
-      to: options.event.phone,
-      reference: options.event.reference,
-      preview: preview
-    });
-  } catch (err) {
-    return record({
-      type: options.event.type,
-      channel: "whatsapp",
-      provider: "lipechat",
-      status: "failed",
-      error: scrub(err.message, secrets),
-      to: options.event.phone,
-      reference: options.event.reference,
-      preview: preview
-    });
-  }
-}
-
-function sendEmailStub(options) {
-  const ctx = options.ctx;
-  const preview = renderText(options.template.emailBody || options.template.smsBody, ctx);
-  if (!options.event.email) {
-    return record({
-      type: options.event.type,
-      channel: "email",
-      provider: "stub",
-      status: "skipped",
-      error: "no email address",
-      reference: options.event.reference,
-      preview: preview
-    });
-  }
-  options.log(JSON.stringify({
-    msg: "alerts.email_stub",
-    to: options.event.email,
-    subject: renderText(options.template.emailSubject, ctx),
-    preview: preview
+function logLine(log, row) {
+  log(JSON.stringify({
+    msg: "alerts.delivery",
+    type: row.type,
+    source: row.source,
+    channel: row.channel,
+    status: row.status,
+    to: row.to,
+    dryRun: row.dryRun,
+    providerId: row.providerId,
+    error: row.error
   }));
-  return record({
-    type: options.event.type,
-    channel: "email",
-    provider: "stub",
-    status: "stub",
-    error: "email provider is not configured",
-    to: options.event.email,
-    reference: options.event.reference,
-    dryRun: true,
-    preview: preview
-  });
 }
 
-/**
- * channels, when set, forces those channels for test-send.
- * Otherwise the template toggles decide.
- */
-async function fanOut(event, deps) {
-  const template = await deps.store.getTemplate(event.type);
-  if (!template) {
-    const err = new Error("unknown event type");
-    err.status = 404;
-    throw err;
-  }
-  const ctx = buildContext(event);
-  const message = renderText(template.smsBody, ctx);
-  const values = placeholderValues(template.whatsappPlaceholders, ctx);
-  const force = deps.channels || null;
-  const wantSms = force ? Boolean(force.sms) : Boolean(template.smsEnabled);
-  const wantWa = force ? Boolean(force.whatsapp) : Boolean(template.whatsappEnabled);
-  const wantEmail = force ? false : Boolean(template.emailEnabled);
-  const rows = [];
-  if (wantSms) {
-    if (!message.trim()) {
-      rows.push(record({
-        type: event.type, channel: "sms", provider: "africastalking", status: "failed",
-        error: "sms body is empty", to: event.phone, reference: event.reference
-      }));
-    } else {
-      rows.push(await sendSms({
-        config: deps.config, event: event, message: message, http: deps.http,
-        dryRun: deps.config.smsDryRun, log: deps.log
-      }));
-    }
-  }
-  if (wantWa) {
-    rows.push(await sendWhatsApp({
-      config: deps.config, event: event, template: template, placeholders: values,
-      http: deps.http, dryRun: deps.config.whatsappDryRun, log: deps.log
+async function sendSms(job, deps) {
+  const config = deps.config;
+  const message = renderText(job.template.smsBody, job.ctx);
+  const base = { type: job.type, source: job.source, channel: "sms", provider: "africastalking", phone: job.phone, length: message.length };
+  if (!message) return record(Object.assign(base, { status: "failed", error: "sms body is empty" }));
+  if (!config.smsLive) return record(Object.assign(base, { status: "dry_run", dryRun: true }));
+  const built = at.buildSmsRequest({
+    username: config.at.username,
+    apiKey: config.at.apiKey,
+    from: config.at.senderId,
+    to: job.phone,
+    message: message,
+    baseUrl: config.at.baseUrl
+  });
+  const secrets = [config.at.apiKey, config.serviceKey];
+  try {
+    const parsed = at.parseSmsResponse(await deps.http(built));
+    return record(Object.assign(base, {
+      status: parsed.ok ? "sent" : "failed",
+      providerId: parsed.providerId,
+      error: scrub(parsed.error, secrets)
     }));
+  } catch (err) {
+    return record(Object.assign(base, { status: "failed", error: scrub(err.name === "TimeoutError" ? "provider timed out" : err.message, secrets) }));
   }
-  if (wantEmail) rows.push(sendEmailStub({ event: event, template: template, ctx: ctx, log: deps.log }));
-  if (rows.length) await deps.store.appendDeliveries(rows);
-  const failed = rows.filter(function (row) { return row.status === "failed"; });
+}
+
+async function sendWhatsApp(job, deps) {
+  const config = deps.config;
+  const name = job.template.whatsappTemplateName;
+  const values = placeholderValues(job.template.whatsappPlaceholders, job.ctx);
+  const base = { type: job.type, source: job.source, channel: "whatsapp", provider: "lipechat", phone: job.phone, length: values.join("").length };
+  if (!name) return record(Object.assign(base, { status: "failed", error: "whatsapp template name is empty" }));
+  if (!config.whatsappLive) return record(Object.assign(base, { status: "dry_run", dryRun: true }));
+  const built = lipe.buildWhatsAppRequest({
+    apiKey: config.lipe.apiKey,
+    baseUrl: config.lipe.baseUrl,
+    messageId: crypto.randomUUID(),
+    to: job.phone,
+    from: config.lipe.from,
+    templateName: name,
+    languageCode: job.template.whatsappLanguageCode || "en",
+    placeholders: values
+  });
+  const secrets = [config.lipe.apiKey, config.serviceKey];
+  try {
+    const parsed = lipe.parseWhatsAppResponse(await deps.http(built));
+    return record(Object.assign(base, {
+      status: parsed.ok ? "sent" : "failed",
+      providerId: parsed.providerId,
+      error: scrub(parsed.error, secrets)
+    }));
+  } catch (err) {
+    return record(Object.assign(base, { status: "failed", error: scrub(err.name === "TimeoutError" ? "provider timed out" : err.message, secrets) }));
+  }
+}
+
+function summarize(type, rows, reason) {
+  const statuses = rows.map(function (row) { return row.status; });
+  let status = "skipped";
+  if (statuses.indexOf("sent") >= 0) status = "sent";
+  else if (statuses.indexOf("dry_run") >= 0) status = "dry_run";
+  else if (statuses.indexOf("failed") >= 0) status = "failed";
   return {
-    ok: failed.length !== rows.length || rows.length === 0,
-    type: event.type,
-    note: rows.length ? "" : "no channels enabled for this event type",
+    ok: status === "sent" || status === "dry_run",
+    type: type,
+    status: status,
+    reason: reason || (status === "failed" ? rows[rows.length - 1].error : ""),
     deliveries: rows
   };
 }
 
-module.exports = { fanOut, sendSms, sendWhatsApp };
+/**
+ * job: { type, phone (normalised), ctx (whitelisted), source, channels? }
+ * Channels are tried in ALERTS_CHANNEL_ORDER (filtered by the template
+ * toggles, or forced for a test-send). The first success stops the chain;
+ * a failure falls through to the next channel. Never both on success.
+ */
+async function deliver(job, deps) {
+  const template = await deps.store.getTemplate(job.type);
+  const log = deps.log;
+  let rows = [];
+  let reason = "";
+  if (!template) {
+    reason = "no template for this event type";
+  } else {
+    const order = job.channels || deps.config.channelOrder.filter(function (channel) {
+      return channel === "sms" ? template.smsEnabled : template.whatsappEnabled;
+    });
+    if (!order.length) {
+      reason = "no channel enabled for this event type";
+    } else {
+      const quota = await deps.store.consumeQuota(phoneKey(job.phone), {
+        perPhoneHourly: deps.config.perPhoneHourly,
+        dailyCap: deps.config.dailyCap
+      });
+      if (!quota.ok) {
+        reason = quota.reason;
+      } else {
+        for (const channel of order) {
+          const row = channel === "sms"
+            ? await sendSms(Object.assign({ template: template }, job), deps)
+            : await sendWhatsApp(Object.assign({ template: template }, job), deps);
+          rows.push(row);
+          if (row.status === "sent" || row.status === "dry_run") break;
+        }
+      }
+    }
+  }
+  if (!rows.length) {
+    rows = [record({ type: job.type, source: job.source, status: "skipped", error: reason, phone: job.phone })];
+  }
+  rows.forEach(function (row) { logLine(log, row); });
+  await deps.store.appendDeliveries(rows);
+  return summarize(job.type, rows, reason);
+}
+
+module.exports = { deliver, sendSms, sendWhatsApp, phoneKey, record };

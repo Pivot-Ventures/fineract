@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- api.js sends signed-out staff to the relative "login.html"; this keeps that at /login.html.
+       Every link and asset on this page is absolute, so the base changes nothing else. -->
+  <base href="/" />
   <title>Transactional alerts · Phaneroo SACCO</title>
-  <link rel="stylesheet" href="assets/alerts.css" />
+  <link rel="stylesheet" href="/transactional-alerts/assets/alerts.css" />
 </head>
 <body>
-<a class="skip-link" href="#alerts-root">Skip to content</a>
+<a class="skip-link" href="/transactional-alerts/#alerts-root">Skip to content</a>
 <div class="app-shell">
   <aside class="sidebar" id="sidebar" aria-label="Transactional alerts">
     <div class="sidebar-brand">
@@ -15,18 +18,15 @@
       <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Transactional alerts</span></div>
     </div>
     <nav class="sidebar-nav" aria-label="Alerts">
-      <a class="nav-link" data-view="templates" href="#templates">Templates</a>
-      <a class="nav-link" data-view="deliveries" href="#deliveries">Delivery log</a>
-      <a class="nav-link" data-view="test" href="#test">Test send</a>
-      <a class="nav-link" href="../dashboard.html">Back to Desk</a>
+      <a class="nav-link" data-view="templates" href="/transactional-alerts/#templates">Templates</a>
+      <a class="nav-link" data-view="deliveries" href="/transactional-alerts/#deliveries">Delivery log</a>
+      <a class="nav-link" data-view="test" href="/transactional-alerts/#test">Test send</a>
+      <a class="nav-link" href="/dashboard.html">Back to Desk</a>
     </nav>
     <div class="sidebar-foot">
       <strong>Alerts service</strong>
-      same host /alerts/api/v1
+      <span id="signed-in-as">Signed in with your Desk login</span>
       <div class="mw-chip" id="health-chip">● checking</div>
-      <label for="api-key">Operator key <span class="help">(only if ALERTS_API_KEY is set)</span>
-        <input id="api-key" type="password" autocomplete="off" placeholder="Leave empty when nginx injects it" />
-      </label>
     </div>
   </aside>
   <div class="main">
@@ -37,9 +37,11 @@
         <button type="button" class="btn btn-sm btn-ghost" id="refresh-btn">Refresh</button>
       </div>
     </header>
+    <div id="status-bar" class="notice" role="status" hidden></div>
     <div class="content" id="alerts-root">Loading alerts…</div>
   </div>
 </div>
-<script src="assets/alerts.js"></script>
+<script src="/assets/api.js"></script>
+<script src="/transactional-alerts/assets/alerts.js"></script>
 </body>
 </html>

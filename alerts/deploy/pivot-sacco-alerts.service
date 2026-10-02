@@ -26,6 +26,8 @@ Environment=PORT=8095
 # Loopback only. The reverse proxy and the member gateway reach it on
 # 127.0.0.1. install-on-host.sh refuses an env file that overrides HOST.
 Environment=HOST=127.0.0.1
+# nginx/Caddy in front set X-Forwarded-For to the real client, so per-IP limits see staff, not the proxy.
+Environment=ALERTS_TRUST_PROXY=true
 Environment=ALERTS_DATA_DIR=__DATA_DIR__
 Environment=ALERTS_DATA_FILE=__DATA_DIR__/store.json
 EnvironmentFile=-__ENV_FILE__

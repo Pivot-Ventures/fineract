@@ -180,6 +180,8 @@ services:
       FINERACT_TENANT: ${FINERACT_TENANT_ID:-default}
       ALERTS_SERVICE_KEY: ${ALERTS_SERVICE_KEY:-}  # scripts/gen-secrets.sh; empty = gateway alerts off
       ALERTS_DATA_DIR: /app/data
+      # Caddy appends the real client to X-Forwarded-For; per-IP limits use it.
+      ALERTS_TRUST_PROXY: "true"
     volumes:
       - alerts_data:/app/data
     read_only: true

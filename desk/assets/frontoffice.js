@@ -674,13 +674,13 @@
           var path = isLoan ? "/loans/" + encodeURIComponent(v.acct) + "/transactions?command=repayment" :
             "/savingsaccounts/" + encodeURIComponent(v.acct) + "/transactions?command=" + (isIn ? "deposit" : "withdrawal");
           var result = await api.post(path, body);
+          /* Ids only: the alerts service reads amount, balance and phone from Fineract. */
           notifyAlert({
             type: isLoan ? "loan_repay" : (isIn ? "deposit" : "withdrawal"),
-            amount: v.amount,
-            currency: "UGX",
-            reference: v.note || "",
-            savingsAccountId: isLoan ? "" : v.acct,
-            loanAccountId: isLoan ? v.acct : ""
+            transactionId: result && result.resourceId,
+            savingsAccountId: isLoan ? "" : ((result && result.savingsId) || v.acct),
+            loanId: isLoan ? ((result && result.loanId) || v.acct) : "",
+            pending: Boolean(result && result.rollbackTransaction)
           });
           return result;
         }

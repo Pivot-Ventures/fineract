@@ -749,10 +749,10 @@
           var body = withDate({ actualDisbursementDate: v.date, transactionAmount: String(v.amount), paymentTypeId: Number(v.paymentTypeId), note: v.note || "" });
           if (v.receipt) body.receiptNumber = v.receipt;
           return post(loanPath("?command=disburse"), body).then(function (result) {
+            /* Disburse returns the loan as resourceId and the disbursement transaction as subResourceId. */
             notifyAlert({
-              type: "loan_disburse", memberId: loan.clientId, account: loan.accountNo,
-              amount: v.amount, currency: "UGX", reference: v.receipt || "",
-              meta: { memberName: loan.clientName || "" }
+              type: "loan_disburse", loanId: loan.id, transactionId: result && result.subResourceId,
+              pending: Boolean(result && result.rollbackTransaction)
             });
             return result;
           });
@@ -773,14 +773,9 @@
             ["Fees collected at disbursement", money(fees)], ["Date", v.date]]), confirmLabel: "Disburse " + money(v.amount) + " to savings" };
         },
         onSubmit: function (v) {
-          return post(loanPath("?command=disburseToSavings"), withDate({ actualDisbursementDate: v.date, transactionAmount: String(v.amount), note: v.note || "" })).then(function (result) {
-            notifyAlert({
-              type: "loan_disburse", memberId: loan.clientId, account: loan.accountNo,
-              amount: v.amount, currency: "UGX", reference: "disburse-to-savings",
-              meta: { memberName: loan.clientName || "" }
-            });
-            return result;
-          });
+          /* No alert here: Fineract does not return the disbursement transaction id for
+             disburseToSavings, and the alerts service only sends for a transaction it can read. */
+          return post(loanPath("?command=disburseToSavings"), withDate({ actualDisbursementDate: v.date, transactionAmount: String(v.amount), note: v.note || "" }));
         }
       }).then(done("Loan disbursed to savings"));
     };
@@ -817,9 +812,8 @@
           if (v.receipt) body.receiptNumber = v.receipt;
           return post(loanPath("/transactions?command=repayment"), body).then(function (result) {
             notifyAlert({
-              type: "loan_repay", memberId: loan.clientId, account: loan.accountNo,
-              amount: v.amount, currency: "UGX", reference: v.receipt || "",
-              meta: { memberName: loan.clientName || "" }
+              type: "loan_repay", loanId: loan.id, transactionId: result && result.resourceId,
+              pending: Boolean(result && result.rollbackTransaction)
             });
             return result;
           });
@@ -853,10 +847,11 @@
             toOfficeId: loan.clientOfficeId, toClientId: loan.clientId, toAccountType: 1, toAccountId: loan.id,
             transferAmount: String(v.amount), transferDate: v.date, transferDescription: v.note || ("Repayment of loan #" + loan.accountNo + " from savings")
           })).then(function (result) {
+            /* /accounttransfers returns the transfer id, not the loan transaction id, so this
+               alerts as a transfer out of the member's savings account. */
             notifyAlert({
-              type: "loan_repay", memberId: loan.clientId, account: loan.accountNo,
-              amount: v.amount, currency: "UGX", reference: v.note || "repay-from-savings",
-              meta: { memberName: loan.clientName || "" }
+              type: "transfer", transferId: result && result.resourceId,
+              pending: Boolean(result && result.rollbackTransaction)
             });
             return result;
           });
@@ -885,9 +880,8 @@
           if (v.receipt) body.receiptNumber = v.receipt;
           return post(loanPath("/transactions?command=repayment"), body).then(function (result) {
             notifyAlert({
-              type: "loan_repay", memberId: loan.clientId, account: loan.accountNo,
-              amount: amount, currency: "UGX", reference: v.receipt || "payoff",
-              meta: { memberName: loan.clientName || "" }
+              type: "loan_repay", loanId: loan.id, transactionId: result && result.resourceId,
+              pending: Boolean(result && result.rollbackTransaction)
             });
             return result;
           });
