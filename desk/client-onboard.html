@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Onboard member · Pivot SACCO Desk</title>
+  <title>Onboard member · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
+  <link rel="stylesheet" href="assets/members.css" />
 </head>
 <body data-page="onboard">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -14,7 +15,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +37,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +63,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -83,51 +88,63 @@
 
     <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Onboard member</h1><p class="page-sub">Creates an active client in Fineract.</p></div>
+        <div><h1>Onboard member</h1><p class="page-sub">Registers a member in Fineract with KYC details. Fields marked * are required.</p></div>
       </div>
 
       <div class="card"><div class="card-b" data-wizard data-step="0" id="onboard-wizard">
         <ol class="wizard-steps">
           <li><span class="n">1</span> Personal</li>
-          <li><span class="n">2</span> Photo</li>
-          <li><span class="n">3</span> Identifiers</li>
-          <li><span class="n">4</span> Office &amp; staff</li>
+          <li><span class="n">2</span> Identity</li>
+          <li><span class="n">3</span> Photo &amp; documents</li>
+          <li><span class="n">4</span> Office &amp; activation</li>
           <li><span class="n">5</span> Review</li>
         </ol>
         <div class="wizard-panel active"><div class="form-grid">
-          <div class="form-row"><label for="ob-firstname">First name *</label><input id="ob-firstname" autocomplete="off" required /></div>
-          <div class="form-row"><label for="ob-lastname">Last name *</label><input id="ob-lastname" autocomplete="off" required /></div>
-          <div class="form-row"><label for="ob-gender">Gender</label><select id="ob-gender"><option value="">— Not set —</option></select></div>
-          <div class="form-row"><label for="ob-dob">Date of birth</label><input id="ob-dob" type="date" /></div>
-          <div class="form-row"><label for="ob-mobile">Mobile</label><input id="ob-mobile" type="tel" autocomplete="off" placeholder="+256…" /></div>
+          <div class="form-row"><label for="ob-firstname">First name *</label><input id="ob-firstname" autocomplete="off" required maxlength="50" /></div>
+          <div class="form-row"><label for="ob-middlename">Middle name</label><input id="ob-middlename" autocomplete="off" maxlength="50" placeholder="optional" /></div>
+          <div class="form-row"><label for="ob-lastname">Last name *</label><input id="ob-lastname" autocomplete="off" required maxlength="50" /></div>
+          <div class="form-row"><label for="ob-gender">Gender *</label><select id="ob-gender" required><option value="">— Select —</option></select></div>
+          <div class="form-row"><label for="ob-dob">Date of birth *</label><input id="ob-dob" type="date" required /></div>
+          <div class="form-row"><label for="ob-mobile">Mobile *</label><input id="ob-mobile" type="tel" autocomplete="off" placeholder="07XX XXX XXX" required aria-describedby="ob-mobile-help" />
+            <span class="field-help" id="ob-mobile-help">Ugandan mobile number. Each member needs a unique number.</span></div>
           <div class="form-row"><label for="ob-email">Email</label><input id="ob-email" type="email" autocomplete="off" placeholder="optional" /></div>
         </div></div>
-        <div class="wizard-panel"><div class="grid-2">
-          <div><label for="ob-photo" class="form-label">Member photo (optional)</label>
-            <input id="ob-photo" type="file" accept="image/*" class="file-input" />
-            <p class="text-muted small-note">Uploaded to Fineract after the member is created.</p></div>
-          <div class="empty-state">Document scans (ID, signed forms): not available yet.</div>
-        </div></div>
         <div class="wizard-panel"><div class="form-grid">
-          <div class="form-row"><label for="ob-doctype">Document type</label><select id="ob-doctype"><option value="">— None —</option></select></div>
-          <div class="form-row"><label for="ob-dockey">Document number</label><input id="ob-dockey" autocomplete="off" /></div>
-          <div class="form-row"><label for="ob-external">External ID</label><input id="ob-external" autocomplete="off" placeholder="optional" /></div>
+          <div class="form-row"><label for="ob-doctype">ID type *</label><select id="ob-doctype" required><option value="">— Select —</option></select></div>
+          <div class="form-row"><label for="ob-dockey">ID number *</label><input id="ob-dockey" autocomplete="off" required aria-describedby="ob-dockey-help" />
+            <span class="field-help" id="ob-dockey-help">National ID (NIN): 14 characters starting CM or CF.</span></div>
+          <div class="form-row"><label for="ob-external">Member number</label><input id="ob-external" autocomplete="off" placeholder="optional, e.g. M-PS00301" aria-describedby="ob-external-help" />
+            <span class="field-help" id="ob-external-help">Your SACCO's own member number. Must be unique. Leave blank to use the Fineract client number.</span></div>
         </div>
         <p class="text-muted small-note" id="ob-doctype-note"></p></div>
+        <div class="wizard-panel"><div class="grid-2">
+          <div><label for="ob-photo" class="form-label">Member photo (optional)</label>
+            <input id="ob-photo" type="file" accept="image/jpeg,image/png,image/gif" class="file-input" />
+            <div class="ob-photo-preview mt-10" id="ob-photo-preview" aria-live="polite"></div>
+            <p class="text-muted small-note">JPEG or PNG. Large phone photos are resized automatically.</p></div>
+          <div><label for="ob-docs" class="form-label">ID scan / signed forms (optional)</label>
+            <input id="ob-docs" type="file" accept="image/*,application/pdf" class="file-input" multiple />
+            <p class="text-muted small-note" id="ob-docs-list">PDF or image, up to 5 MB each. Saved under the member's Documents.</p></div>
+        </div></div>
         <div class="wizard-panel"><div class="form-grid">
           <div class="form-row"><label for="ob-office">Office *</label><select id="ob-office" required></select></div>
-          <div class="form-row"><label for="ob-staff">Staff</label><select id="ob-staff"><option value="">— None —</option></select></div>
-          <div class="form-row"><label for="ob-submitted">Submitted and activated on *</label><input id="ob-submitted" type="date" required /></div>
+          <div class="form-row"><label for="ob-staff">Loan officer / staff</label><select id="ob-staff"><option value="">— None —</option></select></div>
+          <div class="form-row"><label for="ob-activate">Status after saving *</label><select id="ob-activate">
+            <option value="yes">Active now</option><option value="no">Pending — activate later</option></select></div>
+          <div class="form-row"><label for="ob-submitted" id="ob-submitted-label">Activation date *</label><input id="ob-submitted" type="date" required /></div>
         </div></div>
         <div class="wizard-panel"><div class="recon-box ok">
           <p class="strong">Review and create</p>
-          <p class="text-muted small-note">Creates the client (active), then uploads the photo and identifier if given.</p>
+          <p class="text-muted small-note">Creates the member, then saves the ID, photo and documents.</p>
           <div class="meta-list">
             <div class="meta-item"><div class="k">Name</div><div class="v" id="ob-review-name">—</div></div>
+            <div class="meta-item"><div class="k">Gender / DOB</div><div class="v" id="ob-review-personal">—</div></div>
             <div class="meta-item"><div class="k">Mobile</div><div class="v" id="ob-review-mobile">—</div></div>
-            <div class="meta-item"><div class="k">Office</div><div class="v" id="ob-review-office">—</div></div>
             <div class="meta-item"><div class="k">Identifier</div><div class="v" id="ob-review-id">—</div></div>
-            <div class="meta-item"><div class="k">Activation date</div><div class="v" id="ob-review-date">—</div></div>
+            <div class="meta-item"><div class="k">Member number</div><div class="v" id="ob-review-external">—</div></div>
+            <div class="meta-item"><div class="k">Office / staff</div><div class="v" id="ob-review-office">—</div></div>
+            <div class="meta-item"><div class="k">Status</div><div class="v" id="ob-review-date">—</div></div>
+            <div class="meta-item"><div class="k">Photo / documents</div><div class="v" id="ob-review-files">—</div></div>
           </div>
         </div></div>
         <p class="dialog-error" id="ob-error" role="alert" hidden></p>
@@ -144,5 +161,6 @@
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
   <script src="assets/actions.js"></script>
+  <script src="assets/members.js"></script>
 </body>
 </html>

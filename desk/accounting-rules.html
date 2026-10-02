@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Accounting rules &amp; frequent postings · Pivot SACCO Desk</title>
+  <title>Accounting rules &amp; frequent postings · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
+  <link rel="stylesheet" href="assets/accounting.css" />
 </head>
 <body data-page="rules">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -14,7 +15,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +37,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +63,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -83,29 +88,19 @@
 
     <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Accounting rules &amp; frequent postings</h1><p class="page-sub">Predefined debit/credit pairs for common journals.</p></div>
+        <div><h1>Accounting rules &amp; frequent postings</h1><p class="page-sub">Predefined debit/credit pairs for journals you post often. “Post” opens a journal with the rule's accounts filled in.</p></div>
       </div>
 
-      <div class="grid-2">
-        <div class="card"><div class="card-h"><h2>Rules</h2><button type="button" class="btn btn-sm btn-amber" data-action="create-rule" data-perm="CREATE_ACCOUNTINGRULE">＋ Rule</button></div>
-          <div class="card-b table-wrap"><table class="data" id="rules-table">
-            <thead><tr><th>Name</th><th>Debit</th><th>Credit</th><th>Office</th></tr></thead>
-            <tbody><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
-          </table></div></div>
-        <div class="card" data-perm="CREATE_JOURNALENTRY"><div class="card-h"><h2>Frequent posting</h2></div><div class="card-b">
-          <form id="rule-post-form">
-            <div class="form-row"><label for="rule-post-select">Rule</label><select id="rule-post-select"><option value="">— Select rule —</option></select></div>
-            <p class="text-muted small-note">Opens a journal entry with this rule selected. Enter the amount, date and narration there.</p>
-            <div class="form-actions"><button type="submit" class="btn btn-amber">Continue to journal entry</button></div>
-          </form>
-        </div></div>
-      </div>
+      <div class="btn-group page-actions"><button type="button" class="btn btn-amber" data-action="create-rule" data-perm="CREATE_ACCOUNTINGRULE">＋ Rule</button></div>
+      <div class="card"><div class="card-b table-wrap"><table class="data" id="rules-table">
+        <thead><tr><th scope="col">Name</th><th scope="col">Debit</th><th scope="col">Credit</th><th scope="col">Office</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+      </table></div></div>
     </main>
   </div>
 </div>
   <script src="assets/api.js"></script>
   <script src="assets/app.js"></script>
-  <script src="assets/pages.js"></script>
-  <script src="assets/actions.js"></script>
+  <script src="assets/accounting.js"></script>
 </body>
 </html>

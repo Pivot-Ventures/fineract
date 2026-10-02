@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reports · Payments portal · Phaneroo SACCO</title>
+  <link rel="stylesheet" href="assets/portal.css" />
+</head>
+<body data-page="reports">
+<a class="skip-link" href="#portal-root">Skip to content</a>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar" aria-label="Payments portal">
+    <div class="sidebar-brand">
+      <div class="brand-mark" aria-hidden="true">PS</div>
+      <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Payments aggregator</span></div>
+    </div>
+    <nav class="sidebar-nav" aria-label="Portal">
+      <div class="nav-group">
+        <div class="nav-group-label">Operations</div>
+        <a class="nav-link" data-nav="overview" href="index.html"><span class="ico" aria-hidden="true">◈</span> Overview</a>
+        <a class="nav-link" data-nav="payments" href="payments.html"><span class="ico" aria-hidden="true">⇄</span> Payments</a>
+        <a class="nav-link" data-nav="reports" href="reports.html"><span class="ico" aria-hidden="true">▦</span> Reports</a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-label">Infrastructure</div>
+        <a class="nav-link" data-nav="channels" href="channels.html"><span class="ico" aria-hidden="true">⬡</span> Channels</a>
+        <a class="nav-link" data-nav="health" href="channels.html#health"><span class="ico" aria-hidden="true">⚙</span> Gateway health</a>
+      </div>
+    </nav>
+    <div class="sidebar-foot">
+      <strong>Middleware</strong>
+      sacco.pivotventures.tech/payments
+      <div class="mw-chip" id="mw-chip">● mock · gateway v1</div>
+      <button type="button" class="sidebar-key" id="gateway-key-btn">Operator key</button>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Open menu">☰</button>
+        <div class="topbar-search"><span aria-hidden="true">⌕</span><input id="top-search" type="search" placeholder="Search report packs…" /></div>
+      </div>
+      <div class="topbar-right" id="top-chips">
+        <div class="avatar" title="Operator">PS</div>
+      </div>
+    </header>
+    <div class="content" id="portal-root">Loading payments…</div>
+  </div>
+</div>
+<script src="/assets/api.js"></script>
+<script src="assets/model.js"></script>
+<script src="assets/portal.js"></script>
+</body>
+</html>

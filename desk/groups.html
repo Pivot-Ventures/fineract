@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Groups · Pivot SACCO Desk</title>
+  <title>Groups · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
+  <link rel="stylesheet" href="assets/members.css" />
 </head>
 <body data-page="groups">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -14,7 +15,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +37,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +63,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -83,21 +88,32 @@
 
     <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Groups</h1><p class="page-sub">Member groups in Fineract.</p></div>
+        <div><h1>Groups</h1><p class="page-sub">Solidarity groups of members. A group belongs to one office and may sit under a centre.</p></div>
       </div>
 
       <div class="btn-group page-actions"><button type="button" class="btn btn-amber" data-action="create-group" data-perm="CREATE_GROUP">＋ Create group</button></div>
       <div class="card"><div class="card-h"><h2>Groups</h2>
         <form class="filters inline" id="groups-filter" role="search">
           <label for="groups-search" class="sr-only">Search by name</label>
-          <input id="groups-search" type="search" placeholder="Name (case-sensitive)" />
+          <input id="groups-search" type="search" placeholder="Group name" />
           <button type="submit" class="btn btn-sm">Search</button>
         </form></div>
         <div class="card-b table-wrap"><table class="data" id="groups-table">
-          <thead><tr><th>Group</th><th>Office</th><th>Centre</th><th>Status</th></tr></thead>
-          <tbody><tr class="loading-row"><td colspan="4">Loading…</td></tr></tbody>
+          <thead><tr><th>Group</th><th>Office</th><th>Centre</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
         </table></div>
         <div class="pager" id="groups-pager"></div></div>
+      <div class="card" id="gc-panel" hidden><div class="card-h"><h2 id="gc-title">Group</h2>
+          <div class="btn-group">
+            <button type="button" class="btn btn-sm btn-amber" id="gc-activate" data-perm="ACTIVATE_GROUP" hidden>Activate</button>
+            <button type="button" class="btn btn-sm btn-amber" id="gc-add" data-perm="ASSOCIATECLIENTS_GROUP">＋ Add member</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="gc-close-panel">Close</button>
+          </div></div>
+        <div class="card-b"><p class="text-muted" id="gc-summary"></p>
+          <div class="table-wrap"><table class="data" id="gc-members">
+            <thead><tr><th>Client #</th><th>Name</th><th>Mobile</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead>
+            <tbody></tbody>
+          </table></div></div></div>
     </main>
   </div>
 </div>
@@ -105,5 +121,6 @@
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
   <script src="assets/actions.js"></script>
+  <script src="assets/members.js"></script>
 </body>
 </html>

@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Chart of accounts · Pivot SACCO Desk</title>
+  <title>Chart of accounts · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
+  <link rel="stylesheet" href="assets/accounting.css" />
 </head>
 <body data-page="accounting">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -14,7 +15,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +37,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +63,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -83,44 +88,35 @@
 
     <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Chart of accounts</h1><p class="page-sub">General ledger accounts in Fineract.</p></div>
+        <div><h1>Chart of accounts</h1><p class="page-sub">General ledger accounts grouped by type, with header accounts and balances from posted journals.</p></div>
       </div>
 
       <div class="btn-group page-actions">
+        <button type="button" class="btn btn-amber" id="coa-new" data-perm="CREATE_GLACCOUNT">＋ GL account</button>
+        <button type="button" class="btn btn-ghost" id="coa-csv">Export CSV</button>
         <a class="btn btn-ghost" href="journals.html">Journals</a>
         <a class="btn btn-ghost" href="trial-balance.html">Trial balance</a>
       </div>
-      <div class="grid-2">
-        <div class="card"><div class="card-h"><h2>Accounts</h2>
-          <div class="filters inline">
-            <label for="coa-filter" class="sr-only">Filter accounts</label>
-            <input id="coa-filter" type="search" data-table-filter="#coa-table" placeholder="Filter code or name…" />
-          </div></div>
-          <div class="card-b table-wrap"><table class="data" id="coa-table">
-            <thead><tr><th>Code</th><th>Name</th><th>Type</th><th>Usage</th><th>Status</th><th>Entries</th></tr></thead>
-            <tbody><tr class="loading-row"><td colspan="6">Loading…</td></tr></tbody>
-          </table></div></div>
-        <div class="card" data-perm="CREATE_GLACCOUNT"><div class="card-h"><h2>Create GL account</h2></div><div class="card-b">
-          <form id="gl-form" novalidate>
-            <div class="form-grid">
-              <div class="form-row"><label for="gl-name">Name *</label><input id="gl-name" required autocomplete="off" /></div>
-              <div class="form-row"><label for="gl-code">GL code *</label><input id="gl-code" class="mono" required autocomplete="off" /></div>
-              <div class="form-row"><label for="gl-type">Type *</label><select id="gl-type" required>
-                <option value="1">Asset</option><option value="2">Liability</option><option value="3">Equity</option><option value="4">Income</option><option value="5">Expense</option></select></div>
-              <div class="form-row"><label for="gl-usage">Usage *</label><select id="gl-usage" required><option value="1">Detail</option><option value="2">Header</option></select></div>
-              <div class="form-row"><label for="gl-parent">Parent (header account)</label><select id="gl-parent"><option value="">— None —</option></select></div>
-              <div class="form-row"><label for="gl-manual">Manual entries</label><select id="gl-manual"><option value="true">Allowed</option><option value="false">Not allowed</option></select></div>
-            </div>
-            <div class="form-actions"><button type="submit" class="btn btn-amber">Create account</button></div>
-          </form>
-        </div></div>
-      </div>
+      <div class="card"><div class="card-h"><h2>Accounts</h2>
+          <form class="toolbar" id="coa-asat-form" novalidate>
+            <label for="coa-filter" class="sr-only">Filter accounts by code or name</label>
+            <input id="coa-filter" type="search" placeholder="Filter code or name…" />
+            <label for="coa-type" class="sr-only">Account type</label>
+            <select id="coa-type"><option value="">All types</option><option value="1">Assets</option><option value="2">Liabilities</option><option value="3">Equity</option><option value="4">Income</option><option value="5">Expenses</option></select>
+            <label class="check" for="coa-disabled"><input id="coa-disabled" type="checkbox" checked /> Show disabled</label>
+            <label for="coa-asat">Balances as at</label><input id="coa-asat" type="date" />
+            <button type="submit" class="btn btn-sm">Refresh</button>
+          </form></div>
+        <div class="card-b table-wrap"><table class="data" id="coa-table">
+          <thead><tr><th scope="col">Code</th><th scope="col">Account</th><th scope="col">Type</th><th scope="col">Usage</th><th scope="col" class="text-right">Balance (UGX)</th><th scope="col">Manual entries</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody><tr class="loading-row"><td colspan="8">Loading…</td></tr></tbody>
+        </table></div>
+        <div class="acct-check" id="coa-check" aria-live="polite"></div></div>
     </main>
   </div>
 </div>
   <script src="assets/api.js"></script>
   <script src="assets/app.js"></script>
-  <script src="assets/pages.js"></script>
-  <script src="assets/actions.js"></script>
+  <script src="assets/accounting.js"></script>
 </body>
 </html>

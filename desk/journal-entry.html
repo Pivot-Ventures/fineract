@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Create journal entry · Pivot SACCO Desk</title>
+  <title>Create journal entry · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
+  <link rel="stylesheet" href="assets/accounting.css" />
 </head>
 <body data-page="journal">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -14,7 +15,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +37,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +63,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -83,24 +88,26 @@
 
     <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Create journal entry</h1><p class="page-sub">Manual journal — debits must equal credits.</p></div>
+        <div><h1>Create journal entry</h1><p class="page-sub">Manual journal — debits must equal credits. Only detail accounts that allow manual entries are listed.</p></div>
       </div>
 
+      <p class="je-done" id="je-done" role="status" hidden></p>
       <div class="card"><div class="card-b"><form id="journal-form" novalidate>
         <div class="form-grid">
           <div class="form-row"><label for="je-office-sel">Office *</label><select id="je-office-sel" required></select></div>
           <div class="form-row"><label for="je-date">Value date *</label><input id="je-date" type="date" required /></div>
           <div class="form-row"><label for="je-currency">Currency</label><select id="je-currency"><option value="UGX">UGX</option></select></div>
-          <div class="form-row"><label for="je-ref">Reference</label><input id="je-ref" autocomplete="off" placeholder="optional" /></div>
-          <div class="form-row"><label for="je-rule">Accounting rule</label><select id="je-rule"><option value="">— None —</option></select></div>
+          <div class="form-row"><label for="je-ref">Reference</label><input id="je-ref" autocomplete="off" placeholder="e.g. voucher or invoice no." /></div>
+          <div class="form-row"><label for="je-rule">Accounting rule (frequent posting)</label><select id="je-rule"><option value="">— None —</option></select></div>
           <div class="form-row"><label for="je-paytype">Payment type</label><select id="je-paytype"><option value="">— None —</option></select></div>
+          <div class="form-row"><label for="je-receipt">Receipt / cheque no.</label><input id="je-receipt" autocomplete="off" placeholder="optional, with a payment type" /></div>
           <div class="form-row full"><label for="je-narration">Narration *</label><textarea id="je-narration" rows="2" required></textarea></div>
         </div>
         <h3 class="section-title">Debits &amp; credits</h3>
         <div class="table-wrap"><table class="data" id="je-lines">
-          <thead><tr><th>GL account</th><th class="text-right">Debit (UGX)</th><th class="text-right">Credit (UGX)</th><th><span class="sr-only">Remove</span></th></tr></thead>
+          <thead><tr><th scope="col">GL account</th><th scope="col" class="text-right">Debit (UGX)</th><th scope="col" class="text-right">Credit (UGX)</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
           <tbody></tbody>
-          <tfoot><tr><td class="strong">Totals</td><td class="mono text-right strong" id="je-total-dr">0</td><td class="mono text-right strong" id="je-total-cr">0</td><td></td></tr></tfoot>
+          <tfoot><tr><td class="strong">Totals <span class="je-diff" id="je-diff" aria-live="polite"></span></td><td class="mono text-right strong" id="je-total-dr">0</td><td class="mono text-right strong" id="je-total-cr">0</td><td></td></tr></tfoot>
         </table></div>
         <button type="button" class="btn btn-sm btn-ghost mt-10" id="je-add-line">＋ Add line</button>
         <p class="dialog-error" id="je-error" role="alert" hidden></p>
@@ -114,7 +121,6 @@
 </div>
   <script src="assets/api.js"></script>
   <script src="assets/app.js"></script>
-  <script src="assets/pages.js"></script>
-  <script src="assets/actions.js"></script>
+  <script src="assets/accounting.js"></script>
 </body>
 </html>

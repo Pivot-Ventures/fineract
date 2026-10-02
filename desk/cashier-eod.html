@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cashier EOD / settlement · Pivot SACCO Desk</title>
+  <title>Cashier EOD / settlement · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
+  <link rel="stylesheet" href="assets/frontoffice.css" />
 </head>
 <body data-page="cashier-eod">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -14,7 +15,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +37,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +63,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -84,47 +89,53 @@
     <main class="content" id="main-content">
       <div class="page-header">
         <div><h1>Cashier EOD / settlement</h1><p class="page-sub" id="page-sub">Loading cashier…</p></div>
+        <div class="btn-group no-print"><button type="button" class="btn btn-ghost" data-print>Print EOD sheet</button></div>
       </div>
+      <div class="print-only"><p class="strong">Phaneroo SACCO · Cashier end-of-day sheet</p><p class="text-muted" id="eod-print-meta"></p></div>
+      <div id="eod-notice" class="fo-notice" role="status" hidden></div>
+      <div class="filters no-print mb-16"><label for="eod-drawer">Drawer</label> <select id="eod-drawer"><option value="">Loading…</option></select></div>
 
       <div class="grid-2"><div>
-        <div class="card"><div class="card-h"><h2>Cashier summary</h2><span class="chip" id="eod-cashier">—</span></div>
+        <div class="card"><div class="card-h"><h2>Drawer summary</h2><span class="chip" id="eod-cashier">—</span></div>
           <div class="card-b"><div class="recon-box">
-            <div class="recon-line"><span>+ Allocations</span><span class="mono" id="eod-allocated">—</span></div>
+            <div class="recon-line"><span>+ Allocations (opening float)</span><span class="mono" id="eod-allocated">—</span></div>
             <div class="recon-line"><span>+ Cash in</span><span class="mono" id="eod-cash-in">—</span></div>
             <div class="recon-line"><span>− Cash out</span><span class="mono" id="eod-cash-out">—</span></div>
             <div class="recon-line"><span>− Already settled</span><span class="mono" id="eod-settled">—</span></div>
-            <div class="recon-line total"><span>Expected drawer</span><span class="mono" id="eod-expected">—</span></div>
-          </div></div></div>
-        <div class="card"><div class="card-h"><h2>Denomination count</h2></div><div class="card-b">
-          <div class="denom-grid" id="denom-grid">
-            <div class="denom-row"><label for="denom-50000">50,000 ×</label><input id="denom-50000" data-denom="50000" class="mono" inputmode="numeric" autocomplete="off" /></div>
-            <div class="denom-row"><label for="denom-20000">20,000 ×</label><input id="denom-20000" data-denom="20000" class="mono" inputmode="numeric" autocomplete="off" /></div>
-            <div class="denom-row"><label for="denom-10000">10,000 ×</label><input id="denom-10000" data-denom="10000" class="mono" inputmode="numeric" autocomplete="off" /></div>
-            <div class="denom-row"><label for="denom-5000">5,000 ×</label><input id="denom-5000" data-denom="5000" class="mono" inputmode="numeric" autocomplete="off" /></div>
-            <div class="denom-row"><label for="denom-2000">2,000 ×</label><input id="denom-2000" data-denom="2000" class="mono" inputmode="numeric" autocomplete="off" /></div>
-            <div class="denom-row"><label for="denom-1000">1,000 ×</label><input id="denom-1000" data-denom="1000" class="mono" inputmode="numeric" autocomplete="off" /></div>
-            <div class="denom-row"><label for="denom-coins">Coins (UGX)</label><input id="denom-coins" data-denom="1" class="mono" inputmode="numeric" autocomplete="off" /></div>
+            <div class="recon-line total"><span>System drawer balance (expected cash)</span><span class="mono" id="eod-expected">—</span></div>
           </div>
-          <p class="strong counted-line">Counted: <span class="mono" id="eod-counted">—</span></p>
+          <p class="text-muted small-note" id="eod-today"></p></div></div>
+        <div class="card"><div class="card-h"><h2>Cash count</h2></div><div class="card-b">
+          <div id="eod-denoms" class="no-print"></div>
+          <div class="fo-counted"><span class="strong">Counted: <span class="mono" id="eod-counted">—</span></span>
+            <button type="button" class="btn btn-sm btn-ghost no-print" id="eod-use-count">Settle counted total</button></div>
+          <div class="print-only mt-10" id="eod-print-count"></div>
         </div></div>
       </div><div>
         <div class="recon-box" id="eod-variance-box">
           <div class="recon-line total"><span>Variance (counted − expected)</span><span class="mono" id="eod-variance">—</span></div>
-          <p class="text-muted small-note" id="eod-variance-note">Enter the denomination count to compare with the expected drawer.</p>
+          <p class="text-muted small-note" id="eod-variance-note">Enter the cash count to compare with the system balance.</p>
         </div>
-        <div class="card" data-perm="SETTLECASHFROMCASHIER_TELLER"><div class="card-h"><h2>Settle cash to vault</h2></div><div class="card-b">
+        <div class="card no-print" data-perm="SETTLECASHFROMCASHIER_TELLER"><div class="card-h"><h2>Settle cash to vault</h2></div><div class="card-b">
           <form id="settle-form" novalidate>
             <div class="form-grid">
-              <div class="form-row"><label for="settle-amount">Settle amount (UGX)</label><input id="settle-amount" class="mono" inputmode="numeric" autocomplete="off" placeholder="e.g. 1,000,000" required /></div>
-              <div class="form-row"><label for="settle-date">Date</label><input id="settle-date" type="date" required /></div>
-              <div class="form-row full"><label for="settle-note">Note</label><textarea id="settle-note" rows="2" placeholder="Explain any variance"></textarea></div>
+              <div class="form-row"><label for="settle-amount">Settle amount (UGX) <span aria-hidden="true">*</span></label><input id="settle-amount" class="mono" inputmode="numeric" autocomplete="off" placeholder="e.g. 1,000,000" required /></div>
+              <div class="form-row"><label for="settle-date">Date <span aria-hidden="true">*</span></label><input id="settle-date" type="date" required /></div>
+              <div class="form-row full"><label for="settle-note">Note</label><textarea id="settle-note" rows="2" placeholder="Required when there is a variance"></textarea></div>
             </div>
             <div class="form-actions">
-              <button type="submit" class="btn btn-amber">Settle to vault</button>
+              <button type="submit" class="btn btn-amber">Review settlement</button>
               <a class="btn btn-ghost" href="teller.html">Back to desk</a>
             </div>
           </form>
         </div></div>
+        <div class="card"><div class="card-h"><h2>Today's movements</h2></div>
+          <div class="card-b table-wrap"><table class="data" id="eod-txns">
+            <thead><tr><th scope="col">Time</th><th scope="col">Type</th><th scope="col">Details</th><th scope="col" class="text-right">In</th><th scope="col" class="text-right">Out</th></tr></thead>
+            <tbody><tr class="loading-row"><td colspan="5">Loading…</td></tr></tbody>
+          </table></div></div>
+        <div class="print-only"><p>Settled this session: <span id="eod-print-settled">—</span></p><p>Note: <span id="eod-print-note">—</span></p>
+          <div class="fo-sign"><div>Cashier — name, signature</div><div>Vault custodian / supervisor — name, signature</div></div></div>
       </div></div>
     </main>
   </div>
@@ -133,5 +144,6 @@
   <script src="assets/app.js"></script>
   <script src="assets/pages.js"></script>
   <script src="assets/actions.js"></script>
+  <script src="assets/frontoffice.js"></script>
 </body>
 </html>

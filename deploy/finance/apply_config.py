@@ -66,7 +66,7 @@ class Fineract:
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(self.base + path, data=data, method=method, headers=self.headers)
         try:
-            with urllib.request.urlopen(req, context=self.ctx, timeout=120) as resp:
+            with urllib.request.urlopen(req, context=self.ctx, timeout=300) as resp:
                 raw = resp.read()
                 return json.loads(raw) if raw else {}
         except urllib.error.HTTPError as e:
@@ -117,11 +117,15 @@ class Applier:
         code = self.cfg["currency"]["code"]
         cur = self.api.get("/currencies")
         selected = [c["code"] for c in cur.get("selectedCurrencyOptions", [])]
-        if selected == [code]:
-            self.log(f"  = {code} only")
+        if code in selected:
+            self.log(f"  = {code} enabled")
         else:
-            self.api.put("/currencies", {"currencies": [code]})
-            self.made(f"organisation currencies set to [{code}] (was {selected})")
+            # Add, never remove: Fineract refuses to drop a currency something already uses (e.g. USD on a fresh tenant).
+            self.api.put("/currencies", {"currencies": selected + [code]})
+            self.made(f"currency {code} enabled (alongside {selected})")
+        extra = [c for c in selected if c != code]
+        if extra:
+            self.drift.append(f"Currencies {extra} are also enabled; products here use {code} only")
 
     def working_days(self):
         self.log("Working days")
@@ -185,7 +189,12 @@ class Applier:
                 "description": acc.get("_note", acc["name"]),
             }
             if acc.get("parent"):
-                body["parentId"] = self.gl[acc["parent"]]
+                parent = existing.get(acc["parent"])
+                if parent and parent["usage"]["value"].upper() != "HEADER":
+                    # A pre-existing detail account holds the header's code: Fineract won't nest under it.
+                    self.drift.append(f"GL {acc['code']} created without parent: existing {acc['parent']} '{parent['name']}' is a detail account")
+                else:
+                    body["parentId"] = self.gl[acc["parent"]]
             self.gl[acc["code"]] = self.api.post("/glaccounts", body)["resourceId"]
             self.made(f"GL {acc['code']} {acc['name']}")
 
@@ -453,11 +462,25 @@ class Applier:
             if h["name"] in existing:
                 continue
             hid = self.api.post("/holidays", {
-                "name": h["name"], "fromDate": h["date"], "toDate": h["date"], "reschedulingType": 1,
+                "name": h["name"], "fromDate": h["date"], "toDate": h["date"],
+                # "Next repayment date" (type 1) would stack the instalment onto next month's; move it to the next working day.
+                "reschedulingType": 2, "repaymentsRescheduledTo": self.next_working_day(h["date"]),
                 "offices": offices, "description": h.get("_note", h["name"]), "dateFormat": DATE_FORMAT, "locale": LOCALE,
             })["resourceId"]
             self.api.post(f"/holidays/{hid}?command=activate", {})
             self.made(f"holiday {h['date']} {h['name']} (all {len(offices)} offices)")
+
+    def next_working_day(self, iso):
+        """Day after `iso` that is a configured working day and not itself a configured holiday."""
+        import datetime as dt
+        codes = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
+        work = set(self.cfg["workingDays"]["days"])
+        holidays = {h["date"] for h in self.cfg["holidays"]}
+        d = dt.date.fromisoformat(iso)
+        while True:
+            d += dt.timedelta(days=1)
+            if codes[d.weekday()] in work and d.isoformat() not in holidays:
+                return d.isoformat()
 
     def jobs(self):
         self.log("Scheduler jobs")

@@ -142,6 +142,9 @@ services:
       GATEWAY_DB: /data/gateway.sqlite3
       LIMIT_PER_TXN: ${MOBILE_LIMIT_PER_TXN:-2000000}
       LIMIT_PER_DAY: ${MOBILE_LIMIT_PER_DAY:-5000000}
+      # Member alerts (transfers, repayments, PIN and phone changes) via the alerts service.
+      ALERTS_URL: http://alerts:8095
+      ALERTS_SERVICE_KEY: ${ALERTS_SERVICE_KEY:-}
     volumes:
       - gateway_data:/data
     read_only: true
@@ -156,6 +159,44 @@ services:
       retries: 5
     logging: *logging
 
+  # Transactional SMS / WhatsApp alerts. Not published: Caddy routes /alerts/api/* here, and every
+  # call is authenticated by the service itself (Desk staff login checked against Fineract, or the
+  # gateway's service key). Provider credentials live in alerts.env (see alerts/.env.example);
+  # without ALERTS_LIVE=true there it only dry-runs.
+  alerts:
+    build: ../../alerts
+    image: pivot-sacco-alerts:latest
+    restart: unless-stopped
+    depends_on:
+      fineract:
+        condition: service_healthy
+    env_file:
+      - path: ./alerts.env
+        required: false
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8095
+      FINERACT_URL: http://fineract:8080/fineract-provider/api/v1
+      FINERACT_TENANT: ${FINERACT_TENANT_ID:-default}
+      ALERTS_SERVICE_KEY: ${ALERTS_SERVICE_KEY:-}  # scripts/gen-secrets.sh; empty = gateway alerts off
+      ALERTS_DATA_DIR: /app/data
+      # Caddy appends the real client to X-Forwarded-For; per-IP limits use it.
+      ALERTS_TRUST_PROXY: "true"
+    volumes:
+      - alerts_data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,size=16m
+    # backend for Fineract and the gateway; edge for Africa's Talking / LipeChat.
+    networks: [backend, edge]
+    mem_limit: 192m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8095/v1/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    logging: *logging
+
   caddy:
     image: caddy:2.10
     restart: unless-stopped
@@ -164,12 +205,17 @@ services:
         condition: service_healthy
       gateway:
         condition: service_healthy
+      alerts:
+        condition: service_started
     ports:
       - "${HTTP_PORT:-80}:80"
       - "${HTTPS_PORT:-443}:443"
     environment:
       DESK_DOMAIN: ${DESK_DOMAIN}
       CADDY_TLS: ${CADDY_TLS:-internal}
+      # Payments middleware (separate Nest service) for the Desk payments portal, e.g.
+      # payments:3000 or https://payments.internal. Unset → /payments/* answers 502.
+      PAYMENTS_UPSTREAM: ${PAYMENTS_UPSTREAM:-}
     volumes:
       - ./caddy:/etc/caddy:ro
       - ../../desk:/srv/desk:ro
@@ -187,5 +233,6 @@ volumes:
   pgdata:
   content:
   gateway_data:
+  alerts_data:
   caddy_data:
   caddy_config:

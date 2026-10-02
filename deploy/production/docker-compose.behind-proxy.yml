@@ -1,0 +1,11 @@
+# Overlay for a host where another reverse proxy already owns ports 80/443 (e.g. a shared server).
+# Enable it in .env with:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.behind-proxy.yml
+#   BEHIND_PROXY_PORT=8460
+# then point the host proxy at http://127.0.0.1:8460 for DESK_DOMAIN (it terminates TLS).
+
+services:
+  caddy:
+    ports: !override
+      - "127.0.0.1:${BEHIND_PROXY_PORT:-8460}:80"
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.behind-proxy", "--adapter", "caddyfile"]

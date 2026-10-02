@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Journal entries · Pivot SACCO Desk</title>
+  <title>Journal entries · Phaneroo SACCO</title>
   <link rel="stylesheet" href="assets/app.css" />
+  <link rel="stylesheet" href="assets/accounting.css" />
 </head>
 <body data-page="journals">
 <a class="skip-link" href="#main-content">Skip to content</a>
@@ -14,7 +15,7 @@
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
   <div class="sidebar-brand">
     <div class="brand-mark" aria-hidden="true">P</div>
-    <div class="brand-text"><strong>Pivot SACCO Desk</strong><span>Fineract · UGX</span></div>
+    <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Member desk · UGX</span></div>
   </div>
   <nav class="sidebar-nav" aria-label="Sections">
     <div class="nav-group"><div class="nav-group-label">Overview</div>
@@ -36,6 +37,8 @@
       <a class="nav-link" data-nav="loans" href="loans.html"><span class="nav-icon" aria-hidden="true">📋</span> Loans</a>
       <a class="nav-link" data-nav="loan-apply" href="loan-apply.html"><span class="nav-icon" aria-hidden="true">✎</span> Loan application</a>
       <a class="nav-link" data-nav="savings" href="savings.html"><span class="nav-icon" aria-hidden="true">💰</span> Savings &amp; deposits</a>
+      <a class="nav-link" data-nav="shares" href="shares.html"><span class="nav-icon" aria-hidden="true">◈</span> Shares</a>
+      <a class="nav-link" data-nav="fixed-deposits" href="fixed-deposits.html" data-perm="READ_FIXEDDEPOSITACCOUNT"><span class="nav-icon" aria-hidden="true">⏳</span> Fixed deposits</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Products</div>
       <a class="nav-link" data-nav="products" href="products-loans.html"><span class="nav-icon" aria-hidden="true">🏷</span> Products &amp; charges</a>
@@ -60,10 +63,12 @@
       <a class="nav-link" data-nav="statement" href="member-statement.html"><span class="nav-icon" aria-hidden="true">📄</span> Member statement</a>
     </div>
     <div class="nav-group"><div class="nav-group-label">Admin</div>
-      <a class="nav-link" data-nav="reports" href="reports.html#admin"><span class="nav-icon" aria-hidden="true">⚙</span> Users</a>
+      <a class="nav-link" data-nav="staff" href="staff.html" data-perm="READ_STAFF"><span class="nav-icon" aria-hidden="true">🪪</span> Staff</a>
+      <a class="nav-link" data-nav="users" href="users.html" data-perm="READ_USER"><span class="nav-icon" aria-hidden="true">🔑</span> Users</a>
+      <a class="nav-link" data-nav="roles" href="roles.html" data-perm="READ_ROLE"><span class="nav-icon" aria-hidden="true">🛡</span> Roles &amp; permissions</a>
     </div>
   </nav>
-  <div class="sidebar-foot"><div id="sidebar-tenant">Pivot SACCO Desk</div></div>
+  <div class="sidebar-foot"><div id="sidebar-tenant">Phaneroo SACCO</div></div>
 </aside>
 
   <div class="main">
@@ -83,38 +88,44 @@
 
     <main class="content" id="main-content">
       <div class="page-header">
-        <div><h1>Journal entries</h1><p class="page-sub">General ledger postings.</p></div>
+        <div><h1>Journal entries</h1><p class="page-sub">General ledger postings. Open a transaction to see all its legs, print the voucher or reverse it.</p></div>
       </div>
 
       <div class="btn-group page-actions">
         <a class="btn btn-amber" href="journal-entry.html" data-perm="CREATE_JOURNALENTRY">＋ Manual journal</a>
         <a class="btn btn-ghost" href="accounting-rules.html">Frequent postings</a>
+        <button type="button" class="btn btn-ghost" id="je-csv">Export CSV</button>
       </div>
       <div class="card"><div class="card-h"><h2>Search journals</h2></div>
         <div class="card-b">
-          <form class="filters" id="je-filter">
+          <form class="filters" id="je-filter" novalidate>
             <label for="je-from">From</label><input id="je-from" type="date" />
             <label for="je-to">To</label><input id="je-to" type="date" />
             <label for="je-office" class="sr-only">Office</label>
             <select id="je-office"><option value="">All offices</option></select>
+            <label for="je-gl" class="sr-only">GL account</label>
+            <select id="je-gl"><option value="">All GL accounts</option></select>
             <label for="je-manual" class="sr-only">Entry type</label>
             <select id="je-manual"><option value="">All entries</option><option value="true">Manual only</option></select>
             <label for="je-txn" class="sr-only">Transaction ID</label>
             <input id="je-txn" type="search" placeholder="Transaction ID" />
             <button type="submit" class="btn btn-sm">Search</button>
+            <button type="button" class="btn btn-sm btn-ghost" id="je-reset">Clear</button>
           </form>
         </div>
+        <div class="card-b"><label for="je-quick" class="sr-only">Filter this page by reference, narration or account</label>
+          <input id="je-quick" type="search" placeholder="Filter this page: reference, narration, account…" /></div>
         <div class="card-b table-wrap"><table class="data" id="je-table">
-          <thead><tr><th>Txn</th><th>Date</th><th>GL account</th><th>Office</th><th class="text-right">Amount</th><th>Dr / Cr</th><th>Manual</th><th>Comments</th><th>By</th></tr></thead>
-          <tbody><tr class="loading-row"><td colspan="9">Loading…</td></tr></tbody>
+          <thead><tr><th scope="col">Date</th><th scope="col">Transaction</th><th scope="col">Office</th><th scope="col">GL account</th><th scope="col" class="text-right">Debit</th><th scope="col" class="text-right">Credit</th><th scope="col">Reference</th><th scope="col">Narration</th><th scope="col">Source</th><th scope="col">By</th></tr></thead>
+          <tbody><tr class="loading-row"><td colspan="10">Loading…</td></tr></tbody>
         </table></div>
+        <p class="page-totals" id="je-page-totals"></p>
         <div class="pager" id="je-pager"></div></div>
     </main>
   </div>
 </div>
   <script src="assets/api.js"></script>
   <script src="assets/app.js"></script>
-  <script src="assets/pages.js"></script>
-  <script src="assets/actions.js"></script>
+  <script src="assets/accounting.js"></script>
 </body>
 </html>

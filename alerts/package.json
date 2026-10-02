@@ -1,0 +1,12 @@
+{
+  "name": "phaneroo-transactional-alerts",
+  "private": true,
+  "description": "Transactional member alerts for Phaneroo SACCO (Africa's Talking SMS and LipeChat WhatsApp).",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test scripts/adapters.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

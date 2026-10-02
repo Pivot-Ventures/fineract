@@ -18,6 +18,7 @@ from fastapi import Depends, FastAPI, Header, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from .alerts import Alerts
 from .config import get_settings
 from .fineract import Fineract, FineractError
 from .momo import NETWORKS, SandboxProvider, network_for, normalize_msisdn
@@ -35,13 +36,17 @@ _ip_hits: dict[str, collections.deque] = collections.defaultdict(collections.deq
 _lookup_hits: dict[int, collections.deque] = collections.defaultdict(collections.deque)
 
 
-def configure(store: Store, fineract: Fineract, momo=None):
+def configure(store: Store, fineract: Fineract, momo=None, alerts: Alerts | None = None):
     """Wire dependencies (startup in production, directly from tests)."""
+    s = get_settings()
     _state["store"] = store
     _state["fineract"] = fineract
-    if momo is None and get_settings().momo_provider == "sandbox":
+    if momo is None and s.momo_provider == "sandbox":
         momo = SandboxProvider()
     _state["momo"] = momo
+    if alerts is None and s.alerts_url and s.alerts_service_key:
+        alerts = Alerts(s.alerts_url, s.alerts_service_key)
+    _state["alerts"] = alerts
 
 
 @asynccontextmanager
@@ -52,6 +57,8 @@ async def lifespan(_: FastAPI):
                   Fineract(s.fineract_url, s.fineract_tenant, s.fineract_user, s.fineract_password,
                            verify_tls=s.fineract_verify_tls))
     yield
+    if _state.get("alerts") is not None:
+        await _state["alerts"].close()
     await _state["fineract"].close()
 
 
@@ -117,6 +124,32 @@ def check_new_pin(pin: str):
     steps = {digits[i + 1] - digits[i] for i in range(3)}
     if len(set(pin)) == 1 or steps in ({1}, {-1}) or pin in {"1212", "2580", "0852", "1122", "1004", "2000"}:
         raise ApiError(422, "weak_pin", "That PIN is too easy to guess. Choose a less obvious one.")
+
+
+def first_name(client: dict) -> str:
+    return (client.get("firstname") or client.get("displayName") or "").split(" ")[0].title()
+
+
+def alert(kind: str, client_id: int, key: str, context: dict | None = None, client: dict | None = None):
+    """Queue a best-effort SMS alert (no-op unless ALERTS_URL and ALERTS_SERVICE_KEY are set).
+    Never pass activation codes, PINs, session tokens or device keys in `context`."""
+    alerts = _state.get("alerts")
+    if alerts is not None:
+        alerts.notify(kind, client_id, key, context or {}, client,
+                      lambda: core().get(f"/clients/{int(client_id)}"))
+
+
+def awaiting_approval(res) -> bool:
+    """Fineract maker-checker: the command was accepted (commandId) but not executed (no resourceId),
+    so no money has moved until a checker approves it."""
+    return not (res or {}).get("resourceId")
+
+
+def replay(prior: dict):
+    """Return a saved idempotent response with the status code it was first sent with."""
+    if prior.get("status") == "pending_approval":
+        return JSONResponse(prior, status_code=202)
+    return prior
 
 
 def mask_name(client: dict) -> str:
@@ -360,8 +393,10 @@ async def activate(body: ActivateBody, request: Request):
                      activated_at=now(), last_login_at=now())
     st.audit("member", "activated", member["client_id"], {"device": body.deviceName[:80]}, ip)
     token = st.create_session(member["client_id"], sha256(body.deviceKey))
+    alert("activation", member["client_id"], f"activation:{member['client_id']}:{now()}",
+          {"memberName": first_name(client)}, client=client)
     return {"token": token, "idleSeconds": s.session_idle_seconds, "memberNo": client.get("accountNo"),
-            "firstName": (client.get("firstname") or client.get("displayName") or "").split(" ")[0].title()}
+            "firstName": first_name(client)}
 
 
 @app.post("/v1/auth/login")
@@ -406,6 +441,7 @@ async def change_pin(body: ChangePinBody, ctx: MemberContext = Depends(member_ct
         raise ApiError(422, "weak_pin", "Choose a PIN different from your current one.")
     store().update_member(ctx.client_id, pin_hash=hash_pin(body.newPin))
     store().audit("member", "pin_changed", ctx.client_id, None, ctx.ip)
+    alert("pin", ctx.client_id, f"pin:changed:{ctx.client_id}:{now()}")
     return {"ok": True}
 
 
@@ -447,7 +483,7 @@ async def me(ctx: MemberContext = Depends(member_ctx)):
             "clientId": cid,
             "memberNo": client.get("accountNo"),
             "name": client.get("displayName"),
-            "firstName": (client.get("firstname") or client.get("displayName") or "").split(" ")[0].title(),
+            "firstName": first_name(client),
             "office": client.get("officeName"),
             "mobile": (mobile[:4] + "•••" + mobile[-3:]) if len(mobile) > 7 else mobile,
             "device": ctx.member["device_name"],
@@ -534,7 +570,7 @@ async def transfer(body: TransferBody, ctx: MemberContext = Depends(member_ctx))
     st = store()
     async with _client_locks[ctx.client_id]:
         if (prior := st.idempotent_response(ctx.client_id, body.idempotencyKey)) is not None:
-            return prior
+            return replay(prior)
         check_pin(ctx.member, body.pin, ctx.ip)
         check_amount(body.amount, ctx)
         source = await owned_savings(ctx.client_id, body.fromAccountId)
@@ -557,22 +593,47 @@ async def transfer(body: TransferBody, ctx: MemberContext = Depends(member_ctx))
             "transferDate": date, "transferAmount": body.amount, "transferDescription": description[:200],
             "dateFormat": "yyyy-MM-dd", "locale": "en",
         })
-        ref = (res or {}).get("resourceId")
+        to = {"accountNo": target["accountNo"], "name": mask_name(target_client),
+              "own": target["clientId"] == ctx.client_id}
+        if awaiting_approval(res):
+            # Counted against the daily limit now: it moves as soon as a checker approves it.
+            command_id = (res or {}).get("commandId")
+            st.record_move(ctx.client_id, "transfer_pending_approval", body.amount, date, None)
+            result = {
+                "status": "pending_approval",
+                "message": "Your transfer is waiting for branch approval.",
+                "reference": None,
+                "commandId": command_id,
+                "date": date,
+                "amount": body.amount,
+                "from": {"accountNo": source["accountNo"], "product": map_savings(source)["product"]},
+                "to": to,
+                "note": note,
+            }
+            st.save_idempotent_response(ctx.client_id, body.idempotencyKey, result)
+            st.audit("member", "transfer_pending_approval", ctx.client_id,
+                     {"from": source["accountNo"], "to": target["accountNo"], "amount": body.amount,
+                      "commandId": command_id}, ctx.ip)
+            return JSONResponse(result, status_code=202)
+        ref = res["resourceId"]
         st.record_move(ctx.client_id, "transfer", body.amount, date, ref)
         after = map_savings(await core().get(f"/savingsaccounts/{source['id']}"))
         result = {
-            "reference": f"TRF-{ref}" if ref else None,
+            "status": "completed",
+            "reference": f"TRF-{ref}",
             "date": date,
             "amount": body.amount,
             "from": {"accountNo": source["accountNo"], "product": after["product"]},
-            "to": {"accountNo": target["accountNo"], "name": mask_name(target_client),
-                   "own": target["clientId"] == ctx.client_id},
+            "to": to,
             "note": note,
             "availableAfter": after["available"],
         }
         st.save_idempotent_response(ctx.client_id, body.idempotencyKey, result)
         st.audit("member", "transfer", ctx.client_id,
                  {"from": source["accountNo"], "to": target["accountNo"], "amount": body.amount, "ref": ref}, ctx.ip)
+        alert("transfer", ctx.client_id, f"transfer:{ref}",
+              {"amount": body.amount, "account": source["accountNo"], "balance": after["available"],
+               "reference": result["reference"], "memberName": first_name(source_client)}, client=source_client)
         return result
 
 
@@ -581,7 +642,7 @@ async def repay(loan_id: int, body: RepayBody, ctx: MemberContext = Depends(memb
     st = store()
     async with _client_locks[ctx.client_id]:
         if (prior := st.idempotent_response(ctx.client_id, body.idempotencyKey)) is not None:
-            return prior
+            return replay(prior)
         check_pin(ctx.member, body.pin, ctx.ip)
         check_amount(body.amount, ctx)
         loan = map_loan(await owned_loan(ctx.client_id, loan_id))
@@ -602,12 +663,32 @@ async def repay(loan_id: int, body: RepayBody, ctx: MemberContext = Depends(memb
             "transferDescription": f"Mobile loan repayment {loan['accountNo']}",
             "dateFormat": "yyyy-MM-dd", "locale": "en",
         })
-        ref = (res or {}).get("resourceId")
+        if awaiting_approval(res):
+            # Counted against the daily limit now: it moves as soon as a checker approves it.
+            command_id = (res or {}).get("commandId")
+            st.record_move(ctx.client_id, "loan_repayment_pending_approval", body.amount, date, None)
+            result = {
+                "status": "pending_approval",
+                "message": "Your loan repayment is waiting for branch approval.",
+                "reference": None,
+                "commandId": command_id,
+                "date": date,
+                "amount": body.amount,
+                "loan": {"accountNo": loan["accountNo"], "product": loan["product"]},
+                "from": {"accountNo": source["accountNo"]},
+            }
+            st.save_idempotent_response(ctx.client_id, body.idempotencyKey, result)
+            st.audit("member", "loan_repayment_pending_approval", ctx.client_id,
+                     {"loan": loan["accountNo"], "from": source["accountNo"], "amount": body.amount,
+                      "commandId": command_id}, ctx.ip)
+            return JSONResponse(result, status_code=202)
+        ref = res["resourceId"]
         st.record_move(ctx.client_id, "loan_repayment", body.amount, date, ref)
         after_loan = map_loan(await owned_loan(ctx.client_id, loan_id))
         after_sav = map_savings(await core().get(f"/savingsaccounts/{source['id']}"))
         result = {
-            "reference": f"RPY-{ref}" if ref else None,
+            "status": "completed",
+            "reference": f"RPY-{ref}",
             "date": date,
             "amount": body.amount,
             "loan": {"accountNo": loan["accountNo"], "product": loan["product"],
@@ -617,6 +698,10 @@ async def repay(loan_id: int, body: RepayBody, ctx: MemberContext = Depends(memb
         st.save_idempotent_response(ctx.client_id, body.idempotencyKey, result)
         st.audit("member", "loan_repayment", ctx.client_id,
                  {"loan": loan["accountNo"], "from": source["accountNo"], "amount": body.amount, "ref": ref}, ctx.ip)
+        # The SMS names the loan, so the balance it quotes is the loan's outstanding balance.
+        alert("loan_repay", ctx.client_id, f"loan_repay:{ref}",
+              {"amount": body.amount, "account": loan["accountNo"], "balance": after_loan["outstanding"],
+               "reference": result["reference"], "memberName": first_name(client)}, client=client)
         return result
 
 
@@ -646,7 +731,7 @@ async def momo_deposit(body: DepositBody, ctx: MemberContext = Depends(member_ct
     st, s = store(), get_settings()
     async with _client_locks[ctx.client_id]:
         if (prior := st.idempotent_response(ctx.client_id, body.idempotencyKey)) is not None:
-            return prior
+            return replay(prior)
         network = body.network.lower()
         if network not in NETWORKS:
             raise ApiError(422, "bad_network", "Choose MTN MoMo or Airtel Money.")
@@ -695,9 +780,16 @@ async def deposit_status(deposit_id: str, ctx: MemberContext = Depends(member_ct
                         "note": f"{NETWORKS[row['network']]['label']} deposit from {row['msisdn']} ({row['id']})",
                         "dateFormat": "yyyy-MM-dd", "locale": "en",
                     })
-                    st.finish_deposit(deposit_id, "successful", fineract_id=(res or {}).get("resourceId"))
-                    st.audit("member", "momo_deposit_credited", ctx.client_id,
-                             {"id": deposit_id, "amount": row["amount"], "ref": (res or {}).get("resourceId")}, ctx.ip)
+                    if awaiting_approval(res):
+                        # Maker-checker holds the credit: not successful until a checker approves it.
+                        st.finish_deposit(deposit_id, "pending_approval", reason="Waiting for branch approval.")
+                        st.audit("member", "momo_deposit_pending_approval", ctx.client_id,
+                                 {"id": deposit_id, "amount": row["amount"], "commandId": (res or {}).get("commandId")},
+                                 ctx.ip)
+                    else:
+                        st.finish_deposit(deposit_id, "successful", fineract_id=res["resourceId"])
+                        st.audit("member", "momo_deposit_credited", ctx.client_id,
+                                 {"id": deposit_id, "amount": row["amount"], "ref": res["resourceId"]}, ctx.ip)
                 elif status == "failed":
                     st.finish_deposit(deposit_id, "failed", reason=reason)
                     st.audit("member", "momo_deposit_failed", ctx.client_id, {"id": deposit_id, "reason": reason}, ctx.ip)
@@ -769,6 +861,7 @@ async def admin_block(client_id: int, request: Request, staff: str = Depends(sta
     st.delete_sessions_for(client_id)
     st.delete_activation_code(client_id)
     st.audit(f"staff:{staff}", "blocked", client_id, None, client_ip(request))
+    alert("mobile_blocked", client_id, f"mobile_blocked:{client_id}:{now()}")
     return member_status(client_id)
 
 
@@ -783,4 +876,5 @@ async def admin_unlock(client_id: int, request: Request, staff: str = Depends(st
         raise ApiError(422, "blocked", "This member is blocked. Issue a new activation code instead.")
     st.update_member(client_id, failed_attempts=0, locked_until=0)
     st.audit(f"staff:{staff}", "unlocked", client_id, None, client_ip(request))
+    alert("pin", client_id, f"pin:unlocked:{client_id}:{now()}")
     return member_status(client_id)

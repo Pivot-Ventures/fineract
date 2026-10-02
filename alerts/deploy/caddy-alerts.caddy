@@ -1,0 +1,40 @@
+# Phaneroo SACCO transactional alerts behind Caddy.
+#
+# Production Desk is served by Caddy (see desk/README.md). Paste this inside
+# the existing site block, next to the /payments and /fineract-provider
+# reverse_proxy lines. Do not replace those lines or the desk file_server.
+# Run `caddy validate` before `caddy reload`.
+#
+# Deploy SACCO Alerts does not edit the live Caddyfile and does not reload
+# Caddy, nginx, Fineract, or the payments gateway.
+#
+# Auth is done by the alerts service itself:
+#   - Desk staff send X-Staff-Authorization: Basic <desk key>; the service
+#     verifies it against Fineract. Caddy passes it through untouched.
+#   - The member gateway sends X-Alerts-Service-Key, but it talks to
+#     127.0.0.1:8095 (or the backend network) directly, never through
+#     Caddy. Caddy therefore strips any client-supplied copy.
+# Caddy never injects a key. Do not add one here.
+#
+# Rate limiting: stock Caddy has no rate limiter. If this host fronts the
+# public internet, use the nginx snippet (limit_req) or a Caddy build with
+# the caddy-ratelimit module.
+
+# handle_path strips the /alerts/api prefix:
+# /alerts/api/v1/health -> http://127.0.0.1:8095/v1/health
+handle_path /alerts/api/* {
+	request_body {
+		max_size 64KB
+	}
+	reverse_proxy 127.0.0.1:8095 {
+		# Strip internal-only credentials a client may try to forge.
+		header_up -X-Alerts-Service-Key
+		header_up -X-Alerts-Key
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 30s
+			read_timeout 30s
+			write_timeout 15s
+		}
+	}
+}

@@ -2,6 +2,8 @@
 #   /                             → Desk static UI (allowlisted files only)
 #   /fineract-provider/api/*      → Fineract (private network, plain HTTP)
 #   /mobile/api/*                 → member gateway (the Pivosacc app and Desk's mobile-banking card)
+#   /alerts/api/*                 → transactional alerts service (authenticates every call itself)
+#   /payments/*                   → payments middleware ($PAYMENTS_UPSTREAM), minus its docs and internal routes
 # Everything else (actuator, Swagger, API docs, stray files) → 404.
 
 encode zstd gzip
@@ -28,16 +30,41 @@ handle_path /mobile/api/* {
 	}
 }
 
+# Alerts: the service checks the Desk staff login (or the gateway's service key) on every call.
+# Browsers must never present the service key, so it is stripped here.
+handle_path /alerts/api/* {
+	request_header -X-Alerts-Service-Key
+	request_body {
+		max_size 64KB
+	}
+	reverse_proxy alerts:8095 {
+		header_down -Server
+	}
+}
+
+# Payments middleware for the Desk payments portal. Its Swagger and operator-only internal routes
+# stay private. With PAYMENTS_UPSTREAM unset the upstream is unreachable and this answers 502.
+handle /payments/* {
+	@private path /payments/docs* /payments/api-docs* /payments/swagger* /payments/internal/*
+	respond @private 404
+	reverse_proxy {$PAYMENTS_UPSTREAM:127.0.0.1:9} {
+		header_up Host {upstream_hostport}
+		header_down -Server
+	}
+}
+
 handle /fineract-provider/api/* {
 	reverse_proxy fineract:8080 {
 		header_down -Server
 	}
 }
 
-# Desk: HTML pages and assets only — never server.py, scripts/, READMEs or dotfiles.
+# Desk: HTML pages and assets only — never server.py, scripts/, READMEs, fixtures or dotfiles.
 @desk {
 	path / /*.html /assets/*
-	not path /.* /assets/.*
+	path /payments-portal /payments-portal/ /payments-portal/*.html /payments-portal/assets/*
+	path /transactional-alerts /transactional-alerts/ /transactional-alerts/*.html /transactional-alerts/assets/*
+	not path */.*
 }
 handle @desk {
 	root * /srv/desk

@@ -1,18 +1,18 @@
 /* Pivot SACCO Desk — shared styles */
 :root {
-  --navy: #0B1F33;
-  --navy-mid: #132A44;
-  --teal: #0D5C63;
-  --teal-deep: #094548;
-  --teal-soft: #E6F3F4;
-  --amber: #E8A317;
-  --amber-hover: #D4920F;
-  --amber-soft: #FFF6E5;
-  --bg: #F4F6F8;
+  --navy: #1F3A0E;
+  --navy-mid: #2A4A14;
+  --teal: #2F5410;
+  --teal-deep: #24400C;
+  --teal-soft: #EEF6E2;
+  --amber: #F8A11B;
+  --amber-hover: #E08E0B;
+  --amber-soft: #FEF3DF;
+  --bg: #F7F4EC;
   --surface: #FFFFFF;
-  --border: #D8DEE6;
-  --text: #1A2332;
-  --muted: #5B6B7C;
+  --border: #E2DCCB;
+  --text: #1F2A14;
+  --muted: #5E6452;
   --success: #1B7A4E;
   --success-soft: #E6F5ED;
   --danger: #B42318;
@@ -24,7 +24,7 @@
   --sidebar-w: 260px;
   --topbar-h: 56px;
   --radius: 10px;
-  --shadow: 0 1px 3px rgba(11,31,51,.08), 0 4px 12px rgba(11,31,51,.04);
+  --shadow: 0 1px 3px rgba(31,58,14,.08), 0 4px 12px rgba(31,58,14,.05);
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -49,7 +49,7 @@ img { max-width: 100%; }
   width: var(--sidebar-w);
   flex-shrink: 0;
   background: var(--navy);
-  color: #C8D4E0;
+  color: #D7E6C2;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -78,7 +78,7 @@ img { max-width: 100%; }
 .nav-group { margin-bottom: 14px; }
 .nav-group-label {
   font-size: 10px; font-weight: 700; letter-spacing: .08em;
-  text-transform: uppercase; color: #9FB3C8;
+  text-transform: uppercase; color: #A9C08A;
   padding: 6px 10px 4px;
 }
 .nav-link {
@@ -98,7 +98,7 @@ img { max-width: 100%; }
 .sidebar-foot {
   padding: 12px 16px 16px;
   border-top: 1px solid rgba(255,255,255,.08);
-  font-size: 11px; color: #9FB3C8;
+  font-size: 11px; color: #A9C08A;
 }
 
 .main {
@@ -141,7 +141,7 @@ img { max-width: 100%; }
 }
 .chip.amber { background: var(--amber-soft); color: var(--warn); }
 .chip.red { background: var(--danger-soft); color: var(--danger); }
-.chip.gray { background: #EEF1F5; color: var(--muted); }
+.chip.gray { background: #EFEBE0; color: var(--muted); }
 .topbar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .avatar {
   width: 32px; height: 32px; border-radius: 50%;
@@ -236,7 +236,7 @@ table.data th {
   white-space: nowrap;
 }
 table.data td {
-  padding: 11px 12px; border-bottom: 1px solid #EEF1F5;
+  padding: 11px 12px; border-bottom: 1px solid #EFEBE0;
   vertical-align: middle;
 }
 table.data tr:hover td { background: #F8FAFB; }
@@ -256,7 +256,7 @@ table.data tr:last-child td { border-bottom: none; }
 }
 .status.active, .status.open, .status.approved { background: var(--success-soft); color: var(--success); }
 .status.pending, .status.submitted { background: var(--warn-soft); color: var(--warn); }
-.status.closed, .status.inactive { background: #EEF1F5; color: var(--muted); }
+.status.closed, .status.inactive { background: #EFEBE0; color: var(--muted); }
 .status.overdue, .status.rejected { background: var(--danger-soft); color: var(--danger); }
 .status.disbursed { background: var(--info-soft); color: var(--info); }
 
@@ -398,7 +398,7 @@ table.data tr:last-child td { border-bottom: none; }
 }
 .tree ul { list-style: none; padding-left: 22px; margin: 4px 0 0; border-left: 2px solid var(--border); }
 
-.coa-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid #EEF1F5; }
+.coa-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid #EFEBE0; }
 .coa-indent-1 { padding-left: 16px; }
 .coa-indent-2 { padding-left: 32px; }
 .coa-type { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
@@ -435,7 +435,7 @@ table.data tr:last-child td { border-bottom: none; }
 .wizard-steps li .n {
   display: inline-grid; place-items: center;
   width: 22px; height: 22px; border-radius: 50%;
-  background: #EEF1F5; color: var(--muted);
+  background: #EFEBE0; color: var(--muted);
   font-size: 11px; margin-right: 6px;
 }
 .wizard-steps li.active { border-color: var(--teal); color: var(--teal-deep); }
@@ -472,7 +472,7 @@ table.data tr:last-child td { border-bottom: none; }
   display: grid; place-items: center; color: var(--muted); font-size: 11px; font-weight: 650;
 }
 .doc-thumb.nin { background: linear-gradient(135deg, #E6F3F4, #FFF6E5); }
-.doc-thumb.photo { background: linear-gradient(135deg, #132A44, #0D5C63); color: #fff; font-size: 28px; }
+.doc-thumb.photo { background: linear-gradient(135deg, #2A4A14, #4C7F1E); color: #fff; font-size: 28px; }
 
 .statement {
   background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
@@ -595,7 +595,7 @@ h3.section-title { font-size: 14px; margin: 18px 0 8px; }
 /* pager */
 .pager {
   display: flex; align-items: center; justify-content: flex-end; gap: 8px;
-  padding: 10px 16px; border-top: 1px solid #EEF1F5; flex-wrap: wrap;
+  padding: 10px 16px; border-top: 1px solid #EFEBE0; flex-wrap: wrap;
 }
 .pager:empty { display: none; }
 .pager-info { font-size: 12px; color: var(--muted); margin-right: auto; }
@@ -649,3 +649,58 @@ input[aria-invalid="true"] { border-color: var(--danger) !important; }
   .content { padding: 16px 16px 32px; }
   .ta-wrap { min-width: 0; }
 }
+
+/* checkbox groups in dialogs */
+.check-group { border: 0; padding: 0; margin: 0; min-width: 0; }
+.check-group legend { font-size: 12px; font-weight: 650; color: var(--muted); padding: 0; margin-bottom: 4px; }
+.form-row label.check { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--text); }
+.form-row label.check input { width: auto; padding: 0; }
+
+/* login — design B: centred card on a leaf pattern (Phaneroo green #92C73D / amber #F8A11B) */
+.lb-page { position: relative; min-height: 100vh; background: #F6F1E4; display: flex; align-items: center; justify-content: center; padding: 24px 16px; overflow: hidden; }
+.lb-leaves { position: absolute; inset: 0; width: 100%; height: 100%; }
+.lb-main { position: relative; width: 100%; max-width: 380px; }
+.lb-card { background: #fff; border: 1px solid #E6DECA; border-radius: 14px; padding: 28px 28px 20px; box-shadow: 0 8px 30px rgba(31,58,14,.08); }
+.lb-logo { display: block; margin: 0 auto 8px; height: 60px; width: auto; }
+.lb-title { text-align: center; font-size: 16px; font-weight: 600; color: #1F3A0E; margin: 0 0 2px; }
+.lb-card .hint { text-align: center; }
+.lb-btn { background: #2F5410; color: #fff; border-color: #2F5410; }
+.lb-btn:hover { background: #24400C; }
+.lb-card input:focus-visible { outline: 2px solid #4C7F1E; outline-offset: 1px; }
+.lb-help { text-align: center; font-size: 12px; color: #5C5A52; margin: 14px 0 0; }
+.lb-foot { text-align: center; font-size: 12px; color: #4A4A44; margin: 14px 0 0; }
+
+/* Phaneroo brand: logo tile in the sidebar instead of the letter mark */
+.sidebar-brand .brand-mark {
+  width: 58px; height: 36px; border-radius: 8px;
+  background: #fff url("phaneroo-logo.png") center / 50px auto no-repeat;
+  color: transparent; font-size: 0;
+}
+.sidebar .nav-link.active, .sidebar .nav-link[aria-current="page"] { box-shadow: inset 3px 0 0 #92C73D; }
+
+/* ===== LOANS ===== */
+.field-help.is-error { color: var(--danger); }
+.loan-note { background: var(--info-soft); color: var(--info); border-radius: 8px; padding: 8px 12px; }
+.loan-more-actions { margin: 8px 0 4px; }
+.loan-guarantee-box { margin-top: 12px; }
+.loan-coverage { margin-bottom: 12px; }
+.loan-cov-line { margin-top: 8px; }
+.loan-cov-head { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; flex-wrap: wrap; }
+.loan-meter { height: 8px; background: #EFEBE0; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+.loan-meter span { display: block; height: 100%; }
+.loan-meter span.ok { background: var(--success); }
+.loan-meter span.short { background: var(--amber); }
+#la-charges input[type=checkbox] { width: 18px; height: 18px; }
+/* ===== /LOANS ===== */
+
+/* ===== SAVINGS/SHARES/FD ===== */
+.txn-reversed td { color: var(--muted); text-decoration: line-through; }
+.txn-reversed td:last-child { text-decoration: none; }
+#sav-stmt-form label { font-size: 13px; color: var(--muted); }
+@media print {
+  body[data-page="savings-detail"] .content > .card:not(.statement),
+  body[data-page="savings-detail"] .page-header,
+  body[data-page="savings-detail"] #sav-txns th:last-child,
+  body[data-page="savings-detail"] #sav-txns td:last-child { display: none !important; }
+}
+/* ===== /SAVINGS/SHARES/FD ===== */

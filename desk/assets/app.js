@@ -18,6 +18,26 @@
 
   var sess = api.getSession() || {};
 
+  /* Ops tools that live outside the static sidebar (separate folders under the desk root). */
+  var overviewGroup = document.querySelector(".sidebar-nav .nav-group");
+  [
+    ["payments", "/payments-portal/", "💳", "Payments portal"],
+    ["transactional-alerts", "/transactional-alerts/", "✉", "Transactional alerts"]
+  ].forEach(function (l) {
+    if (!overviewGroup || document.querySelector(".sidebar-nav [data-nav='" + l[0] + "']")) return;
+    var a = document.createElement("a");
+    a.className = "nav-link";
+    a.setAttribute("data-nav", l[0]);
+    a.href = l[1];
+    var icon = document.createElement("span");
+    icon.className = "nav-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = l[2];
+    a.appendChild(icon);
+    a.appendChild(document.createTextNode(" " + l[3]));
+    overviewGroup.appendChild(a);
+  });
+
   /* ---------- nav ---------- */
   if (page) {
     document.querySelectorAll(".nav-link[data-nav]").forEach(function (a) {

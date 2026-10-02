@@ -1,0 +1,9 @@
+# Pivot SACCO — used when another reverse proxy on the host owns ports 80/443 and terminates TLS.
+# This Caddy listens on plain HTTP, published on 127.0.0.1 only, and applies the same routing rules.
+{
+	auto_https off
+}
+
+:80 {
+	import routes.caddy
+}

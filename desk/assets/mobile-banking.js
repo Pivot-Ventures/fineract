@@ -86,6 +86,7 @@
         render(res);
         api.toast("Mobile banking updated", "success");
       }
+      /* No Desk alert here: the member gateway sends pin/unlock alerts itself. */
     } catch (e) {
       api.toast(e.message, "error");
     } finally {

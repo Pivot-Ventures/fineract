@@ -30,6 +30,12 @@ dc exec -T gateway python -c "import sqlite3; s=sqlite3.connect('/data/gateway.s
 dc cp gateway:/data/backup.sqlite3 "$dest/gateway.sqlite3"
 dc exec -T gateway python -c "import os; os.remove('/data/backup.sqlite3')" < /dev/null
 
+# Alerts: delivery log, idempotency keys and send caps. Optional — skipped if the service isn't running.
+if ! dc exec -T alerts tar -C /app/data -czf - . < /dev/null > "$dest/alerts-data.tar.gz" 2> /dev/null; then
+  rm -f "$dest/alerts-data.tar.gz"
+  echo "alerts data not backed up (service not running)" >&2
+fi
+
 # A dump that pg_restore cannot list is not a backup.
 for db in fineract_tenants "$tenant_db"; do
   dc exec -T db pg_restore --list < "$dest/$db.dump" > /dev/null

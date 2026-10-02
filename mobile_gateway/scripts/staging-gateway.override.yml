@@ -1,0 +1,29 @@
+# Adds the member gateway to a staging copy of deploy/production that predates it, without
+# touching that copy's own docker-compose.yml. Used by scripts/staging-smoke.sh. The gateway is
+# published on 127.0.0.1 only, so it can be smoke-tested without changing Caddy.
+services:
+  gateway:
+    build: ${GATEWAY_SRC:?set GATEWAY_SRC to the repo's mobile_gateway folder}
+    image: pivot-sacco-gateway:staging-test
+    restart: "no"
+    depends_on:
+      fineract:
+        condition: service_healthy
+    environment:
+      FINERACT_URL: http://fineract:8080/fineract-provider/api/v1
+      FINERACT_TENANT: ${FINERACT_TENANT_ID:-default}
+      FINERACT_USER: ${GATEWAY_FINERACT_USER:-mobile-gateway}
+      FINERACT_PASSWORD: ${GATEWAY_FINERACT_PASSWORD:-}
+      TENANT_TZ: Africa/Kampala
+      GATEWAY_DB: /data/gateway.sqlite3
+    volumes:
+      - gateway_data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,size=16m
+    networks: [backend]
+    ports:
+      - "127.0.0.1:${GATEWAY_SMOKE_PORT:-8710}:8000"
+
+volumes:
+  gateway_data:

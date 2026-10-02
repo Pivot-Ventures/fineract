@@ -26,7 +26,9 @@ cd desk && ./start-desk.sh    # Desk on http://127.0.0.1:5173
 ```
 
 Do not serve `desk/` with `python3 -m http.server`: it has no API proxy. `server.py` is a
-development server only; production is served by Caddy.
+development server only; production is served by Caddy. To try the mobile-banking card, alerts or
+payments portal locally, point it at those services: `GATEWAY_URL=http://127.0.0.1:8700`,
+`ALERTS_URL=http://127.0.0.1:8095`, `PAYMENTS_URL=http://127.0.0.1:3000`.
 
 ## Screens
 
@@ -87,6 +89,12 @@ development server only; production is served by Caddy.
 | reports.html | Report catalog + user list |
 
 Shared: `assets/api.js` (API client, session, dialogs), `assets/app.js` (shell, auth guard), `assets/pages.js` (read views), `assets/actions.js` (writes), `assets/app.css`
+
+### Payments portal
+Static ops UI in `payments-portal/` (overview, payments, run detail, reports, channels). It needs a Desk session and calls `/payments/...` on the same host (Caddy proxies it to `PAYMENTS_UPSTREAM`). A failed read shows an error, never sample numbers; the 100-intent demo book loads only with `?demo=1` (development). See [payments-portal/README.md](payments-portal/README.md).
+
+### Transactional alerts
+Static ops UI in `transactional-alerts/` (templates, delivery log, test send). It calls `/alerts/api/v1` on the same host with the staff member's Desk login; editing templates needs `ALL_FUNCTIONS` (or `ALERTS_ADMIN_PERMISSION`). The Node service lives in `alerts/` and runs as the `alerts` service in `deploy/production` (or on the droplet via **Deploy SACCO Alerts**). See [../alerts/README.md](../alerts/README.md). Successful teller, savings and loan postings send only the Fineract transaction id from `assets/transactional-alerts.js`; the service reads the facts from Fineract. Mobile-banking alerts (PIN, new phone, block) come from the member gateway. Activation codes are never sent.
 
 ## Design refs (URLs only — do not copy paid assets)
 - FintechWeb ThemeForest finance admin
