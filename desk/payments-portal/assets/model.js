@@ -318,6 +318,114 @@
     return text;
   }
 
+  function statusTone(status) {
+    if (status === "POSTED" || status === "REVERSED") return "posted";
+    if (status === "POSTING_CORE") return "posting";
+    if (status === "AMBIGUOUS") return "ambiguous";
+    if (status === "PROVIDER_DECLINED" || status === "CORE_REJECTED") return "declined";
+    if (status === "AWAITING_PROVIDER" || status === "INITIATED") return "awaiting";
+    return "pending";
+  }
+
+  function channelVisual(id) {
+    if (id === "MTN_MOMO") return { slug: "mtn", short: "MTN", label: "MTN MoMo" };
+    if (id === "AIRTEL_MONEY") return { slug: "airtel", short: "ATL", label: "Airtel Money" };
+    if (id === "BANK") return { slug: "bank", short: "BNK", label: "Bank" };
+    if (id === "CARD") return { slug: "card", short: "CRD", label: "Card" };
+    return { slug: "bank", short: "CH", label: channelLabel(id) };
+  }
+
+  function eatTime(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return "—";
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Africa/Kampala",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    }).format(d);
+  }
+
+  function formatDay(day) {
+    if (!day) return "—";
+    var d = new Date(String(day).slice(0, 10) + "T12:00:00Z");
+    if (isNaN(d.getTime())) return day;
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: "UTC",
+      day: "numeric",
+      month: "short",
+      year: "numeric"
+    }).format(d);
+  }
+
+  function formatAmount(amount) {
+    var n = Number(amount);
+    if (!isFinite(n)) return "—";
+    return Math.round(n).toLocaleString("en-UG");
+  }
+
+  function compactNumber(amount) {
+    var n = Number(amount) || 0;
+    if (Math.abs(n) >= 1000000) {
+      var millions = Math.round((n / 1000000) * 10) / 10;
+      return millions.toFixed(1).replace(/\.0$/, "") + "M";
+    }
+    return formatAmount(n);
+  }
+
+  function latestDay(intents) {
+    var days = intents.map(function (row) { return kampalaDate(row.createdAt); }).filter(Boolean).sort();
+    return days.length ? days[days.length - 1] : "";
+  }
+
+  function shiftDay(day, delta) {
+    var d = new Date(day + "T12:00:00Z");
+    if (isNaN(d.getTime())) return "";
+    d.setUTCDate(d.getUTCDate() + delta);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function onDay(intents, day) {
+    return intents.filter(function (row) { return kampalaDate(row.createdAt) === day; });
+  }
+
+  function coreMix(intents) {
+    var mix = { POSTED: 0, POSTING: 0, NOT_POSTED: 0, REJECTED: 0 };
+    intents.forEach(function (row) {
+      var core = row.coreStatus || "";
+      if (core === "POSTED") mix.POSTED += 1;
+      else if (core === "POSTING") mix.POSTING += 1;
+      else if (core === "REJECTED" || core === "AMBIGUOUS") mix.REJECTED += 1;
+      else mix.NOT_POSTED += 1;
+    });
+    return mix;
+  }
+
+  function settlementPacks(intents) {
+    var map = {};
+    var slug = { MTN_MOMO: "mtn", AIRTEL_MONEY: "atl", BANK: "bnk", CARD: "crd" };
+    intents.forEach(function (row) {
+      var day = kampalaDate(row.createdAt) || "unknown";
+      var key = day + "|" + row.channel;
+      if (!map[key]) {
+        map[key] = {
+          id: "stl_" + day.replace(/-/g, "") + "_" + (slug[row.channel] || "ch"),
+          day: day,
+          channel: row.channel,
+          count: 0,
+          volume: 0,
+          posted: 0
+        };
+      }
+      var pack = map[key];
+      var amount = Number(row.amount) || 0;
+      pack.count += 1;
+      pack.volume += amount;
+      if (bucket(row.status) === "posted") pack.posted += amount;
+    });
+    return Object.keys(map).sort().reverse().map(function (key) { return map[key]; });
+  }
+
   function toCsv(intents) {
     var header = [
       "createdAt", "intentId", "memberName", "msisdn", "channel", "direction",
@@ -340,6 +448,17 @@
     productLabel: productLabel,
     statusLabel: statusLabel,
     statusClass: statusClass,
+    statusTone: statusTone,
+    channelVisual: channelVisual,
+    eatTime: eatTime,
+    formatDay: formatDay,
+    formatAmount: formatAmount,
+    compactNumber: compactNumber,
+    latestDay: latestDay,
+    shiftDay: shiftDay,
+    onDay: onDay,
+    coreMix: coreMix,
+    settlementPacks: settlementPacks,
     kampalaDate: kampalaDate,
     formatWhen: formatWhen,
     formatUgx: formatUgx,

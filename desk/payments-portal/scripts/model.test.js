@@ -75,4 +75,18 @@ assert.strictEqual(csv.split("\n").length, 4);
 var named = model.filterIntents(intents, { text: "Nakato" });
 assert.ok(named.length > 0);
 
+var packs = model.settlementPacks(intents);
+assert.ok(packs.length >= 4, "settlement packs");
+assert.ok(packs[0].id.indexOf("stl_") === 0);
+assert.strictEqual(model.statusTone("AMBIGUOUS"), "ambiguous");
+assert.strictEqual(model.statusTone("POSTED"), "posted");
+assert.strictEqual(model.channelVisual("CARD").slug, "card");
+
+var css = fs.readFileSync(path.join(__dirname, "..", "assets", "portal.css"), "utf8");
+assert.ok(css.indexOf("#1F3A0E") >= 0, "forest green");
+assert.ok(css.indexOf("#F8A11B") >= 0, "amber");
+["purple", "violet", "#7C3AED", "#4A2480", "#2A1548", "#C9A227", "#5C2D9B"].forEach(function (token) {
+  assert.strictEqual(css.toLowerCase().indexOf(token.toLowerCase()), -1, "banned " + token);
+});
+
 console.log("ok model " + intents.length + " posted " + summary.posted + " pending " + summary.pending + " failed " + summary.failed);

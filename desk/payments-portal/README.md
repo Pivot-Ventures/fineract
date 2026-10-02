@@ -1,6 +1,6 @@
 # Payments portal
 
-Ops screens for the SACCO payments middleware: overview, payments, run detail, reports, and channels. Uganda shillings. The look is the Phaneroo desk (forest green and amber from `desk/assets/app.css`).
+Ops screens for the SACCO payments middleware. The information architecture matches the approved remock (overview, payments, run detail, reports, channels, plus gateway health). Colour is the Phaneroo desk: forest green `#1F3A0E` and amber `#F8A11B` from `desk/assets/app.css`.
 
 The Nest gateway stays at `/payments`. These pages do not change that OpenAPI.
 
