@@ -145,6 +145,128 @@ assert.strictEqual(summaryApi.byChannel.MTN_MOMO.posted, 24);
 assert.strictEqual(summaryApi.byChannel.CARD.count, 0);
 assert.strictEqual(model.normalizeSummary(null), null);
 
+/* ---- CSV escaping (formula injection) ---- */
+assert.strictEqual(model.csvEscape("=1+1"), "'=1+1");
+assert.strictEqual(model.csvEscape("+256700"), "'+256700");
+assert.strictEqual(model.csvEscape("-5"), "'-5");
+assert.strictEqual(model.csvEscape("@SUM(A1)"), "'@SUM(A1)");
+assert.strictEqual(model.csvEscape("\tx"), "'\tx");
+assert.strictEqual(model.csvEscape("\rx"), "\"'\rx\"");
+assert.strictEqual(model.csvEscape("a,b"), '"a,b"');
+assert.strictEqual(model.csvEscape('say "hi"'), '"say ""hi"""');
+assert.strictEqual(model.csvEscape("line\nbreak"), '"line\nbreak"');
+assert.strictEqual(model.csvEscape("=HYPERLINK(\"x\",\"y\")"), '"\'=HYPERLINK(""x"",""y"")"');
+assert.strictEqual(model.csvEscape(null), "");
+assert.strictEqual(model.csvEscape(1200), "1200");
+var evil = model.toCsv([model.normalizeIntent({ intentId: "pi_e", memberName: "=cmd|' /C calc'!A0", amount: "5" })]);
+assert.ok(evil.split("\n")[1].indexOf(",'=cmd") >= 0, "formula neutralised in toCsv");
+var demoCsv = model.toCsv(intents.slice(0, 1), { demo: true });
+assert.strictEqual(demoCsv.split("\n")[0], model.DEMO_CSV_LINE);
+assert.ok(demoCsv.split("\n")[1].indexOf("createdAt,") === 0);
+var packCsv = model.packsToCsv([{ id: "stl_1", day: "2026-10-02", channel: "MTN_MOMO", count: 2, volume: 10, posted: 10 }], { demo: true });
+assert.strictEqual(packCsv.split("\n")[0], model.DEMO_CSV_LINE);
+assert.strictEqual(packCsv.split("\n")[2], "stl_1,2026-10-02,MTN_MOMO,2,10,10,Settled");
+assert.strictEqual(model.packsToCsv([]).split("\n")[0], "packId,date,channel,txns,volume,corePosted,status");
+
+/* ---- amount parsing ---- */
+function amt(raw) { return model.parseWholeShillings(raw); }
+assert.strictEqual(model.MAX_INITIATE_UGX, 5000000);
+assert.deepStrictEqual([amt("50000").ok, amt("50000").value], [true, "50000"]);
+assert.strictEqual(amt("1,234,000").value, "1234000");
+assert.strictEqual(amt(" 2,500 ").value, "2500");
+assert.strictEqual(amt("007").value, "7");
+assert.strictEqual(amt("5,000,000").ok, true);
+assert.strictEqual(amt("5000001").ok, false);
+assert.strictEqual(amt("99999999999999999999").ok, false);
+["", "0", "0,000", "12.50", "1e6", "1E3", "-500", "+500", "1,23", "12,3456", "1 000", "UGX 500", "0x10", "50k", "1,000.00", "Infinity"].forEach(function (bad) {
+  var parsed = amt(bad);
+  assert.strictEqual(parsed.ok, false, "reject " + JSON.stringify(bad));
+  assert.ok(parsed.error.length > 0);
+});
+assert.strictEqual(model.parseWholeShillings("2,000", 1000).ok, false);
+assert.strictEqual(model.formatUgx(amt("1,234,000").value), "UGX 1,234,000");
+
+/* ---- KPIs: collections, settled, success rate ---- */
+var kpiRows = [
+  { intentId: "k1", status: "POSTED", direction: "CREDIT", channel: "MTN_MOMO", amount: "1000", createdAt: "2026-10-02T08:00:00Z" },
+  { intentId: "k2", status: "REVERSED", direction: "CREDIT", channel: "MTN_MOMO", amount: "500", createdAt: "2026-10-02T08:00:00Z" },
+  { intentId: "k3", status: "AWAITING_PROVIDER", direction: "CREDIT", channel: "MTN_MOMO", amount: "300", createdAt: "2026-10-02T08:00:00Z" },
+  { intentId: "k4", status: "PROVIDER_DECLINED", direction: "CREDIT", channel: "AIRTEL_MONEY", amount: "200", createdAt: "2026-10-02T08:00:00Z" },
+  { intentId: "k5", status: "AMBIGUOUS", direction: "DEBIT", channel: "BANK", amount: "100", createdAt: "2026-10-02T08:00:00Z" },
+  { intentId: "k6", status: "POSTED", direction: "DEBIT", channel: "BANK", amount: "50", createdAt: "2026-10-02T08:00:00Z" },
+  { intentId: "k7", status: "CORE_REJECTED", direction: "DEBIT", channel: "CARD", amount: "25", createdAt: "2026-10-02T08:00:00Z" }
+].map(model.normalizeIntent);
+var k = model.summarize(kpiRows);
+assert.strictEqual(k.collect, 1000, "collections = POSTED CREDIT only");
+assert.strictEqual(k.collectInitiated, 2000);
+assert.strictEqual(k.disburse, 50, "disbursements = POSTED DEBIT only");
+assert.strictEqual(k.volumePosted, 1050, "REVERSED not settled to core");
+assert.strictEqual(k.posted, 2, "REVERSED not posted");
+assert.strictEqual(k.reversed, 1);
+assert.strictEqual(k.pending, 1);
+assert.strictEqual(k.failed, 3);
+assert.strictEqual(k.ambiguous, 1);
+assert.strictEqual(k.completed, 4, "POSTED + declined + rejected; no pending/ambiguous/reversed");
+assert.strictEqual(k.successRate, 50);
+assert.strictEqual(k.byChannel.MTN_MOMO.completed, 1);
+assert.strictEqual(k.byChannel.BANK.completed, 1);
+assert.strictEqual(model.summarize([kpiRows[2], kpiRows[4]]).successRate, null, "no completed runs -> null");
+assert.strictEqual(model.formatRate(null), "—");
+assert.strictEqual(model.formatRate(50), "50.0%");
+assert.strictEqual(model.bucket("REVERSED"), "reversed");
+assert.strictEqual(model.filterIntents(kpiRows, { status: "posted" }).length, 2);
+var kpiPacks = model.settlementPacks(kpiRows);
+var mtnPack = kpiPacks.filter(function (p) { return p.channel === "MTN_MOMO"; })[0];
+assert.strictEqual(mtnPack.posted, 1000, "reversed not in pack posted");
+assert.strictEqual(model.packSettled(mtnPack), false);
+assert.strictEqual(model.todayKampala(new Date("2026-10-01T22:30:00Z")), "2026-10-02", "Kampala is UTC+3");
+
+/* ---- date filters with unreadable createdAt ---- */
+var dated = [
+  model.normalizeIntent({ intentId: "d1", createdAt: "2026-10-02T09:00:00Z", amount: "1" }),
+  model.normalizeIntent({ intentId: "d2", createdAt: "not-a-date", amount: "1" }),
+  model.normalizeIntent({ intentId: "d3", createdAt: "", amount: "1" })
+];
+assert.deepStrictEqual(model.filterIntents(dated, { from: "2026-10-01" }).map(function (r) { return r.intentId; }), ["d1"]);
+assert.deepStrictEqual(model.filterIntents(dated, { to: "2026-10-03" }).map(function (r) { return r.intentId; }), ["d1"]);
+assert.strictEqual(model.filterIntents(dated, {}).length, 3, "no date filter keeps every row");
+
+/* ---- byNewest across offsets ---- */
+var offsets = [
+  { intentId: "o1", createdAt: "2026-10-02T10:00:00+03:00" },
+  { intentId: "o2", createdAt: "2026-10-02T08:30:00Z" },
+  { intentId: "o3", createdAt: "garbage" },
+  { intentId: "o4", createdAt: "2026-10-02T09:00:00-02:00" }
+];
+assert.deepStrictEqual(offsets.slice().sort(model.byNewest).map(function (r) { return r.intentId; }), ["o4", "o2", "o1", "o3"]);
+
+/* ---- retry request ---- */
+var declined = model.normalizeIntent({ intentId: "r1", status: "PROVIDER_DECLINED" });
+var ambiguousRun = model.normalizeIntent({ intentId: "r2", status: "AMBIGUOUS", providerReference: "MTN-123" });
+assert.strictEqual(model.retryRequest(declined, { note: "checked with MTN", confirmNotPosted: false }).ok, false);
+assert.strictEqual(model.retryRequest(declined, { note: "short", confirmNotPosted: true }).ok, false);
+var okRetry = model.retryRequest(declined, { note: "checked with MTN", confirmNotPosted: true });
+assert.strictEqual(okRetry.ok, true);
+assert.strictEqual(okRetry.body.confirmNotPosted, true);
+assert.strictEqual(model.retryRequest(ambiguousRun, { note: "checked with MTN", confirmNotPosted: true }).ok, false);
+assert.strictEqual(model.retryRequest(ambiguousRun, { note: "checked with MTN", confirmNotPosted: true, providerReference: "MTN-999" }).ok, false);
+assert.strictEqual(model.retryRequest(ambiguousRun, { note: "checked with MTN", confirmNotPosted: true, providerReference: "MTN-123" }).ok, true);
+assert.strictEqual(model.retryRequest(model.normalizeIntent({ status: "POSTED" }), { note: "checked with MTN", confirmNotPosted: true }).ok, false);
+
+/* ---- page plan ---- */
+var many = [];
+for (var i = 0; i < 20; i++) many.push({ intentId: "p" + i });
+var srv = model.pagePlan(many.slice(0, 8), 20, 1, 8);
+assert.strictEqual(srv.mode, "server");
+assert.strictEqual(srv.total, 20);
+var cli = model.pagePlan(many, 20, 2, 8);
+assert.strictEqual(cli.mode, "client");
+assert.deepStrictEqual(cli.rows.map(function (r) { return r.intentId; }), ["p8", "p9", "p10", "p11", "p12", "p13", "p14", "p15"]);
+assert.ok(cli.note.length > 0);
+var bad = model.pagePlan(many.slice(0, 12), 50, 1, 8);
+assert.strictEqual(bad.mode, "untrusted");
+assert.strictEqual(bad.rows.length, 0);
+
 var css = fs.readFileSync(path.join(__dirname, "..", "assets", "portal.css"), "utf8");
 assert.ok(css.indexOf("#1F3A0E") >= 0, "forest green");
 assert.ok(css.indexOf("#F8A11B") >= 0, "amber");

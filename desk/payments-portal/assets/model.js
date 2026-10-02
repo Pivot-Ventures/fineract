@@ -6,6 +6,11 @@
 })(typeof window !== "undefined" ? window : globalThis, function () {
   var FAILED = ["PROVIDER_DECLINED", "CORE_REJECTED", "AMBIGUOUS"];
   var PENDING = ["INITIATED", "AWAITING_PROVIDER", "POSTING_CORE"];
+  /* A completed run reached a final answer: posted, or declined / rejected. AMBIGUOUS is not an answer. */
+  var COMPLETED_FAILED = ["PROVIDER_DECLINED", "CORE_REJECTED"];
+  /* Largest single initiate the portal will send, in whole shillings. */
+  var MAX_INITIATE_UGX = 5000000;
+  var AMOUNT_PATTERN = /^\d{1,3}(,\d{3})*$|^\d+$/;
   var CHANNELS = [
     { id: "MTN_MOMO", label: "MTN MoMo", blurb: "Collections and disbursements. Callbacks land on the gateway, not Fineract." },
     { id: "AIRTEL_MONEY", label: "Airtel Money", blurb: "Collections and disbursements. Same orchestrator path as MoMo." },
@@ -13,8 +18,10 @@
     { id: "CARD", label: "Card", blurb: "PSP reference and account metadata only. PAN, CVV, and track data are rejected." }
   ];
 
+  /* REVERSED was posted and then undone, so it is not money settled to core. */
   function bucket(status) {
-    if (status === "POSTED" || status === "REVERSED") return "posted";
+    if (status === "POSTED") return "posted";
+    if (status === "REVERSED") return "reversed";
     if (FAILED.indexOf(status) >= 0) return "failed";
     return "pending";
   }
@@ -57,7 +64,12 @@
     var kind = bucket(status);
     if (kind === "posted") return "active";
     if (kind === "failed") return "rejected";
+    if (kind === "reversed") return "reversed";
     return "pending";
+  }
+
+  function todayKampala(now) {
+    return kampalaDate((now || new Date()).toISOString());
   }
 
   function kampalaDate(iso) {
@@ -220,8 +232,10 @@
         } else if (row.status !== q.status) return false;
       }
       var day = kampalaDate(row.createdAt);
-      if (q.from && day && day < q.from) return false;
-      if (q.to && day && day > q.to) return false;
+      /* A row whose date cannot be read never passes a date filter. */
+      if ((q.from || q.to) && !day) return false;
+      if (q.from && day < q.from) return false;
+      if (q.to && day > q.to) return false;
       if (!text) return true;
       var hay = [
         row.intentId, row.memberName, row.msisdn, row.externalReference,
@@ -231,42 +245,67 @@
     });
   }
 
+  function stamp(row) {
+    var t = Date.parse(row && row.createdAt);
+    return isNaN(t) ? -Infinity : t;
+  }
+
+  /* Newest first by parsed time (offsets differ between rows). Unreadable dates sort last. */
   function byNewest(a, b) {
-    return String(b.createdAt).localeCompare(String(a.createdAt));
+    var ta = stamp(a);
+    var tb = stamp(b);
+    if (ta !== tb) return tb > ta ? 1 : -1;
+    return String(a.intentId || "").localeCompare(String(b.intentId || ""));
   }
 
   function summarize(intents) {
     var byChannel = {};
     var byDayMap = {};
     CHANNELS.forEach(function (ch) {
-      byChannel[ch.id] = { id: ch.id, label: ch.label, count: 0, volume: 0, posted: 0, failed: 0 };
+      byChannel[ch.id] = blankChannel(ch.id);
     });
     var posted = 0;
     var pending = 0;
     var failed = 0;
+    var reversed = 0;
+    var ambiguous = 0;
+    var completed = 0;
     var volumePosted = 0;
     var volumeAll = 0;
     var collect = 0;
     var disburse = 0;
+    var collectInitiated = 0;
+    var disburseInitiated = 0;
+    var collectCount = 0;
+    var disburseCount = 0;
     intents.forEach(function (row) {
       var amount = Number(row.amount) || 0;
       var kind = bucket(row.status);
+      var done = isCompleted(row.status);
+      var debit = row.direction === "DEBIT";
       volumeAll += amount;
       if (kind === "posted") {
         posted += 1;
         volumePosted += amount;
       } else if (kind === "failed") failed += 1;
+      else if (kind === "reversed") reversed += 1;
       else pending += 1;
-      if (row.direction === "DEBIT") disburse += amount;
-      else collect += amount;
-      if (!byChannel[row.channel]) {
-        byChannel[row.channel] = { id: row.channel, label: channelLabel(row.channel), count: 0, volume: 0, posted: 0, failed: 0 };
+      if (row.status === "AMBIGUOUS") ambiguous += 1;
+      if (done) completed += 1;
+      if (debit) disburseInitiated += amount;
+      else collectInitiated += amount;
+      /* Collections and disbursements count POSTED money only. */
+      if (kind === "posted") {
+        if (debit) { disburse += amount; disburseCount += 1; }
+        else { collect += amount; collectCount += 1; }
       }
+      if (!byChannel[row.channel]) byChannel[row.channel] = blankChannel(row.channel);
       var ch = byChannel[row.channel];
       ch.count += 1;
       ch.volume += amount;
       if (kind === "posted") ch.posted += 1;
       if (kind === "failed") ch.failed += 1;
+      if (done) ch.completed += 1;
       var day = kampalaDate(row.createdAt) || "unknown";
       if (!byDayMap[day]) byDayMap[day] = { day: day, count: 0, volume: 0, posted: 0 };
       byDayMap[day].count += 1;
@@ -280,14 +319,34 @@
       posted: posted,
       pending: pending,
       failed: failed,
+      reversed: reversed,
+      ambiguous: ambiguous,
+      completed: completed,
       volumePosted: volumePosted,
       volumeAll: volumeAll,
       collect: collect,
       disburse: disburse,
-      successRate: count ? (posted / count) * 100 : 0,
+      collectCount: collectCount,
+      disburseCount: disburseCount,
+      collectInitiated: collectInitiated,
+      disburseInitiated: disburseInitiated,
+      successRate: successRate(posted, completed),
       byChannel: byChannel,
       byDay: byDay
     };
+  }
+
+  function isCompleted(status) {
+    return status === "POSTED" || COMPLETED_FAILED.indexOf(status) >= 0;
+  }
+
+  /* POSTED / (POSTED + declined + rejected). Null when nothing has completed. */
+  function successRate(posted, completed) {
+    return completed ? (posted / completed) * 100 : null;
+  }
+
+  function formatRate(rate) {
+    return rate == null || !isFinite(rate) ? "—" : rate.toFixed(1) + "%";
   }
 
   function bookWindow(intents) {
@@ -312,14 +371,62 @@
     return "";
   }
 
+  /* Spreadsheet-safe CSV cell: neutralise formula starters, quote separators and line breaks. */
   function csvEscape(value) {
     var text = value == null ? "" : String(value);
-    if (/[",\n]/.test(text)) return '"' + text.replace(/"/g, '""') + '"';
+    if (/^[=+\-@\t\r]/.test(text)) text = "'" + text;
+    if (/[",\r\n]/.test(text)) return '"' + text.replace(/"/g, '""') + '"';
     return text;
   }
 
+  var DEMO_CSV_LINE = "# DEMO DATA - not real payments (fixtures/intents.json)";
+
+  function csvLines(header, rows, opts) {
+    var lines = [];
+    if (opts && opts.demo) lines.push(DEMO_CSV_LINE);
+    lines.push(header.map(csvEscape).join(","));
+    rows.forEach(function (cells) { lines.push(cells.map(csvEscape).join(",")); });
+    return lines.join("\n") + "\n";
+  }
+
+  /* Whole shillings only: 1234000 or 1,234,000. Returns { ok, value, error }. */
+  function parseWholeShillings(raw, max) {
+    var limit = max == null ? MAX_INITIATE_UGX : max;
+    var text = String(raw == null ? "" : raw).trim();
+    if (!text) return { ok: false, value: "", error: "Enter an amount in whole shillings." };
+    if (!AMOUNT_PATTERN.test(text)) {
+      return { ok: false, value: "", error: "Use digits only, with optional thousands commas (for example 1,234,000). No decimals, spaces, or other characters." };
+    }
+    var digits = text.replace(/,/g, "").replace(/^0+(?=\d)/, "");
+    if (/^0+$/.test(digits)) return { ok: false, value: "", error: "The amount must be more than zero." };
+    if (digits.length > String(limit).length || Number(digits) > limit) {
+      return { ok: false, value: "", error: "The most the portal can initiate is " + formatUgx(limit) + "." };
+    }
+    return { ok: true, value: digits, error: "" };
+  }
+
+  /* Validates the retry dialog and builds the resolve body from what the operator actually ticked. */
+  function retryRequest(intent, input) {
+    input = input || {};
+    var note = String(input.note || "").trim();
+    var ref = String(input.providerReference || "").trim();
+    if (!canRetry(intent)) return { ok: false, error: "Only a failed run can be retried." };
+    if (note.length < 8) return { ok: false, error: "The note needs at least 8 characters." };
+    if (input.confirmNotPosted !== true) return { ok: false, error: "Tick the box to confirm the earlier attempt did not post." };
+    if (intent.status === "AMBIGUOUS") {
+      if (!ref) return { ok: false, error: "Type the provider reference you checked with the channel." };
+      if (intent.providerReference && ref !== intent.providerReference) {
+        return { ok: false, error: "That provider reference does not match this run." };
+      }
+    }
+    var body = { action: "allow_single_retry", note: note, confirmNotPosted: input.confirmNotPosted === true };
+    if (ref) body.checkedProviderReference = ref;
+    return { ok: true, error: "", body: body };
+  }
+
   function statusTone(status) {
-    if (status === "POSTED" || status === "REVERSED") return "posted";
+    if (status === "POSTED") return "posted";
+    if (status === "REVERSED") return "reversed";
     if (status === "POSTING_CORE") return "posting";
     if (status === "AMBIGUOUS") return "ambiguous";
     if (status === "PROVIDER_DECLINED" || status === "CORE_REJECTED") return "declined";
@@ -426,16 +533,51 @@
     return Object.keys(map).sort().reverse().map(function (key) { return map[key]; });
   }
 
-  function toCsv(intents) {
+  function toCsv(intents, opts) {
     var header = [
       "createdAt", "intentId", "memberName", "msisdn", "channel", "direction",
       "product", "amount", "currency", "status", "externalReference", "idempotencyKey"
     ];
-    var lines = [header.join(",")];
-    intents.forEach(function (row) {
-      lines.push(header.map(function (key) { return csvEscape(row[key]); }).join(","));
-    });
-    return lines.join("\n") + "\n";
+    return csvLines(header, intents.map(function (row) {
+      return header.map(function (key) { return row[key]; });
+    }), opts);
+  }
+
+  function packSettled(pack) {
+    return pack.count > 0 && pack.posted >= pack.volume;
+  }
+
+  function packsToCsv(packs, opts) {
+    var header = ["packId", "date", "channel", "txns", "volume", "corePosted", "status"];
+    return csvLines(header, packs.map(function (pack) {
+      return [pack.id, pack.day, pack.channel, pack.count, pack.volume, pack.posted, packSettled(pack) ? "Settled" : "Open"];
+    }), opts);
+  }
+
+  /*
+   * Decide how to show one table page from a portal list response.
+   * server: the gateway honoured limit/offset. client: it returned the whole set, so cut the page here
+   * and say so. untrusted: it returned more than a page but less than the total, so show nothing.
+   */
+  function pagePlan(items, total, pageNo, pageSize) {
+    var offset = (pageNo - 1) * pageSize;
+    if (items.length <= pageSize) {
+      return { mode: "server", rows: items, total: Math.max(total, offset + items.length), note: "" };
+    }
+    if (items.length >= total) {
+      return {
+        mode: "client",
+        rows: items.slice(offset, offset + pageSize),
+        total: items.length,
+        note: "The gateway ignored limit/offset and returned all " + items.length + " rows. This page was cut in the browser."
+      };
+    }
+    return {
+      mode: "untrusted",
+      rows: [],
+      total: total,
+      note: "The gateway returned " + items.length + " rows for a page of " + pageSize + " (total " + total + "). Paging cannot be trusted, so no rows are shown."
+    };
   }
 
   var PORTAL_QUERY_KEYS = [
@@ -509,7 +651,7 @@
   }
 
   function blankChannel(id) {
-    return { id: id, label: channelLabel(id), count: 0, volume: 0, posted: 0, failed: 0 };
+    return { id: id, label: channelLabel(id), count: 0, volume: 0, posted: 0, failed: 0, completed: 0 };
   }
 
   function applyChannel(channels, id, row) {
@@ -526,6 +668,7 @@
       target.posted = rate != null && target.count ? Math.round((rate / 100) * target.count) : 0;
     }
     target.failed = num(row.failed != null ? row.failed : row.failedCount);
+    target.completed = target.posted + target.failed;
   }
 
   function normalizeSummary(body) {
@@ -556,7 +699,7 @@
       volumeAll: volumeAll,
       collect: num(body.collect != null ? body.collect : body.collections),
       disburse: num(body.disburse != null ? body.disburse : body.disbursements),
-      successRate: rate != null ? rate : (count ? (posted / count) * 100 : 0),
+      successRate: rate != null ? rate : successRate(posted, posted + num(body.failed != null ? body.failed : body.failedCount)),
       byChannel: channels,
       byDay: body.byDay || {}
     };
@@ -565,6 +708,18 @@
   return {
     FAILED: FAILED,
     PENDING: PENDING,
+    MAX_INITIATE_UGX: MAX_INITIATE_UGX,
+    DEMO_CSV_LINE: DEMO_CSV_LINE,
+    isCompleted: isCompleted,
+    successRate: successRate,
+    formatRate: formatRate,
+    todayKampala: todayKampala,
+    csvEscape: csvEscape,
+    parseWholeShillings: parseWholeShillings,
+    retryRequest: retryRequest,
+    packSettled: packSettled,
+    packsToCsv: packsToCsv,
+    pagePlan: pagePlan,
     CHANNELS: CHANNELS,
     bucket: bucket,
     channelLabel: channelLabel,

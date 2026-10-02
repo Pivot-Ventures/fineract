@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Build the payments portal demo book: 100 UGX intents.
 
-The portal reads fixtures/intents.json when the gateway book is empty or
-no internal key is stored. This does not call MTN, Airtel, or Fineract.
+The portal reads fixtures/intents.json only in demo mode (?demo=1), and then
+marks every screen and export as DEMO. This does not call MTN, Airtel, or Fineract.
 
     python3 desk/payments-portal/scripts/build_fixture.py
     python3 desk/payments-portal/scripts/build_fixture.py --check

@@ -90,7 +90,7 @@
     clearSession();
     var here = location.pathname.split("/").pop() || "index.html";
     if (here === "login.html") return;
-    location.href = "login.html" + (reason ? "?" + reason + "=1" : "");
+    location.href = "/login.html" + (reason ? "?" + reason + "=1" : "");
   }
 
   function requireAuth() {

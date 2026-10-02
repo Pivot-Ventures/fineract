@@ -504,3 +504,27 @@ table.data .mono, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Cons
   .feed-item > :last-child { grid-column: 2; text-align: left; }
   .feed-amt, .feed-time { text-align: left; }
 }
+
+/* Audit fixes: auth gate, demo banner, error state, inline errors. */
+body.auth-pending .app-shell { visibility: hidden; }
+.demo-banner {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 10px 16px; background: var(--danger); color: #fff;
+  font-size: 13px; line-height: 1.4; border-bottom: 3px solid #7A1710;
+}
+.demo-banner strong { font-size: 14px; letter-spacing: .02em; }
+.demo-banner .btn { background: #fff; color: var(--danger); margin-left: auto; }
+body.demo-mode .content { outline: 3px dashed var(--danger); outline-offset: -3px; }
+.error-state {
+  padding: 18px 20px; border-radius: 10px; margin-bottom: 14px;
+  background: var(--danger-soft); border: 1px solid #F3B8B3; color: var(--danger);
+  font-size: 14px;
+}
+.error-state p { margin: 8px 0 0; color: var(--text); font-size: 13px; }
+.notice-warn { background: var(--warn-soft); border-color: #F5C78E; color: var(--warn); }
+.field-error { color: var(--danger) !important; font-size: 12.5px; min-height: 0; }
+.field-error:empty { display: none; }
+.confirm-amount { font-size: 26px !important; font-weight: 700; color: var(--navy) !important; }
+.status.reversed { background: var(--info-soft); color: var(--info); }
+[hidden] { display: none !important; }

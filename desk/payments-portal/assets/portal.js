@@ -3,13 +3,18 @@
   "use strict";
 
   var model = window.PaymentsModel;
-  var KEY = "paymentsPortal.internalKey";
+  /* Retired: the internal key must never live in the browser. Cleared on every load. */
+  var LEGACY_INTERNAL_KEY = "paymentsPortal.internalKey";
   var PARTNER = "paymentsPortal.partnerKey";
-  var DEMO = "paymentsPortal.demoReadKey";
+  var READ_KEY = "paymentsPortal.demoReadKey";
+  var DEMO_MODE = "paymentsPortal.demoMode";
   var OVERRIDES = "paymentsPortal.overrides";
   var EXTRA = "paymentsPortal.created";
   var DEMO_PARTNER = "demo-portal";
   var PAGE_SIZE = 8;
+  /* Full-book reads page through the gateway this many rows at a time, up to the hard cap. */
+  var FETCH_PAGE = 200;
+  var FETCH_CAP = 10000;
   var page = document.body.getAttribute("data-page") || "overview";
   var book = null;
 
@@ -65,6 +70,53 @@
     try { return JSON.parse(readStore(EXTRA) || "[]"); } catch (e) { return []; }
   }
 
+  function clearLegacyKeys() {
+    try { sessionStorage.removeItem(LEGACY_INTERNAL_KEY); } catch (e) { /* storage unavailable */ }
+    try { localStorage.removeItem(LEGACY_INTERNAL_KEY); } catch (e) { /* storage unavailable */ }
+  }
+
+  /* Demo book only on explicit ?demo=1. The flag lasts for this tab; ?demo=0 or the banner leaves it. */
+  function syncDemoFlag() {
+    var params = new URLSearchParams(location.search);
+    if (!params.has("demo")) return;
+    if (params.get("demo") === "1") writeStore(DEMO_MODE, "1");
+    else writeStore(DEMO_MODE, "");
+    params.delete("demo");
+    var search = params.toString();
+    history.replaceState(null, "", location.pathname + (search ? "?" + search : "") + location.hash);
+  }
+
+  function isDemo() {
+    return readStore(DEMO_MODE) === "1";
+  }
+
+  function leaveDemo() {
+    writeStore(DEMO_MODE, "");
+    writeStore(OVERRIDES, "");
+    writeStore(EXTRA, "");
+    showDemoBanner();
+    boot();
+  }
+
+  function showDemoBanner() {
+    var existing = document.getElementById("demo-banner");
+    if (!isDemo()) {
+      if (existing) existing.remove();
+      document.body.classList.remove("demo-mode");
+      return;
+    }
+    document.body.classList.add("demo-mode");
+    if (existing) return;
+    var banner = h("div", { id: "demo-banner", class: "demo-banner", role: "alert" }, [
+      h("strong", { text: "DEMO DATA — not real payments." }),
+      document.createTextNode(" Every figure on this screen comes from the bundled demo book (fixtures/intents.json). Nothing here is sent to the gateway. "),
+      h("button", { class: "btn btn-sm", type: "button", text: "Leave demo mode", onclick: leaveDemo })
+    ]);
+    var main = document.querySelector(".main");
+    if (main) main.insertBefore(banner, main.firstChild);
+    else document.body.insertBefore(banner, document.body.firstChild);
+  }
+
   function query() {
     var params = new URLSearchParams(location.search);
     return {
@@ -81,16 +133,16 @@
     };
   }
 
+  /* Reads send one key: the read key if saved, otherwise the partner key. Never an internal key. */
   function portalHeaders() {
     var headers = { accept: "application/json" };
-    if (readStore(DEMO)) headers["X-Demo-Read-Key"] = readStore(DEMO);
-    if (readStore(PARTNER)) headers["X-Api-Key"] = readStore(PARTNER);
-    if (readStore(KEY)) headers["X-Internal-Api-Key"] = readStore(KEY);
+    if (readStore(READ_KEY)) headers["X-Demo-Read-Key"] = readStore(READ_KEY);
+    else if (readStore(PARTNER)) headers["X-Api-Key"] = readStore(PARTNER);
     return headers;
   }
 
   function hasGatewayKey() {
-    return !!(readStore(DEMO) || readStore(PARTNER) || readStore(KEY));
+    return !!(readStore(READ_KEY) || readStore(PARTNER));
   }
 
   function partnerId() {
@@ -100,6 +152,12 @@
   function reloadAfterQuery() {
     if (book && book.remote) boot();
     else paint();
+  }
+
+  function demoHref() {
+    var params = new URLSearchParams(location.search);
+    params.set("demo", "1");
+    return location.pathname + "?" + params.toString();
   }
 
   function writeQuery(next) {
@@ -154,20 +212,17 @@
     var existing = document.getElementById("key-dialog");
     if (existing) existing.remove();
     var demo = h("input", { id: "demo-read-key-input", type: "password", autocomplete: "off", placeholder: "X-Demo-Read-Key" });
-    var internal = h("input", { id: "gateway-key-input", type: "password", autocomplete: "off", placeholder: "X-Internal-Api-Key" });
     var partner = h("input", { id: "partner-key-input", type: "password", autocomplete: "off", placeholder: "X-Api-Key" });
     var dialog = h("dialog", { id: "key-dialog", class: "pay-dialog" }, [
       h("form", {}, [
         h("h2", { text: "Payments gateway" }),
-        h("p", { text: "Portal reads accept a demo read key, a partner key, or an internal key. The partner key also initiates a payment. The internal key retries a failed run. Keys stay in this browser session." }),
-        h("div", { class: "field" }, [h("label", { for: "demo-read-key-input", text: "Demo read key" }), demo]),
-        h("div", { class: "field" }, [h("label", { for: "gateway-key-input", text: "Internal API key" }), internal]),
+        h("p", { text: "Reads send the read key if one is saved, otherwise the partner key. Initiate sends only the partner key. Retries are not done from the browser. Keys stay in this tab's session storage." }),
+        h("div", { class: "field" }, [h("label", { for: "demo-read-key-input", text: "Portal read key" }), demo]),
         h("div", { class: "field" }, [h("label", { for: "partner-key-input", text: "Partner API key" }), partner]),
         h("div", { class: "form-actions" }, [
           h("button", { class: "btn", type: "submit", text: "Save" }),
-          h("button", { class: "btn btn-ghost", type: "button", text: "Use demo book", onclick: function () {
-            writeStore(DEMO, "");
-            writeStore(KEY, "");
+          h("button", { class: "btn btn-ghost", type: "button", text: "Clear keys", onclick: function () {
+            writeStore(READ_KEY, "");
             writeStore(PARTNER, "");
             dialog.close();
             boot();
@@ -178,8 +233,7 @@
     ]);
     dialog.querySelector("form").addEventListener("submit", function (event) {
       event.preventDefault();
-      if (demo.value.trim()) writeStore(DEMO, demo.value.trim());
-      if (internal.value.trim()) writeStore(KEY, internal.value.trim());
+      if (demo.value.trim()) writeStore(READ_KEY, demo.value.trim());
       if (partner.value.trim()) writeStore(PARTNER, partner.value.trim());
       dialog.close();
       boot();
@@ -227,14 +281,15 @@
     return { response: response, parsed: parsed };
   }
 
-  function portalFailure(response) {
+  function portalFailure(response, parsed) {
+    var code = "HTTP " + response.status;
     if (response.status === 401 || response.status === 403) {
-      return "Portal read was refused. Save a demo read key, partner key, or internal key. Showing the demo book.";
+      return "Payments gateway refused the read (" + code + "). Save a portal read key or partner key under Operator key. No data shown.";
     }
-    if (response.status === 404) {
-      return "This gateway has no portal read route yet. Showing the demo book.";
+    if (response.status === 404 && missingRoute(response, parsed)) {
+      return "Payments gateway has no portal read route (" + code + "). No data shown.";
     }
-    return "Portal read returned " + response.status + ". Showing the demo book.";
+    return "Payments gateway unavailable (" + code + "). No data shown.";
   }
 
   async function loadFixture() {
@@ -252,93 +307,145 @@
     return intents;
   }
 
-  async function loadBook() {
-    var health = null;
+  /*
+   * Page through /portal/intents until the gateway runs out, the reported total is reached, or FETCH_CAP.
+   * Returns { ok, items, total, truncated } or { ok: false, error }.
+   */
+  async function fetchAllIntents(filters) {
+    var items = [];
+    var seen = {};
+    var total = 0;
+    var offset = 0;
+    while (items.length < FETCH_CAP) {
+      var limit = Math.min(FETCH_PAGE, FETCH_CAP - items.length);
+      var extra = Object.assign({}, filters, { limit: limit, offset: offset });
+      var call = await fetchPortal("/payments/v1/portal/intents?" + model.portalQuery(extra));
+      if (!call.response.ok) return { ok: false, error: portalFailure(call.response, call.parsed) };
+      var parsed = model.normalizePortalList(call.parsed.body);
+      total = Math.max(total, parsed.total);
+      var added = 0;
+      parsed.items.forEach(function (row) {
+        if (!row.intentId || seen[row.intentId] || items.length >= FETCH_CAP) return;
+        seen[row.intentId] = true;
+        items.push(row);
+        added += 1;
+      });
+      /* Stop when the page is short, nothing new came back (offset ignored), or limit was ignored. */
+      if (parsed.items.length < limit || added === 0 || parsed.items.length > limit) break;
+      if (total && items.length >= total) break;
+      offset += parsed.items.length;
+    }
+    total = Math.max(total, items.length);
+    items.sort(model.byNewest);
+    return { ok: true, items: items, total: total, truncated: items.length < total };
+  }
+
+  async function loadHealth() {
     try {
       var healthResponse = await fetch("/payments/health", { headers: { accept: "application/json" } });
-      if (healthResponse.ok) health = await healthResponse.json();
-    } catch (e) { health = null; }
+      if (healthResponse.ok) return await healthResponse.json();
+    } catch (e) { /* unreachable */ }
+    return null;
+  }
 
-    var q = query();
-    var pageNo = Math.max(parseInt(q.page || "1", 10) || 1, 1);
-    var gatewayError = "";
-    var remote = false;
-    var intents = null;
-    var total = 0;
-    var summary = null;
-
-    try {
-      if (page === "payment" && q.id) {
-        var detail = await fetchPortal("/payments/v1/portal/intents/" + encodeURIComponent(q.id));
-        if (detail.response.ok && detail.parsed.body) {
-          intents = [model.intentFromPortal(detail.parsed.body)];
-          total = 1;
-          remote = true;
-        } else if (detail.response.status === 404 && !missingRoute(detail.response, detail.parsed)) {
-          intents = [];
-          total = 0;
-          remote = true;
-          gatewayError = "This intent is not in the portal book.";
-        } else {
-          gatewayError = portalFailure(detail.response);
-        }
-      } else {
-        var listFilters = portalFilters({
-          limit: page === "payments" ? PAGE_SIZE : 200,
-          offset: page === "payments" ? (pageNo - 1) * PAGE_SIZE : 0
-        });
-        var list = await fetchPortal("/payments/v1/portal/intents?" + model.portalQuery(listFilters));
-        if (list.response.ok) {
-          var parsedList = model.normalizePortalList(list.parsed.body);
-          intents = parsedList.items;
-          if (page !== "payments") intents.sort(model.byNewest);
-          total = parsedList.total;
-          remote = true;
-          if (page === "reports") {
-            var summaryCall = await fetchPortal("/payments/v1/portal/reports/summary?" + model.portalQuery(portalFilters()));
-            if (summaryCall.response.ok) summary = model.normalizeSummary(summaryCall.parsed.body);
-          }
-        } else {
-          gatewayError = portalFailure(list.response);
-        }
-      }
-    } catch (e) {
-      gatewayError = "The payments gateway could not be reached. Showing the demo book.";
-      remote = false;
-      intents = null;
-    }
-
-    if (!remote) {
-      intents = await loadFixture();
-      total = intents.length;
-      summary = null;
-    }
+  function baseBook(health) {
     return {
       health: health,
-      intents: intents,
-      source: remote ? "portal" : "fixture",
-      gatewayError: gatewayError,
-      total: total,
-      remote: remote,
-      summary: summary,
+      intents: [],
+      source: "portal",
+      gatewayError: "",
+      notice: "",
+      total: 0,
+      remote: true,
+      demo: false,
+      truncated: false,
+      plan: null,
       partnerId: partnerId()
     };
   }
 
+  async function loadBook() {
+    var health = await loadHealth();
+    var result = baseBook(health);
+    var q = query();
+
+    if (isDemo()) {
+      result.intents = await loadFixture();
+      result.total = result.intents.length;
+      result.source = "fixture";
+      result.remote = false;
+      result.demo = true;
+      return result;
+    }
+
+    try {
+      if (page === "payment") {
+        if (!q.id) return result;
+        var detail = await fetchPortal("/payments/v1/portal/intents/" + encodeURIComponent(q.id));
+        if (detail.response.ok && detail.parsed.body) {
+          result.intents = [model.intentFromPortal(detail.parsed.body)];
+          result.total = 1;
+        } else if (detail.response.status === 404 && !missingRoute(detail.response, detail.parsed)) {
+          result.notice = "This intent is not in the portal book.";
+        } else {
+          result.gatewayError = portalFailure(detail.response, detail.parsed);
+        }
+      } else if (page === "payments") {
+        var pageNo = Math.max(parseInt(q.page || "1", 10) || 1, 1);
+        var list = await fetchPortal("/payments/v1/portal/intents?" + model.portalQuery(portalFilters({
+          limit: PAGE_SIZE,
+          offset: (pageNo - 1) * PAGE_SIZE
+        })));
+        if (list.response.ok) {
+          var parsedList = model.normalizePortalList(list.parsed.body);
+          result.plan = model.pagePlan(parsedList.items, parsedList.total, pageNo, PAGE_SIZE);
+          result.intents = result.plan.rows;
+          result.total = result.plan.total;
+          if (result.plan.mode === "untrusted") result.gatewayError = result.plan.note + " No data shown.";
+          else if (result.plan.note) result.notice = result.plan.note;
+        } else {
+          result.gatewayError = portalFailure(list.response, list.parsed);
+        }
+      } else {
+        var all = await fetchAllIntents(portalFilters());
+        if (all.ok) {
+          result.intents = all.items;
+          result.total = all.total;
+          result.truncated = all.truncated;
+          if (all.truncated) {
+            result.notice = "Showing the first " + all.items.length.toLocaleString("en-UG") + " of " + all.total.toLocaleString("en-UG") + " intents. Totals, CSV and settlement packs cover only these rows. Narrow the filters.";
+          }
+        } else {
+          result.gatewayError = all.error;
+        }
+      }
+    } catch (e) {
+      result.gatewayError = "Payments gateway unreachable (network error). No data shown.";
+    }
+    if (result.gatewayError) {
+      result.intents = [];
+      result.total = 0;
+    }
+    return result;
+  }
+
   function fillChrome() {
     var chip = document.getElementById("mw-chip");
-    var mode = book.health && book.health.mode ? (book.health.mode.channel || "mock") : "mock";
-    if (chip) chip.textContent = "● " + mode + " · gateway v1";
+    var mode = book.health && book.health.mode ? (book.health.mode.channel || "unconfirmed") : "unconfirmed";
+    if (chip) chip.textContent = book.demo ? "● DEMO book · not the gateway" : "● " + mode + " · gateway v1";
     var host = document.getElementById("top-chips");
     if (!host) return;
     host.querySelectorAll(".chip").forEach(function (node) { node.remove(); });
     var avatar = host.querySelector(".avatar");
     var chips = [];
-    if (page === "overview") {
+    if (book.demo) chips.push(h("span", { class: "chip red", text: "DEMO DATA" }));
+    if (book.gatewayError) {
+      chips.push(h("span", { class: "chip red", text: "No data" }));
+    } else if (page === "overview") {
       var fineract = book.health && book.health.mode ? book.health.mode.fineract : "";
       chips.push(h("span", { class: "chip green", text: fineract ? "Fineract " + fineract : "Fineract unread" }));
-      var day = model.latestDay(book.intents);
-      chips.push(h("span", { class: "chip amber", text: day ? "Today · " + model.formatDay(day) : "Today" }));
+      var day = todayInfo();
+      chips.push(h("span", { class: "chip amber", text: day.label }));
     } else if (page === "payments") {
       chips.push(h("span", { class: "chip", text: (book.remote ? book.total : book.intents.length) + " intents" }));
     } else if (page === "reports") {
@@ -351,6 +458,16 @@
     chips.forEach(function (node) { host.insertBefore(node, avatar); });
     var keyBtn = document.getElementById("gateway-key-btn");
     if (keyBtn) keyBtn.textContent = hasGatewayKey() ? "Gateway key saved" : "Operator key";
+  }
+
+  /* Real Kampala date on the live book. The demo book is frozen, so it uses its own anchor day and says so. */
+  function todayInfo() {
+    if (book.demo) {
+      var anchor = model.latestDay(book.intents);
+      return { day: anchor, label: "Book day · " + model.formatDay(anchor) + " (demo anchor, not today)" };
+    }
+    var day = model.todayKampala();
+    return { day: day, label: "Today · " + model.formatDay(day) + " (Kampala)" };
   }
 
   function kpi(label, value, meta, tone, metaTone) {
@@ -399,7 +516,9 @@
   }
 
   function renderOverview() {
-    var today = model.latestDay(book.intents);
+    var info = todayInfo();
+    var today = info.day;
+    var dayWord = book.demo ? "book day" : "today";
     var yesterday = model.shiftDay(today, -1);
     var todayRows = model.onDay(book.intents, today);
     var yRows = model.onDay(book.intents, yesterday);
@@ -410,12 +529,11 @@
     var collectTone = "";
     if (ySum.collect > 0) {
       var delta = ((todaySum.collect - ySum.collect) / ySum.collect) * 100;
-      collectDelta = (delta >= 0 ? "↑ " : "↓ ") + Math.abs(delta).toFixed(0) + "% vs yesterday · " + todaySum.count + " txns";
+      collectDelta = (delta >= 0 ? "↑ " : "↓ ") + Math.abs(delta).toFixed(0) + "% vs day before · " + todaySum.collectCount + " posted";
       collectTone = delta >= 0 ? "up" : "down";
     } else {
-      collectDelta = todaySum.count + " txns";
+      collectDelta = todaySum.collectCount + " posted · UGX " + model.compactNumber(todaySum.collectInitiated) + " initiated";
     }
-    var success = todayRows.length ? (todaySum.posted / todayRows.length) * 100 : all.successRate;
     var core = model.coreMix(book.intents);
     var coreMax = Math.max(core.POSTED, core.POSTING, core.NOT_POSTED, core.REJECTED, 1);
     var channelMax = 1;
@@ -460,7 +578,9 @@
       h("div", { class: "page-head" }, [
         h("div", {}, [
           h("h1", { class: "page-title", text: "Payments overview" }),
-          h("p", { class: "page-sub", text: "Collections & disbursements across MTN MoMo, Airtel Money, bank & card — fused with the payments gateway." })
+          h("p", { class: "page-sub", text: book.demo
+            ? "DEMO book — collections & disbursements from fixtures/intents.json, not the gateway."
+            : "Collections & disbursements across MTN MoMo, Airtel Money, bank & card from the payments gateway." })
         ]),
         h("div", { class: "page-actions" }, [
           h("button", { class: "btn btn-ghost", type: "button", text: "Refresh", onclick: function () { boot(); } }),
@@ -468,15 +588,16 @@
         ])
       ]),
       h("div", { class: "kpi-grid" }, [
-        kpi("Collections today", "UGX " + model.compactNumber(todaySum.collect), collectDelta, "green", collectTone),
-        kpi("Disbursements today", "UGX " + model.compactNumber(todaySum.disburse), todayRows.filter(function (row) { return row.direction === "DEBIT"; }).length + " payouts · savings / loan"),
-        kpi("Success rate", success.toFixed(1) + "%", "POSTED / settled intents", "amber", "up"),
-        kpi("Pending", String(all.pending), "AWAITING_PROVIDER · POSTING_CORE", "warn"),
-        kpi("Failed", String(all.failed), "Declined / core rejected", "red", "down")
+        kpi("Collections posted " + dayWord, "UGX " + model.compactNumber(todaySum.collect), collectDelta, "green", collectTone),
+        kpi("Disbursements posted " + dayWord, "UGX " + model.compactNumber(todaySum.disburse), todaySum.disburseCount + " posted payouts · savings / loan"),
+        kpi("Success rate " + dayWord + " (completed runs)", model.formatRate(todaySum.successRate),
+          todaySum.completed ? "POSTED ÷ (POSTED + declined/rejected) · " + todaySum.completed + " completed; pending & ambiguous excluded" : "No completed runs " + dayWord, "amber"),
+        kpi("Pending · all loaded dates", String(all.pending), "INITIATED · AWAITING_PROVIDER · POSTING_CORE", "warn"),
+        kpi("Failed · all loaded dates", String(all.failed), "Declined / core rejected / ambiguous" + (all.reversed ? " · " + all.reversed + " reversed" : ""), "red", "down")
       ]),
       h("div", { class: "grid-2" }, [
         h("section", { class: "card" }, [
-          h("div", { class: "card-h" }, [h("h2", { text: "Channel mix · volume (UGX)" }), h("span", { class: "chip", text: "Today" })]),
+          h("div", { class: "card-h" }, [h("h2", { text: "Channel mix · volume initiated (UGX)" }), h("span", { class: "chip", text: book.demo ? "Book day (demo)" : "Today" })]),
           h("div", { class: "card-b" }, [mix])
         ]),
         h("section", { class: "card" }, [
@@ -503,13 +624,13 @@
         q.to = window.to;
       }
     }
+    /* Live: book.intents is already the page chosen by model.pagePlan. Demo: filter and page the local book. */
     var filtered = book.remote ? book.intents : model.filterIntents(book.intents, q);
-    var serverPage = book.remote && filtered.length <= PAGE_SIZE;
     var pageNo = Math.max(parseInt(q.page || "1", 10) || 1, 1);
-    var total = serverPage ? book.total : filtered.length;
+    var total = book.remote ? book.total : filtered.length;
     var pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-    if (pageNo > pages) pageNo = pages;
-    var slice = serverPage ? filtered : filtered.slice((pageNo - 1) * PAGE_SIZE, pageNo * PAGE_SIZE);
+    if (!book.remote && pageNo > pages) pageNo = pages;
+    var slice = book.remote ? filtered : filtered.slice((pageNo - 1) * PAGE_SIZE, pageNo * PAGE_SIZE);
     var from = total ? (pageNo - 1) * PAGE_SIZE + 1 : 0;
     var to = (pageNo - 1) * PAGE_SIZE + slice.length;
 
@@ -590,11 +711,11 @@
       h("div", { class: "page-head" }, [
         h("div", {}, [
           h("h1", { class: "page-title", text: "Payments" }),
-          h("p", { class: "page-sub", text: "Filterable payment intents from the aggregator gateway (collect / disburse)." })
+          h("p", { class: "page-sub", text: book.demo ? "DEMO book — filterable intents from fixtures/intents.json." : "Filterable payment intents from the aggregator gateway (collect / disburse)." })
         ]),
         h("div", { class: "page-actions" }, [
-          h("button", { class: "btn btn-ghost", type: "button", text: "Export CSV", onclick: function () { exportPayments(filtered); } }),
-          h("button", { class: "btn", type: "button", text: "+ Initiate (mock)", onclick: openInitiate })
+          h("button", { class: "btn btn-ghost", type: "button", text: book.demo ? "Export DEMO CSV" : "Export CSV", onclick: function () { exportPayments(filtered); } }),
+          h("button", { class: "btn", type: "button", text: book.demo ? "+ Initiate (demo, not sent)" : "+ Initiate", onclick: openInitiate })
         ])
       ]),
       form,
@@ -680,6 +801,11 @@
       return h("div", { class: "meta-row" }, [h("dt", { text: label }), h("dd", {}, [value])]);
     }
     var failed = model.canRetry(intent);
+    /* Live retries need a Desk-session-backed proxy that does not exist yet; the gateway operator retries server-side. */
+    var retryable = failed && book.demo;
+    var retryTitle = !failed ? "Only a failed run can be retried"
+      : book.demo ? "Retry on the demo book (nothing is sent)"
+        : "Retries are done by the gateway operator on the server until the Desk has a retry proxy";
     return [
       h("div", { class: "page-head" }, [
         h("div", {}, [
@@ -691,13 +817,14 @@
           h("button", {
             class: "btn btn-amber",
             type: "button",
-            text: "↻ Retry (mock)",
-            disabled: !failed,
-            title: failed ? "Retry this failed run" : "Only a failed run can be retried",
-            onclick: function () { if (failed) openRetry(intent); }
+            text: book.demo ? "↻ Retry (demo, not sent)" : "↻ Retry",
+            disabled: !retryable,
+            title: retryTitle,
+            onclick: function () { if (retryable) openRetry(intent); }
           })
         ])
       ]),
+      failed && !book.demo ? h("div", { class: "notice notice-warn", text: "Retry is not available from the browser. Ask the gateway operator to resolve this run on the server (allow_single_retry) after confirming with the channel that the earlier attempt did not post." }) : null,
       h("div", { class: "notice", text: "Statuses match gateway enums: INITIATED → AWAITING_PROVIDER → POSTING_CORE → POSTED. HMAC-SHA256 over timestamp.eventId.rawBody." }),
       h("div", { class: "detail-grid" }, [
         h("section", { class: "card" }, [
@@ -753,70 +880,66 @@
   }
 
   function openRetry(intent) {
-    var note = h("textarea", { id: "retry-note", rows: "3", placeholder: "Why this run should be retried" });
-    var confirm = h("input", { id: "retry-confirm", type: "checkbox", checked: "checked" });
+    var ambiguous = intent.status === "AMBIGUOUS";
+    var note = h("textarea", { id: "retry-note", rows: "3", placeholder: "Why this run should be retried (8+ characters)" });
+    var confirm = h("input", { id: "retry-confirm", type: "checkbox" });
+    var ref = ambiguous ? h("input", { id: "retry-provider-ref", autocomplete: "off", placeholder: "Provider reference you checked" }) : null;
+    var error = h("p", { class: "field-error", role: "alert" });
+    var submit = h("button", { class: "btn btn-amber", type: "submit", text: book.demo ? "Retry on demo book" : "Retry", disabled: true });
+    function input() {
+      return { note: note.value, confirmNotPosted: confirm.checked === true, providerReference: ref ? ref.value : "" };
+    }
+    function refresh() {
+      submit.disabled = !model.retryRequest(intent, input()).ok;
+    }
     var dialog = h("dialog", { class: "pay-dialog" }, [
       h("form", {}, [
-        h("h2", { text: "Retry failed run" }),
-        h("p", { text: "On the gateway this calls resolve with allow_single_retry. On the demo book the timeline moves forward in this session only." }),
+        h("h2", { text: book.demo ? "Retry failed run · DEMO" : "Retry failed run" }),
+        h("p", { text: book.demo
+          ? "Demo book only: the timeline changes in this browser tab. Nothing is sent to the gateway or the channel."
+          : "Retries are done by the gateway operator on the server." }),
         h("div", { class: "field" }, [h("label", { for: "retry-note", text: "Operator note" }), note]),
-        h("label", {}, [confirm, document.createTextNode(" Confirm the earlier attempt did not post")]),
+        ambiguous ? h("div", { class: "field" }, [
+          h("label", { for: "retry-provider-ref", text: "Provider reference checked (AMBIGUOUS run)" }),
+          ref
+        ]) : null,
+        h("label", { for: "retry-confirm" }, [confirm, document.createTextNode(" I confirmed with the channel that the earlier attempt did not post")]),
+        error,
         h("div", { class: "form-actions" }, [
-          h("button", { class: "btn btn-amber", type: "submit", text: "Retry" }),
+          submit,
           h("button", { class: "btn btn-ghost", type: "button", text: "Cancel", onclick: function () { dialog.close(); } })
         ])
       ])
     ]);
+    [note, confirm, ref].forEach(function (node) {
+      if (!node) return;
+      node.addEventListener("input", refresh);
+      node.addEventListener("change", refresh);
+    });
     dialog.querySelector("form").addEventListener("submit", function (event) {
       event.preventDefault();
-      submitRetry(intent, note.value.trim(), confirm.checked, dialog);
+      submitRetry(intent, input(), dialog, error);
     });
+    dialog.addEventListener("close", function () { dialog.remove(); });
     document.body.appendChild(dialog);
     dialog.showModal();
   }
 
-  async function submitRetry(intent, note, confirmed, dialog) {
-    if (note.length < 8) {
-      toast("The note needs at least 8 characters.", "error");
+  function submitRetry(intent, input, dialog, errorNode) {
+    var request = model.retryRequest(intent, input);
+    if (!request.ok) {
+      errorNode.textContent = request.error;
       return;
     }
-    if (!confirmed) {
-      toast("Confirm the earlier attempt did not post.", "error");
-      return;
-    }
-    if (book.remote) {
-      if (!readStore(KEY)) {
-        toast("Retry on the gateway needs the internal operator key.", "error");
-        return;
-      }
-      try {
-        var response = await fetch("/payments/internal/intents/" + encodeURIComponent(intent.intentId) + "/resolve", {
-          method: "POST",
-          headers: {
-            accept: "application/json",
-            "content-type": "application/json",
-            "X-Internal-Api-Key": readStore(KEY)
-          },
-          body: JSON.stringify({ action: "allow_single_retry", note: note, confirmNotPosted: true })
-        });
-        var body = null;
-        try { body = await response.json(); } catch (e) { body = null; }
-        if (!response.ok) {
-          toast(String((body && (body.message || body.code)) || ("Retry failed (" + response.status + ")")), "error");
-          return;
-        }
-        toast("Retry accepted by the gateway.", "success");
-        dialog.close();
-        boot();
-      } catch (e) {
-        toast("The gateway could not accept the retry.", "error");
-      }
+    if (!book.demo) {
+      /* No browser path to /payments/internal/*: Caddy blocks it and the internal key stays server-side. */
+      errorNode.textContent = "Retry is not available from the browser. Ask the gateway operator to resolve this run on the server.";
       return;
     }
     var local = overrides();
-    local[intent.intentId] = Object.assign({}, local[intent.intentId] || {}, model.retryPatch(intent, note));
+    local[intent.intentId] = Object.assign({}, local[intent.intentId] || {}, model.retryPatch(intent, request.body.note));
     writeStore(OVERRIDES, JSON.stringify(local));
-    toast("Retry recorded on the demo book.", "success");
+    toast("DEMO: retry recorded in this browser tab only. Nothing was sent to the gateway.", "success");
     dialog.close();
     boot();
   }
@@ -833,39 +956,92 @@
       ["SAVINGS_WITHDRAWAL", "Savings withdrawal"],
       ["LOAN_REPAYMENT", "Loan repayment"]
     ], "SAVINGS_DEPOSIT"));
-    var amount = h("input", { id: "init-amount", inputmode: "numeric", value: "50000" });
-    var partner = h("input", { id: "init-partner", type: "password", autocomplete: "off", placeholder: "Optional X-Api-Key" });
+    var amount = h("input", { id: "init-amount", inputmode: "numeric", autocomplete: "off", value: "", placeholder: "e.g. 50,000" });
+    var amountError = h("p", { class: "field-error", id: "init-amount-error", role: "alert" });
+    var partner = book.demo ? null : h("input", { id: "init-partner", type: "password", autocomplete: "off", placeholder: readStore(PARTNER) ? "Saved key will be used" : "X-Api-Key" });
+    var entry = h("div", { class: "stack" }, [
+      h("div", { class: "field" }, [h("label", { for: "init-channel", text: "Channel" }), channel]),
+      h("div", { class: "field" }, [h("label", { for: "init-direction", text: "Direction" }), direction]),
+      h("div", { class: "field" }, [h("label", { for: "init-product", text: "Product" }), product]),
+      h("div", { class: "field" }, [
+        h("label", { for: "init-amount", text: "Amount (whole UGX, max " + model.formatUgx(model.MAX_INITIATE_UGX) + ")" }),
+        amount,
+        amountError
+      ]),
+      partner ? h("div", { class: "field" }, [h("label", { for: "init-partner", text: "Partner key" }), partner]) : null
+    ]);
+    var review = h("div", { class: "stack", hidden: true });
+    var next = h("button", { class: "btn", type: "submit", text: "Review" });
+    var back = h("button", { class: "btn btn-ghost", type: "button", text: "Back", hidden: true });
+    var pending = null;
     var dialog = h("dialog", { class: "pay-dialog" }, [
-      h("form", {}, [
-        h("h2", { text: "Initiate payment" }),
-        h("p", { text: "With a partner key this posts /payments/v1/payments/initiate. Without one, the row is added to the demo book in this session. Currency is UGX. No MoMo or Airtel secrets." }),
-        h("div", { class: "field" }, [h("label", { text: "Channel" }), channel]),
-        h("div", { class: "field" }, [h("label", { text: "Direction" }), direction]),
-        h("div", { class: "field" }, [h("label", { text: "Product" }), product]),
-        h("div", { class: "field" }, [h("label", { text: "Amount (UGX)" }), amount]),
-        h("div", { class: "field" }, [h("label", { text: "Partner key" }), partner]),
+      h("form", { novalidate: true }, [
+        h("h2", { text: book.demo ? "Initiate payment · DEMO" : "Initiate payment" }),
+        h("p", { text: book.demo
+          ? "Demo book only: the row is added in this browser tab. Nothing is sent to the gateway or the channel."
+          : "Posts /payments/v1/payments/initiate on this host with the partner key. Currency is UGX. You confirm before anything is sent." }),
+        entry,
+        review,
         h("div", { class: "form-actions" }, [
-          h("button", { class: "btn", type: "submit", text: "Initiate" }),
+          next,
+          back,
           h("button", { class: "btn btn-ghost", type: "button", text: "Cancel", onclick: function () { dialog.close(); } })
         ])
       ])
     ]);
+    function showEntry() {
+      pending = null;
+      entry.hidden = false;
+      review.hidden = true;
+      back.hidden = true;
+      next.textContent = "Review";
+    }
+    back.addEventListener("click", showEntry);
+    amount.addEventListener("input", function () { amountError.textContent = ""; });
     dialog.querySelector("form").addEventListener("submit", function (event) {
       event.preventDefault();
-      var whole = String(amount.value || "").replace(/\D/g, "");
-      if (!whole || whole === "0") {
-        toast("Enter a whole shilling amount.", "error");
+      if (pending) {
+        var send = pending;
+        dialog.close();
+        if (book.demo) initiateDemo(send.fields);
+        else initiateGateway(send.fields, send.key);
         return;
       }
-      var fields = { channel: channel.value, direction: direction.value, product: product.value, amount: whole };
+      var parsed = model.parseWholeShillings(amount.value, model.MAX_INITIATE_UGX);
+      if (!parsed.ok) {
+        amountError.textContent = parsed.error;
+        amount.focus();
+        return;
+      }
+      var fields = { channel: channel.value, direction: direction.value, product: product.value, amount: parsed.value };
       if (direction.value === "DEBIT") fields.product = "SAVINGS_WITHDRAWAL";
       if (direction.value === "CREDIT" && fields.product === "SAVINGS_WITHDRAWAL") fields.product = "SAVINGS_DEPOSIT";
-      var key = partner.value.trim() || readStore(PARTNER);
-      if (partner.value.trim()) writeStore(PARTNER, partner.value.trim());
-      dialog.close();
-      if (key) initiateGateway(fields, key);
-      else initiateDemo(fields);
+      var key = "";
+      if (!book.demo) {
+        key = (partner && partner.value.trim()) || readStore(PARTNER);
+        if (!key) {
+          amountError.textContent = "Initiate on the gateway needs a partner key.";
+          return;
+        }
+        if (partner && partner.value.trim()) writeStore(PARTNER, partner.value.trim());
+      }
+      pending = { fields: fields, key: key };
+      review.textContent = "";
+      review.appendChild(h("p", { class: "confirm-amount", text: model.formatUgx(fields.amount) }));
+      review.appendChild(h("dl", { class: "meta-list" }, [
+        h("div", { class: "meta-row" }, [h("dt", { text: "Direction" }), h("dd", { text: model.directionLabel(fields.direction) + " (" + fields.direction + ")" })]),
+        h("div", { class: "meta-row" }, [h("dt", { text: "Channel" }), h("dd", { text: model.channelLabel(fields.channel) })]),
+        h("div", { class: "meta-row" }, [h("dt", { text: "Product" }), h("dd", { text: model.productLabel(fields.product) })]),
+        h("div", { class: "meta-row" }, [h("dt", { text: "Destination" }), h("dd", { text: book.demo
+          ? "Demo book in this browser tab — nothing is sent"
+          : "Payments gateway on " + location.host + " · POST /payments/v1/payments/initiate · partner key" })])
+      ]));
+      entry.hidden = true;
+      review.hidden = false;
+      back.hidden = false;
+      next.textContent = book.demo ? "Add to demo book" : "Confirm and send " + model.formatUgx(fields.amount);
     });
+    dialog.addEventListener("close", function () { dialog.remove(); });
     document.body.appendChild(dialog);
     dialog.showModal();
   }
@@ -892,7 +1068,7 @@
     var list = extras();
     list.unshift(row);
     writeStore(EXTRA, JSON.stringify(list));
-    toast("Added " + id + " to the demo book.", "success");
+    toast("DEMO: added " + id + " to the demo book in this tab. Nothing was sent to the gateway.", "success");
     boot();
   }
 
@@ -940,7 +1116,8 @@
       }
     }
     var rows = book.remote ? book.intents : model.filterIntents(book.intents, q);
-    var summary = book.summary || model.summarize(rows);
+    /* KPIs are computed here from the full row set so their definitions match the overview. */
+    var summary = model.summarize(rows);
     var from = h("input", { type: "date", value: q.from, "aria-label": "Date from" });
     var to = h("input", { type: "date", value: q.to, "aria-label": "Date to" });
     var channel = h("select", { "aria-label": "Channel" }, selectOptions([
@@ -962,6 +1139,8 @@
     form.addEventListener("submit", function (event) {
       event.preventDefault();
       writeQuery({
+        text: q.text,
+        status: q.status,
         from: from.value,
         to: to.value,
         channel: channel.value,
@@ -987,14 +1166,15 @@
     model.CHANNELS.forEach(function (ch) {
       var row = summary.byChannel[ch.id];
       var visual = model.channelVisual(ch.id);
-      var rate = row.count ? ((row.posted / row.count) * 100) : 0;
-      rates.appendChild(mixRow(visual.label, Math.round(rate), row.count ? rate.toFixed(1) + "%" : "—", visual.slug));
+      var rate = model.successRate(row.posted, row.completed);
+      rates.appendChild(mixRow(visual.label, rate == null ? 0 : Math.round(rate), model.formatRate(rate), visual.slug));
     });
-    var packs = model.settlementPacks(rows).slice(0, 8);
+    var allPacks = model.settlementPacks(rows);
+    var packs = allPacks.slice(0, 8);
     var body = h("tbody");
     if (!packs.length) body.appendChild(h("tr", {}, [h("td", { colspan: "7", class: "empty-hint", text: "No settlement packs in this range." })]));
     packs.forEach(function (pack) {
-      var settled = pack.posted >= pack.volume && pack.count > 0;
+      var settled = model.packSettled(pack);
       body.appendChild(h("tr", {}, [
         h("td", { class: "mono", text: pack.id }),
         h("td", { text: model.formatDay(pack.day) }),
@@ -1011,18 +1191,18 @@
       h("div", { class: "page-head" }, [
         h("div", {}, [
           h("h1", { class: "page-title", text: "Reports" }),
-          h("p", { class: "page-sub", text: "Volume by channel, success rate, and settlement packs — export from the book on screen." })
+          h("p", { class: "page-sub", text: book.demo ? "DEMO book — volume, success rate and settlement packs from fixtures/intents.json." : "Volume by channel, success rate, and settlement packs from the full gateway book for these filters." })
         ]),
         h("div", { class: "page-actions" }, [
-          h("button", { class: "btn btn-amber", type: "button", text: "↓ Export CSV", onclick: function () { exportCsv(rows); } })
+          h("button", { class: "btn btn-amber", type: "button", text: book.demo ? "↓ Export DEMO CSV" : "↓ Export CSV", onclick: function () { exportCsv(rows); } })
         ])
       ]),
       form,
       h("div", { class: "kpi-grid", style: "grid-template-columns:repeat(4,1fr)" }, [
         kpi("Gross volume", "UGX " + model.compactNumber(summary.volumeAll), range),
-        kpi("Success rate", summary.successRate.toFixed(1) + "%", summary.posted + " posted", "green", "up"),
-        kpi("Settled to core", "UGX " + model.compactNumber(summary.volumePosted), "Fineract POSTED", "amber"),
-        kpi("In flight / failed", "UGX " + model.compactNumber(inflight), "Pending + declined", "warn")
+        kpi("Success rate (completed runs)", model.formatRate(summary.successRate), summary.posted + " posted of " + summary.completed + " completed · pending & ambiguous excluded", "green"),
+        kpi("Settled to core", "UGX " + model.compactNumber(summary.volumePosted), "POSTED only · reversed excluded", "amber"),
+        kpi("Not settled", "UGX " + model.compactNumber(inflight), "Pending, failed, ambiguous and reversed", "warn")
       ]),
       h("div", { class: "grid-2" }, [
         h("section", { class: "card" }, [
@@ -1036,8 +1216,8 @@
       ]),
       h("section", { class: "card" }, [
         h("div", { class: "card-h" }, [
-          h("h2", { text: "Settlement packs" }),
-          h("button", { class: "btn btn-ghost btn-sm", type: "button", text: "↓ Export CSV", onclick: function () { exportPacks(packs); } })
+          h("h2", { text: "Settlement packs" + (allPacks.length > packs.length ? " · latest " + packs.length + " of " + allPacks.length : "") }),
+          h("button", { class: "btn btn-ghost btn-sm", type: "button", text: book.demo ? "↓ Export DEMO CSV (all packs)" : "↓ Export CSV (all packs)", onclick: function () { exportPacks(allPacks); } })
         ]),
         h("div", { class: "table-wrap" }, [
           h("table", { class: "data" }, [
@@ -1052,31 +1232,36 @@
   }
 
   async function exportPayments(rows) {
-    if (book.remote) {
-      try {
-        var list = await fetchPortal("/payments/v1/portal/intents?" + model.portalQuery(portalFilters({ limit: 200, offset: 0 })));
-        if (list.response.ok) {
-          exportCsv(model.normalizePortalList(list.parsed.body).items);
-          return;
-        }
-      } catch (e) { /* export the rows on screen */ }
+    if (!book.remote) {
+      exportCsv(rows);
+      return;
     }
-    exportCsv(rows);
+    /* The table holds one page; the export pages through the whole filtered book. */
+    try {
+      var all = await fetchAllIntents(portalFilters());
+      if (!all.ok) {
+        toast(all.error.replace("No data shown.", "Nothing exported."), "error");
+        return;
+      }
+      exportCsv(all.items);
+      if (all.truncated) toast("Export holds the first " + all.items.length + " of " + all.total + " rows. Narrow the filters.", "error");
+    } catch (e) {
+      toast("Payments gateway unreachable. Nothing exported.", "error");
+    }
+  }
+
+  function fileName(base) {
+    return (book.demo ? "DEMO-" : "") + base;
   }
 
   function exportCsv(rows) {
-    download("phaneroo-payments.csv", model.toCsv(rows));
-    toast("Exported " + rows.length + " rows.", "success");
+    download(fileName("phaneroo-payments.csv"), model.toCsv(rows, { demo: book.demo }));
+    toast((book.demo ? "DEMO: exported " : "Exported ") + rows.length + " rows.", "success");
   }
 
   function exportPacks(packs) {
-    var lines = ["packId,date,channel,txns,volume,corePosted,status"];
-    packs.forEach(function (pack) {
-      var settled = pack.posted >= pack.volume && pack.count > 0;
-      lines.push([pack.id, pack.day, pack.channel, pack.count, pack.volume, pack.posted, settled ? "Settled" : "Open"].join(","));
-    });
-    download("phaneroo-settlement-packs.csv", lines.join("\n") + "\n");
-    toast("Exported " + packs.length + " packs.", "success");
+    download(fileName("phaneroo-settlement-packs.csv"), model.packsToCsv(packs, { demo: book.demo }));
+    toast((book.demo ? "DEMO: exported " : "Exported ") + packs.length + " packs.", "success");
   }
 
   function download(name, text) {
@@ -1091,13 +1276,12 @@
 
   function renderChannels() {
     var summary = model.summarize(book.intents);
-    var today = model.latestDay(book.intents);
-    var todaySum = model.summarize(model.onDay(book.intents, today));
+    var todaySum = model.summarize(model.onDay(book.intents, todayInfo().day));
     var cards = model.CHANNELS.map(function (ch) {
       var visual = model.channelVisual(ch.id);
       var row = summary.byChannel[ch.id];
       var todayRow = todaySum.byChannel[ch.id];
-      var rate = row.count ? ((row.posted / row.count) * 100).toFixed(1) + "%" : "—";
+      var rate = model.formatRate(model.successRate(row.posted, row.completed));
       var mode = model.modeFor(ch.id, book.health);
       var extra = ch.id === "BANK"
         ? [["Account ref", "PHS-UG-****4421"], ["Settlement", mode === "live" ? "T+1" : "T+1 " + (mode || "mock")]]
@@ -1122,31 +1306,13 @@
           modeBadge(mode)
         ]),
         h("div", { class: "channel-stats" }, [
-          h("div", { class: "stat-box" }, [h("div", { class: "v", text: rate }), h("div", { class: "l", text: "Success" })]),
-          h("div", { class: "stat-box" }, [h("div", { class: "v", text: String(todayRow.count) }), h("div", { class: "l", text: "Today" })]),
+          h("div", { class: "stat-box" }, [h("div", { class: "v", text: rate }), h("div", { class: "l", text: "Success · completed" })]),
+          h("div", { class: "stat-box" }, [h("div", { class: "v", text: String(todayRow.count) }), h("div", { class: "l", text: book.demo ? "Book day" : "Today" })]),
           h("div", { class: "stat-box" }, [h("div", { class: "v", text: model.compactNumber(row.volume) }), h("div", { class: "l", text: "UGX vol" })])
         ]),
         cfg
       ]);
     });
-    var health = book.health;
-    var healthRows = h("div", {});
-    if (health) {
-      var mode = health.mode || {};
-      [
-        ["Status", health.status || "ok"],
-        ["Service", health.service || "payments"],
-        ["Channel", mode.channel || "—"],
-        ["MTN MoMo", mode.mtnMomo || mode.channel || "—"],
-        ["Airtel Money", mode.airtelMoney || mode.channel || "—"],
-        ["Fineract", mode.fineract || "—"],
-        ["Database", health.checks && health.checks.database ? health.checks.database : "—"]
-      ].forEach(function (pair) {
-        healthRows.appendChild(h("div", { class: "cfg-row" }, [h("span", { text: pair[0] }), h("span", { text: String(pair[1]) })]));
-      });
-    } else {
-      healthRows.appendChild(h("p", { class: "page-sub", text: "This host did not return /payments/health. Badges stay unconfirmed until the portal is opened beside the gateway." }));
-    }
     return [
       h("div", { class: "page-head" }, [
         h("div", {}, [
@@ -1159,13 +1325,55 @@
       ]),
       h("div", { class: "notice", text: "Read-only. Cash stays on the teller desk. Webhook paths are the live gateway routes. No channel secrets are shown." }),
       h("div", { class: "channel-grid" }, cards),
-      h("section", { class: "card", id: "health" }, [
-        h("div", { class: "card-h" }, [
-          h("h2", { text: "Gateway health" }),
-          h("a", { href: "/payments/docs", target: "_blank", rel: "noopener", text: "API docs" })
-        ]),
-        h("div", { class: "card-b" }, [healthRows])
-      ])
+      healthCard()
+    ];
+  }
+
+  function healthCard() {
+    var health = book.health;
+    var healthRows = h("div", {});
+    if (health) {
+      var mode = health.mode || {};
+      [
+        ["Status", health.status || "—"],
+        ["Service", health.service || "payments"],
+        ["Channel", mode.channel || "—"],
+        ["MTN MoMo", mode.mtnMomo || mode.channel || "—"],
+        ["Airtel Money", mode.airtelMoney || mode.channel || "—"],
+        ["Fineract", mode.fineract || "—"],
+        ["Database", health.checks && health.checks.database ? health.checks.database : "—"]
+      ].forEach(function (pair) {
+        healthRows.appendChild(h("div", { class: "cfg-row" }, [h("span", { text: pair[0] }), h("span", { text: String(pair[1]) })]));
+      });
+    } else {
+      healthRows.appendChild(h("p", { class: "page-sub", text: "This host did not return /payments/health. Badges stay unconfirmed." }));
+    }
+    /* No API docs link: gateway docs are not public and Caddy blocks /payments/docs. */
+    return h("section", { class: "card", id: "health" }, [
+      h("div", { class: "card-h" }, [h("h2", { text: "Gateway health" })]),
+      h("div", { class: "card-b" }, [healthRows])
+    ]);
+  }
+
+  var TITLES = { overview: "Payments overview", payments: "Payments", payment: "Payment run", reports: "Reports", channels: "Channels" };
+
+  /* Read failed and demo mode is off: say why, show no figures. */
+  function renderError() {
+    return [
+      h("div", { class: "page-head" }, [
+        h("div", {}, [h("h1", { class: "page-title", text: TITLES[page] || "Payments" })]),
+        h("div", { class: "page-actions" }, [
+          h("button", { class: "btn btn-ghost", type: "button", text: "Retry read", onclick: function () { boot(); } })
+        ])
+      ]),
+      h("div", { class: "error-state", role: "alert" }, [
+        h("strong", { text: book.gatewayError }),
+        h("p", { text: "The portal does not substitute sample figures for a failed read. To look at the screens with sample data, open the clearly marked " }, [
+          h("a", { href: demoHref(), text: "demo book" }),
+          document.createTextNode(".")
+        ])
+      ]),
+      page === "channels" ? healthCard() : null
     ];
   }
 
@@ -1174,9 +1382,11 @@
     fillChrome();
     var root = document.getElementById("portal-root");
     root.textContent = "";
-    if (book.gatewayError) root.appendChild(h("div", { class: "notice", text: book.gatewayError }));
+    showDemoBanner();
     var nodes = [];
-    if (page === "overview") nodes = renderOverview();
+    if (!book.gatewayError && book.notice) root.appendChild(h("div", { class: "notice notice-warn", role: "status", text: book.notice }));
+    if (book.gatewayError) nodes = renderError();
+    else if (page === "overview") nodes = renderOverview();
     else if (page === "payments") nodes = renderPayments();
     else if (page === "payment") nodes = renderDetail();
     else if (page === "reports") nodes = renderReports();
@@ -1197,11 +1407,32 @@
     } catch (e) {
       if (root) {
         root.textContent = "";
-        root.appendChild(h("div", { class: "empty-hint", text: "The payments book could not be loaded." }));
+        root.appendChild(h("div", { class: "error-state", role: "alert", text: (isDemo() ? "The demo book could not be loaded." : "The payments book could not be loaded.") + " No data shown." }));
       }
     }
   }
 
-  markNav();
-  boot();
+  /* Desk login guard: requireAuth() sends the operator to /login.html without a live session. */
+  function authGate() {
+    var api = window.FineractAPI;
+    if (!api || typeof api.requireAuth !== "function") {
+      var root = document.getElementById("portal-root");
+      if (root) root.textContent = "Desk sign-in could not be checked (/assets/api.js did not load). No data shown.";
+      return false;
+    }
+    if (!api.requireAuth()) {
+      document.body.classList.add("auth-pending");
+      return false;
+    }
+    if (typeof api.startSessionTimers === "function") api.startSessionTimers();
+    return true;
+  }
+
+  clearLegacyKeys();
+  if (authGate()) {
+    syncDemoFlag();
+    showDemoBanner();
+    markNav();
+    boot();
+  }
 })();
