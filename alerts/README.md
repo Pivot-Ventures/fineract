@@ -2,9 +2,61 @@
 
 Member alerts for Phaneroo SACCO. Desk posts a normalized event; this service renders the template and fans out to **Africa’s Talking SMS** and **LipeChat WhatsApp**. Email is a config slot only.
 
-The Nest payments gateway at `/opt/pivot-sacco/payments` is a different service (MoMo, Airtel, bank, card). This folder is the alerts lane: run it beside that gateway, and let nginx expose it at `/alerts/`.
+The Nest payments gateway at `/opt/pivot-sacco/payments` is a different service (MoMo, Airtel, bank, card). This folder is the alerts lane: it runs beside that gateway, and the reverse proxy exposes it at `/alerts/`.
 
-Merging to `main` ships the Desk pages under `desk/transactional-alerts/` via **Deploy SACCO Desk**. It does **not** start this process and it does not copy this folder to the droplet. Install the service on the host yourself (systemd or Docker). Do not rsync it from a laptop checkout.
+**Deploy SACCO Desk** (`.github/workflows/deploy-desk.yml`) rsyncs `desk/`, including `desk/transactional-alerts/`, only when `desk/**` or that workflow file changes. It does not copy this folder or start this process.
+
+**Deploy SACCO Alerts** (`.github/workflows/deploy-alerts.yml`) rsyncs this folder and restarts `pivot-sacco-alerts.service` when `alerts/**` or that workflow file changes, and when someone runs the workflow manually from `main`. A Desk-only commit does not deploy alerts. An alerts-only commit does not deploy Desk. Do not rsync this folder from a laptop checkout.
+
+## Deploy
+
+The workflow checks out `main`, rsyncs `alerts/` to the droplet, runs `npm ci --omit=dev` on the host, and installs a systemd unit with `PORT=8095`. The process binds `0.0.0.0`; the proxy and the deploy health check use `127.0.0.1:8095`. The workflow restarts only `pivot-sacco-alerts.service`. It does not reload Caddy or nginx, and it does not restart Fineract, Desk, or the payments gateway.
+
+`rsync --delete` removes source files that left the repo. It does not delete `data/` (the JSON store), `.env`, or `alerts.env`. `npm ci --omit=dev` then installs from `package-lock.json` on the host.
+
+### GitHub Actions secrets
+
+Reuse the Desk deploy secrets. Do not add `AT_USERNAME`, `AT_API_KEY`, `AT_SENDER_ID`, `LIPECHAT_API_KEY`, or `LIPECHAT_FROM` as Actions secrets. This workflow never reads them.
+
+| Secret | Required | Purpose |
+| --- | --- | --- |
+| `SACCO_DESK_HOST` | yes | Droplet address. Same value Desk uses. |
+| `SACCO_DESK_USER` | yes | SSH account. Same value Desk uses. |
+| `SACCO_DESK_SSH_KEY` | yes | Unencrypted private key. Same value Desk uses. |
+| `SACCO_ALERTS_PATH` | no | Deploy directory. Default `/opt/pivot-sacco/alerts`. |
+| `SACCO_ALERTS_ENV_FILE` | no | Host env file. Default `/etc/pivot-sacco/alerts.env`. |
+
+`SACCO_ALERTS_PATH` must not be the Desk tree or the payments tree. The env file must sit outside the deploy directory so rsync cannot delete it.
+
+### Host environment file
+
+Create `/etc/pivot-sacco/alerts.env` on the droplet (mode `600`, owner root). systemd reads it as PID 1 via `EnvironmentFile=`. This process does not load a `.env` file by itself. Copy from `alerts/.env.example` and set:
+
+```bash
+PORT=8095
+ALERTS_DRY_RUN=false
+AT_USERNAME=
+AT_API_KEY=
+AT_SENDER_ID=
+LIPECHAT_API_KEY=
+LIPECHAT_FROM=
+```
+
+`AT_SENDER_ID` is optional. Leave `ALERTS_API_KEY` unset until the reverse proxy injects `X-Alerts-Key`. Keep `PORT=8095`: the Caddy and nginx snippets proxy to that port. Do not commit this file.
+
+If the file is missing, the unit still starts and both providers dry-run. Create the file before expecting live SMS or WhatsApp. A missing key for one provider dry-runs that provider only.
+
+### First-time host steps
+
+1. Install Node.js 18 or newer so non-interactive SSH sees `node` and `npm` on the default PATH (for example `/usr/bin/node`). nvm installs under a home directory are refused: systemd cannot rely on them.
+2. Confirm the Desk SSH user can create `/opt/pivot-sacco/alerts`. When that user is root, the workflow creates a system account `pivot-alerts` and runs the service as that account. When the SSH user is not root, the service runs as that same user, and passwordless `sudo` must allow `install` of `/etc/systemd/system/pivot-sacco-alerts.service` plus `systemctl daemon-reload`, `enable`, and `restart` for that unit.
+3. Write `/etc/pivot-sacco/alerts.env` as above.
+4. Add the reverse-proxy snippet once, then reload that proxy yourself. Production Desk is served by Caddy (`desk/README.md`). Use `alerts/deploy/caddy-alerts.caddy` inside the existing site block, beside the current `/payments` and `/fineract-provider` lines. If this host uses nginx instead, use `alerts/deploy/nginx-alerts.conf` inside the existing Desk `server` block. Do not replace the desk root or `/payments/`. The `$alerts_api_key` header is commented out so an undefined nginx variable cannot stop Desk from starting.
+5. Merge to `main`, or run **Deploy SACCO Alerts** with `workflow_dispatch` on `main`.
+6. On the droplet, `curl -sS http://127.0.0.1:8095/alerts/api/v1/health`. After the proxy reload, the same check belongs at `https://<desk-host>/alerts/api/v1/health`.
+7. Do not publish port 8095 on the public firewall. The app binds `0.0.0.0` so the local proxy can reach it; only 443 should be public.
+
+Manual runs from any branch other than `main` are skipped.
 
 ## Run locally
 
@@ -43,7 +95,7 @@ The smoke test checks the Africa’s Talking form body (`username`, `to`, `messa
 | `LIPECHAT_BASE_URL` | Default `https://gateway.lipachat.com`. |
 | `ALERTS_EMAIL_FROM` | Reserved. Unused until an email provider is added. |
 
-Copy `alerts/.env.example`. Do not commit secrets. This process does not read a `.env` file; export the variables in the service manager.
+Copy `alerts/.env.example`. Do not commit secrets. This process does not read a `.env` file; export the variables in the shell, or let systemd load `/etc/pivot-sacco/alerts.env` (see Deploy).
 
 Health returns booleans only (`configured`, `dryRun`). It never returns key material.
 
@@ -167,24 +219,15 @@ Not wired, on purpose:
 - **Savings account closure.** Closure is several Fineract posts (interest, optional transfer, close). An alert in the middle can fire for a close that then fails.
 - **Payments gateway** (`/opt/pivot-sacco/payments`, not in this repo). After a successful collect or disburse, that service can `POST /alerts/api/v1/events` the same JSON. Do not call it before Fineract has accepted the posting.
 
-If `ALERTS_API_KEY` is set, browser calls need the header. Preferred production setup: keep the process on localhost and let nginx add the header so the key is not stored in Desk JavaScript.
+If `ALERTS_API_KEY` is set, browser calls need the header. Preferred production setup: keep the process on localhost and let the reverse proxy add the header so the key is not stored in Desk JavaScript. Snippets: `alerts/deploy/caddy-alerts.caddy` (this droplet's Desk proxy) and `alerts/deploy/nginx-alerts.conf`. The nginx header line ships commented out. Uncomment it only after `set $alerts_api_key "...";` exists in the `http` block. An undefined `$alerts_api_key` prevents nginx from starting. Deploy SACCO Alerts does not edit or reload either proxy.
 
-```nginx
-location /alerts/ {
-    proxy_pass http://127.0.0.1:8095;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Alerts-Key $alerts_api_key;
-}
-```
-
-`$alerts_api_key` is an nginx variable you define on the host. Desk calls relative `/alerts/api/v1`, same pattern as `/payments`.
+Desk calls relative `/alerts/api/v1`, same pattern as `/payments`.
 
 The Desk screen is `https://<desk-host>/transactional-alerts/`.
 
 ## Persistence
 
-v1 stores templates and the delivery log in one JSON file (`ALERTS_DATA_FILE`, default `data/store.json`). Writes are serialized in-process and use a temp file plus rename. The log keeps the latest 500 rows. The file is gitignored.
+v1 stores templates and the delivery log in one JSON file (`ALERTS_DATA_FILE`, default `data/store.json`). On the droplet the unit sets that to `<deploy-dir>/data/store.json` (default `/opt/pivot-sacco/alerts/data/store.json`). Deploys do not delete `data/`. Writes are serialized in-process and use a temp file plus rename. The log keeps the latest 500 rows. The file is gitignored.
 
 To move to Postgres later, replace `createFileStore` in `src/store.js` with an implementation of the same methods: `listTemplates`, `getTemplate`, `putTemplate`, `deleteTemplate`, `appendDeliveries`, `listDeliveries`. A single `alert_templates` table (one row per event type, JSON document) and an `alert_deliveries` table (the delivery record as JSON, indexed by `at desc`) is enough. Point `ALERTS_DATA_FILE` nowhere and construct that store in `createApp`. No HTTP or template shape changes.
 
