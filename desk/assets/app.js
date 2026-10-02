@@ -21,7 +21,8 @@
   /* Ops tools that live outside the static sidebar (separate folders under the desk root). */
   var overviewGroup = document.querySelector(".sidebar-nav .nav-group");
   [
-    ["payments", "/payments-portal/", "💳", "Payments portal"]
+    ["payments", "/payments-portal/", "💳", "Payments portal"],
+    ["transactional-alerts", "/transactional-alerts/", "✉", "Transactional alerts"]
   ].forEach(function (l) {
     if (!overviewGroup || document.querySelector(".sidebar-nav [data-nav='" + l[0] + "']")) return;
     var a = document.createElement("a");

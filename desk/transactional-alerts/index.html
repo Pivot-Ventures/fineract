@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Transactional alerts · Phaneroo SACCO</title>
+  <link rel="stylesheet" href="assets/alerts.css" />
+</head>
+<body>
+<a class="skip-link" href="#alerts-root">Skip to content</a>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar" aria-label="Transactional alerts">
+    <div class="sidebar-brand">
+      <div class="brand-mark" aria-hidden="true">PS</div>
+      <div class="brand-text"><strong>Phaneroo SACCO</strong><span>Transactional alerts</span></div>
+    </div>
+    <nav class="sidebar-nav" aria-label="Alerts">
+      <a class="nav-link" data-view="templates" href="#templates">Templates</a>
+      <a class="nav-link" data-view="deliveries" href="#deliveries">Delivery log</a>
+      <a class="nav-link" data-view="test" href="#test">Test send</a>
+      <a class="nav-link" href="../dashboard.html">Back to Desk</a>
+    </nav>
+    <div class="sidebar-foot">
+      <strong>Alerts service</strong>
+      same host /alerts/api/v1
+      <div class="mw-chip" id="health-chip">● checking</div>
+      <label for="api-key">Operator key <span class="help">(only if ALERTS_API_KEY is set)</span>
+        <input id="api-key" type="password" autocomplete="off" placeholder="Leave empty when nginx injects it" />
+      </label>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Open menu">☰</button>
+      <h1 id="page-title">Templates</h1>
+      <div class="topbar-right">
+        <button type="button" class="btn btn-sm btn-ghost" id="refresh-btn">Refresh</button>
+      </div>
+    </header>
+    <div class="content" id="alerts-root">Loading alerts…</div>
+  </div>
+</div>
+<script src="assets/alerts.js"></script>
+</body>
+</html>
