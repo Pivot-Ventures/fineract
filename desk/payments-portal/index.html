@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Overview · Payments portal · Phaneroo SACCO</title>
+  <link rel="stylesheet" href="../assets/app.css" />
+  <link rel="stylesheet" href="assets/portal.css" />
+</head>
+<body data-page="overview">
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div class="app-shell">
+<aside class="sidebar" id="sidebar" aria-label="Payments portal">
+  <div class="sidebar-brand">
+    <div class="brand-mark" aria-hidden="true">P</div>
+    <div class="brand-text"><strong>Payments</strong><span>Phaneroo SACCO · UGX</span></div>
+  </div>
+  <nav class="sidebar-nav" aria-label="Portal">
+    <div class="nav-group"><div class="nav-group-label">Portal</div>
+      <a class="nav-link" data-nav="overview" href="index.html"><span class="nav-icon" aria-hidden="true">▣</span> Overview</a>
+      <a class="nav-link" data-nav="payments" href="payments.html"><span class="nav-icon" aria-hidden="true">⇄</span> Payments</a>
+      <a class="nav-link" data-nav="reports" href="reports.html"><span class="nav-icon" aria-hidden="true">▤</span> Reports</a>
+      <a class="nav-link" data-nav="channels" href="channels.html"><span class="nav-icon" aria-hidden="true">◉</span> Channels</a>
+    </div>
+    <div class="nav-group"><div class="nav-group-label">Desk</div>
+      <a class="nav-link" href="/dashboard.html"><span class="nav-icon" aria-hidden="true">←</span> SACCO desk</a>
+      <a class="nav-link" href="/payments/docs" target="_blank" rel="noopener"><span class="nav-icon" aria-hidden="true">↗</span> API docs</a>
+    </div>
+  </nav>
+  <div class="sidebar-foot">Middleware · mock channel mode</div>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="mobile-toggle" type="button" data-toggle-sidebar aria-label="Open menu" aria-controls="sidebar">☰</button>
+  <span class="user-name">Payments portal</span>
+  <div class="topbar-right">
+    <span class="chip">UGX</span>
+    <button type="button" class="btn btn-sm btn-ghost" id="gateway-key-btn">Demo book</button>
+  </div>
+</header>
+<main class="content" id="main-content">
+  <div id="portal-root">Loading payments…</div>
+</main>
+</div>
+</div>
+<script src="assets/model.js"></script>
+<script src="assets/portal.js"></script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+/* Payments portal extras. Colour comes from desk/assets/app.css (Phaneroo green + amber). */
+
+.pay-banner {
+  background: var(--amber-soft);
+  border: 1px solid #F0D7A4;
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+.pay-banner.gateway {
+  background: var(--teal-soft);
+  border-color: #C9DDB4;
+}
+.pay-banner a { font-weight: 700; }
+
+.mix-row {
+  display: grid;
+  grid-template-columns: 116px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.mix-bar {
+  height: 10px;
+  background: var(--teal-soft);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.mix-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--teal);
+  border-radius: 999px;
+}
+.mix-bar.amber > span { background: var(--amber); }
+
+.feed-list { list-style: none; margin: 0; padding: 0; }
+.feed-list li {
+  display: grid;
+  grid-template-columns: 118px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #EFEBE0;
+  font-size: 13px;
+}
+.feed-list li:last-child { border-bottom: none; }
+.feed-list a { font-weight: 700; }
+
+.pay-timeline { list-style: none; margin: 0; padding: 0; }
+.pay-timeline li {
+  position: relative;
+  padding: 0 0 18px 28px;
+  margin-left: 6px;
+  border-left: 2px solid var(--border);
+}
+.pay-timeline li:last-child { border-left-color: transparent; padding-bottom: 0; }
+.pay-timeline li::before {
+  content: "";
+  position: absolute;
+  left: -7px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #E2DCCB;
+  box-shadow: 0 0 0 3px #fff;
+}
+.pay-timeline li.done::before { background: var(--teal); }
+.pay-timeline li.current::before { background: var(--amber); }
+.pay-timeline li.failed::before { background: var(--danger); }
+.pay-timeline .step-label { font-weight: 750; font-size: 14px; }
+.pay-timeline .step-detail { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+
+.channel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.channel-card h3 { margin: 0 0 6px; font-size: 16px; }
+.channel-card p { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+
+.mode-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+.mode-badge.mock { background: var(--amber-soft); color: var(--warn); }
+.mode-badge.sandbox { background: var(--info-soft); color: var(--info); }
+.mode-badge.live { background: var(--success-soft); color: var(--success); }
+.mode-badge.unconfirmed { background: #EFEBE0; color: var(--muted); }
+
+table.data tr[data-href] { cursor: pointer; }
+table.data tr[data-href]:hover td { background: var(--teal-soft); }
+
+.ref-list { display: grid; gap: 8px; }
+.ref-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.ref-list .k { color: var(--muted); font-weight: 650; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.ref-list .v { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; text-align: right; word-break: break-all; }
+
+.pay-dialog {
+  border: none;
+  border-radius: 12px;
+  padding: 0;
+  max-width: 440px;
+  width: calc(100% - 32px);
+  background: #fff;
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+.pay-dialog::backdrop { background: rgba(31, 58, 14, .45); }
+.pay-dialog form { padding: 18px; }
+.pay-dialog h2 { margin: 0 0 6px; font-size: 18px; }
+.pay-dialog p { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+
+@media (max-width: 720px) {
+  .feed-list li, .mix-row { grid-template-columns: 1fr; gap: 4px; }
+  .ref-list div { flex-direction: column; }
+  .ref-list .v { text-align: left; }
+}
