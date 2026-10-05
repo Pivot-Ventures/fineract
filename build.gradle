@@ -370,7 +370,8 @@ allprojects  {
             // Not Apache Fineract Java sources.
             'desk/**',
             'mobile/**',
-            'alerts/**'
+            'alerts/**',
+            'deploy/**'
         ]
     }
 }
