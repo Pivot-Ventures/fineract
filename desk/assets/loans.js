@@ -750,9 +750,8 @@
           if (v.receipt) body.receiptNumber = v.receipt;
           return post(loanPath("?command=disburse"), body).then(function (result) {
             notifyAlert({
-              type: "loan_disburse", memberId: loan.clientId, account: loan.accountNo,
-              amount: v.amount, currency: "UGX", reference: v.receipt || "",
-              meta: { memberName: loan.clientName || "" }
+              type: "loan_disburse", loanId: loan.id, transactionId: result && result.subResourceId,
+              pending: Boolean(result && result.rollbackTransaction)
             });
             return result;
           });
@@ -773,14 +772,7 @@
             ["Fees collected at disbursement", money(fees)], ["Date", v.date]]), confirmLabel: "Disburse " + money(v.amount) + " to savings" };
         },
         onSubmit: function (v) {
-          return post(loanPath("?command=disburseToSavings"), withDate({ actualDisbursementDate: v.date, transactionAmount: String(v.amount), note: v.note || "" })).then(function (result) {
-            notifyAlert({
-              type: "loan_disburse", memberId: loan.clientId, account: loan.accountNo,
-              amount: v.amount, currency: "UGX", reference: "disburse-to-savings",
-              meta: { memberName: loan.clientName || "" }
-            });
-            return result;
-          });
+          return post(loanPath("?command=disburseToSavings"), withDate({ actualDisbursementDate: v.date, transactionAmount: String(v.amount), note: v.note || "" }));
         }
       }).then(done("Loan disbursed to savings"));
     };
@@ -817,9 +809,8 @@
           if (v.receipt) body.receiptNumber = v.receipt;
           return post(loanPath("/transactions?command=repayment"), body).then(function (result) {
             notifyAlert({
-              type: "loan_repay", memberId: loan.clientId, account: loan.accountNo,
-              amount: v.amount, currency: "UGX", reference: v.receipt || "",
-              meta: { memberName: loan.clientName || "" }
+              type: "loan_repay", loanId: loan.id, transactionId: result && result.resourceId,
+              pending: Boolean(result && result.rollbackTransaction)
             });
             return result;
           });
@@ -854,9 +845,8 @@
             transferAmount: String(v.amount), transferDate: v.date, transferDescription: v.note || ("Repayment of loan #" + loan.accountNo + " from savings")
           })).then(function (result) {
             notifyAlert({
-              type: "loan_repay", memberId: loan.clientId, account: loan.accountNo,
-              amount: v.amount, currency: "UGX", reference: v.note || "repay-from-savings",
-              meta: { memberName: loan.clientName || "" }
+              type: "transfer", transferId: result && result.resourceId,
+              pending: Boolean(result && result.rollbackTransaction)
             });
             return result;
           });
@@ -885,9 +875,8 @@
           if (v.receipt) body.receiptNumber = v.receipt;
           return post(loanPath("/transactions?command=repayment"), body).then(function (result) {
             notifyAlert({
-              type: "loan_repay", memberId: loan.clientId, account: loan.accountNo,
-              amount: amount, currency: "UGX", reference: v.receipt || "payoff",
-              meta: { memberName: loan.clientName || "" }
+              type: "loan_repay", loanId: loan.id, transactionId: result && result.resourceId,
+              pending: Boolean(result && result.rollbackTransaction)
             });
             return result;
           });

@@ -1,98 +1,64 @@
 /* Fire-and-forget member alerts after a Fineract posting has already succeeded.
+ * Sends only Fineract ids with the teller's own Desk session (X-Staff-Authorization);
+ * the alerts service reads the amount, balance and member phone from Fineract itself,
+ * so nothing typed in the browser ends up in the message. No secret lives in the Desk.
  * Uses fetch directly. Do not call FineractAPI.get: a 401 there signs the teller out,
  * and a network error raises the Desk status bar. Failures here are ignored. */
 (function () {
   "use strict";
   var ENDPOINT = "/alerts/api/v1/events";
+  var ID = /^[1-9][0-9]{0,17}$/;
 
-  function session() {
+  function staffKey() {
     var api = window.FineractAPI;
-    if (!api || !api.getSession) return null;
-    return api.getSession() || null;
+    if (!api || !api.getSession) return "";
+    var sess = api.getSession();
+    return (sess && sess.base64EncodedAuthenticationKey) || "";
   }
 
-  function fineractGet(path) {
-    var api = window.FineractAPI;
-    var sess = session();
-    if (!api || !sess || !sess.base64EncodedAuthenticationKey) return Promise.resolve(null);
-    return fetch((api.BASE || "/fineract-provider/api/v1") + path, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        "Fineract-Platform-TenantId": sess.tenantId || api.DEFAULT_TENANT || "default",
-        Authorization: "Basic " + sess.base64EncodedAuthenticationKey
-      },
-      credentials: "same-origin"
-    }).then(function (res) {
-      if (!res.ok) return null;
-      return res.json();
-    }).catch(function () { return null; });
+  function id(value) {
+    var text = value == null ? "" : String(value);
+    return ID.test(text) ? text : "";
   }
 
-  function alertsKey() {
-    try { return sessionStorage.getItem("transactionalAlerts.apiKey") || ""; }
-    catch (e) { return ""; }
-  }
-
-  function postEvent(event) {
-    var headers = { Accept: "application/json", "Content-Type": "application/json" };
-    var key = alertsKey();
-    if (key) headers["X-Alerts-Key"] = key;
-    return fetch(ENDPOINT, {
-      method: "POST",
-      headers: headers,
-      body: JSON.stringify(event),
-      credentials: "same-origin",
-      keepalive: true
-    }).catch(function () { return null; });
-  }
-
-  function withPhone(event) {
-    if (!event || !event.type) return Promise.resolve(null);
-    if (event.phone) return Promise.resolve(event);
-    var accountPath = "";
-    if (!event.memberId && event.savingsAccountId) accountPath = "/savingsaccounts/" + encodeURIComponent(event.savingsAccountId);
-    else if (!event.memberId && event.loanAccountId) accountPath = "/loans/" + encodeURIComponent(event.loanAccountId);
-    var lookup = accountPath ? fineractGet(accountPath) : Promise.resolve(null);
-    return lookup.then(function (account) {
-      if (account) {
-        if (!event.account && account.accountNo) event.account = String(account.accountNo);
-        if (!event.memberId && account.clientId != null) event.memberId = String(account.clientId);
-        event.meta = event.meta || {};
-        if (!event.meta.memberName && account.clientName) event.meta.memberName = String(account.clientName);
-      }
-      if (!event.memberId) return null;
-      return fineractGet("/clients/" + encodeURIComponent(event.memberId));
-    }).then(function (client) {
-      if (event.phone) return event;
-      if (!client) return null;
-      var phone = client.mobileNo || "";
-      if (!phone) return null;
-      event.phone = String(phone);
-      event.meta = event.meta || {};
-      if (!event.meta.memberName && client.displayName) event.meta.memberName = String(client.displayName);
-      return event;
-    });
+  /* Only these shapes are sent. Anything else (or a missing id) sends nothing. */
+  function payload(event) {
+    if (!event || event.pending) return null;
+    var type = event.type;
+    var tx = id(event.transactionId);
+    if (type === "deposit" || type === "withdrawal") {
+      var savings = id(event.savingsAccountId);
+      return tx && savings ? { type: type, transactionId: tx, savingsAccountId: savings } : null;
+    }
+    if (type === "loan_disburse" || type === "loan_repay") {
+      var loan = id(event.loanId);
+      return tx && loan ? { type: type, transactionId: tx, loanId: loan } : null;
+    }
+    if (type === "transfer") {
+      var transfer = id(event.transferId);
+      return transfer ? { type: "transfer", transferId: transfer } : null;
+    }
+    return null;
   }
 
   function notify(event) {
-    Promise.resolve().then(function () {
-      return withPhone(event);
-    }).then(function (ready) {
-      if (!ready || !ready.phone) return null;
-      var payload = {
-        type: ready.type,
-        memberId: ready.memberId ? String(ready.memberId) : "",
-        phone: String(ready.phone),
-        amount: ready.amount,
-        currency: ready.currency || "UGX",
-        account: ready.account ? String(ready.account) : "",
-        reference: ready.reference ? String(ready.reference) : "",
-        meta: ready.meta || {}
-      };
-      if (payload.amount == null || payload.amount === "") delete payload.amount;
-      return postEvent(payload);
-    }).catch(function () { return null; });
+    try {
+      var body = payload(event);
+      var key = staffKey();
+      if (!body || !key) return;
+      var sent = fetch(ENDPOINT, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "X-Staff-Authorization": "Basic " + key
+        },
+        body: JSON.stringify(body),
+        credentials: "same-origin",
+        keepalive: true
+      });
+      if (sent && sent.catch) sent.catch(function () { return null; });
+    } catch (e) { /* Fineract already posted; alerts must never block the Desk */ }
   }
 
   window.TransactionalAlerts = { notify: notify };

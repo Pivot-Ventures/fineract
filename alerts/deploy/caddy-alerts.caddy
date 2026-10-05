@@ -1,24 +1,55 @@
-# Phaneroo SACCO transactional alerts — host Caddy source of truth.
+# Phaneroo SACCO transactional alerts behind Caddy.
 #
-# This is the public /alerts/* route on sacco.pivotventures.tech. It is not
-# part of deploy/production/caddy/routes.caddy. That file is the gateway
-# container allowlist for Desk paths (/transactional-alerts/*, /payments-portal/*).
-# Inside the container, 127.0.0.1 is not this process.
+# LIVE HOST: /alerts/* on sacco.pivotventures.tech is proxied to
+# 127.0.0.1:8095 by a route that was added through the Caddy admin API
+# (localhost:2019). The on-disk /etc/caddy/Caddyfile on that host is
+# incomplete. Do not `caddy reload`, `caddy adapt --config
+# /etc/caddy/Caddyfile`, or replace the running config with that file.
+# A reload would drop /alerts/* and any other admin-API route that is not
+# in the file. Deploy SACCO Alerts does not call the admin API and does
+# not reload Caddy, nginx, Fineract, or the payments gateway.
 #
-# Live host Caddy proxies /alerts/* to 127.0.0.1:8095. That route was added
-# through the Caddy admin API (localhost:2019). The on-disk
-# /etc/caddy/Caddyfile on this host is incomplete. Do not `caddy reload`,
-# `caddy adapt --config /etc/caddy/Caddyfile`, or replace the running config
-# with that file. A reload would drop /alerts/* and any other admin-API route
-# that is not in the file.
+# The process accepts both /alerts/api/v1/... (what the live proxy sends)
+# and /v1/... (what handle_path below would send). Do not change the live
+# proxy to apply this snippet until the host Caddyfile is complete.
 #
-# Deploy SACCO Alerts (alerts/deploy/install-on-host.sh) does not call the
-# admin API and does not reload Caddy, nginx, Fineract, or the payments gateway.
+# This snippet is not part of deploy/production/caddy/routes.caddy. That
+# file is the gateway container allowlist for Desk paths
+# (/transactional-alerts/*, /payments-portal/*). Inside the container,
+# 127.0.0.1 is not this process.
 #
-# Uncomment the header only when the Caddy process environment has
-# ALERTS_API_KEY set to the same value as the alerts unit. Do not commit
-# the key.
+# Production Desk is served by Caddy (see desk/README.md). If you paste
+# this inside a complete site block, put it next to the /payments and
+# /fineract-provider reverse_proxy lines. Do not replace those lines or
+# the desk file_server. Run `caddy validate` before any reload.
+#
+# Auth is done by the alerts service itself:
+#   - Desk staff send X-Staff-Authorization: Basic <desk key>; the service
+#     verifies it against Fineract. Caddy passes it through untouched.
+#   - The member gateway sends X-Alerts-Service-Key, but it talks to
+#     127.0.0.1:8095 (or the backend network) directly, never through
+#     Caddy. Caddy therefore strips any client-supplied copy.
+# Caddy never injects a key. Do not add one here.
+#
+# Rate limiting: stock Caddy has no rate limiter. If this host fronts the
+# public internet, use the nginx snippet (limit_req) or a Caddy build with
+# the caddy-ratelimit module.
 
-reverse_proxy /alerts/* 127.0.0.1:8095 {
-	# header_up X-Alerts-Key {env.ALERTS_API_KEY}
+# handle_path strips the /alerts/api prefix:
+# /alerts/api/v1/health -> http://127.0.0.1:8095/v1/health
+handle_path /alerts/api/* {
+	request_body {
+		max_size 64KB
+	}
+	reverse_proxy 127.0.0.1:8095 {
+		# Strip internal-only credentials a client may try to forge.
+		header_up -X-Alerts-Service-Key
+		header_up -X-Alerts-Key
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 30s
+			read_timeout 30s
+			write_timeout 15s
+		}
+	}
 }

@@ -366,8 +366,12 @@ allprojects  {
             '**/META-INF/fineract-test.config',
             // Apache-specific GitHub metadata settings file
             '/.asf.yaml',
-            // Pivot SACCO Desk frontend (HTML/CSS/JS/Python). Not Apache Fineract Java sources.
-            'desk/**'
+            // Pivot SACCO Desk, member web app, and transactional alerts.
+            // Not Apache Fineract Java sources.
+            'desk/**',
+            'mobile/**',
+            'alerts/**',
+            'deploy/**'
         ]
     }
 }

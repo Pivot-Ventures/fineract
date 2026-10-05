@@ -31,33 +31,37 @@ function buildSmsRequest(input) {
   };
 }
 
+const AT_OK_CODES = [100, 101, 102];
+
+/**
+ * Success only when HTTP is 2xx, Recipients is a non-empty list, and every
+ * recipient statusCode is 100 (Processed), 101 (Sent) or 102 (Queued).
+ * Anything else is a failure carrying SMSMessageData.Message or the
+ * recipient status as the reason.
+ */
 function parseSmsResponse(res) {
-  const json = res && res.json;
-  const recipients = json && json.SMSMessageData && json.SMSMessageData.Recipients;
-  const first = Array.isArray(recipients) ? recipients[0] : null;
-  if (res && res.status >= 400) {
-    const message = (json && (json.message || json.errorMessage)) || (res.text || "").slice(0, 300) || ("HTTP " + res.status);
-    return { ok: false, providerId: first && first.messageId ? String(first.messageId) : "", error: String(message) };
+  const status = res && Number(res.status);
+  const json = res && res.json && typeof res.json === "object" ? res.json : null;
+  const data = json && json.SMSMessageData && typeof json.SMSMessageData === "object" ? json.SMSMessageData : null;
+  const recipients = data && Array.isArray(data.Recipients) ? data.Recipients : [];
+  const first = recipients[0] && typeof recipients[0] === "object" ? recipients[0] : null;
+  const providerId = first && first.messageId && first.messageId !== "None" ? String(first.messageId) : "";
+  const summary = data && data.Message ? String(data.Message) : "";
+  if (!(status >= 200 && status < 300)) {
+    const message = (json && (json.message || json.errorMessage)) || summary || String((res && res.text) || "").slice(0, 200) || ("HTTP " + status);
+    return { ok: false, providerId: providerId, error: String(message) };
   }
-  if (first) {
-    const code = Number(first.statusCode);
-    const failed = Number.isFinite(code) && code >= 400;
-    return {
-      ok: !failed,
-      providerId: first.messageId ? String(first.messageId) : "",
-      error: failed ? String(first.status || "rejected") : ""
-    };
+  if (!recipients.length) {
+    return { ok: false, providerId: "", error: summary || "Africa's Talking accepted no recipients" };
   }
-  if (res && res.status >= 200 && res.status < 300) {
-    return { ok: true, providerId: "", error: "" };
+  const rejected = recipients.filter(function (row) {
+    return !row || AT_OK_CODES.indexOf(Number(row.statusCode)) < 0;
+  });
+  if (rejected.length) {
+    const row = rejected[0] || {};
+    return { ok: false, providerId: providerId, error: String(row.status || summary || ("statusCode " + row.statusCode)) };
   }
-  return { ok: false, providerId: "", error: "unexpected Africa's Talking response" };
+  return { ok: true, providerId: providerId, error: "" };
 }
 
-function redactRequest(built) {
-  const headers = Object.assign({}, built.headers);
-  if (headers.apiKey) headers.apiKey = "[redacted]";
-  return { url: built.url, method: built.method, headers: headers, body: built.body };
-}
-
-module.exports = { messagingUrl, buildSmsRequest, parseSmsResponse, redactRequest };
+module.exports = { messagingUrl, buildSmsRequest, parseSmsResponse, AT_OK_CODES };

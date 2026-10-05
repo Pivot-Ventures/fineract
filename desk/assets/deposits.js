@@ -501,19 +501,15 @@
           };
         },
         onSubmit: function (v) {
-          var posted = {
-            type: isDep ? "deposit" : "withdrawal",
-            memberId: a.clientId,
-            account: a.accountNo,
-            amount: v.amount,
-            currency: "UGX",
-            reference: v.receipt || "",
-            meta: { memberName: a.clientName || "" }
-          };
           return call("post", "/savingsaccounts/" + enc(a.id) + "/transactions?command=" + (isDep ? "deposit" : "withdrawal"), withDate(Object.assign({
             transactionDate: v.date, transactionAmount: String(v.amount), note: v.note || ""
           }, paymentBits(v)))).then(function (result) {
-            notifyAlert(posted);
+            notifyAlert({
+              type: isDep ? "deposit" : "withdrawal",
+              savingsAccountId: (result && result.savingsId) || a.id,
+              transactionId: result && result.resourceId,
+              pending: Boolean(result && result.rollbackTransaction)
+            });
             return result;
           });
         }
@@ -562,12 +558,8 @@
           }));
           notifyAlert({
             type: "transfer",
-            memberId: a.clientId,
-            account: a.accountNo,
-            amount: v.amount,
-            currency: "UGX",
-            reference: (v.description || "").trim(),
-            meta: { memberName: a.clientName || "", toAccount: target.accountNo || "" }
+            transferId: result && result.resourceId,
+            pending: Boolean(result && result.rollbackTransaction)
           });
           return result;
         }
@@ -582,19 +574,7 @@
         fields: [dateField(label + " on", "date")],
         onSubmit: function (v) {
           var body = {}; body[dateKey] = v.date;
-          return call("post", "/savingsaccounts/" + enc(a.id) + "?command=" + cmd, withDate(body)).then(function (result) {
-            if (cmd === "activate") {
-              notifyAlert({
-                type: "activation",
-                memberId: a.clientId,
-                account: a.accountNo,
-                currency: "UGX",
-                reference: "savings-activate",
-                meta: { memberName: a.clientName || "" }
-              });
-            }
-            return result;
-          });
+          return call("post", "/savingsaccounts/" + enc(a.id) + "?command=" + cmd, withDate(body));
         }
       }).then(done(label === "Approve" ? "Account approved" : "Account activated"));
     };

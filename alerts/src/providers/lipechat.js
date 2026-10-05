@@ -37,20 +37,31 @@ function buildWhatsAppRequest(input) {
   };
 }
 
+const FAILED_STATUS = ["error", "failed", "failure", "false", "rejected"];
+
+/**
+ * 2xx alone is not success: LipeChat can answer 200 with
+ * { status: "error" | "failed" | false } or { success: false }.
+ */
 function parseWhatsAppResponse(res) {
-  const json = res && res.json;
-  const providerId = json && (json.messageId || json.id || (json.data && (json.data.messageId || json.data.id)));
-  if (res && res.status >= 200 && res.status < 300) {
-    return { ok: true, providerId: providerId ? String(providerId) : "", error: "" };
+  const status = res && Number(res.status);
+  const json = res && res.json && typeof res.json === "object" && !Array.isArray(res.json) ? res.json : null;
+  const data = json && json.data && typeof json.data === "object" ? json.data : null;
+  const rawId = json && (json.messageId || json.id || (data && (data.messageId || data.id)));
+  const providerId = rawId && (typeof rawId === "string" || typeof rawId === "number") ? String(rawId) : "";
+  const message = json && [json.message, json.error, json.errorMessage, data && data.message]
+    .filter(function (item) { return typeof item === "string" && item; })[0];
+  if (!(status >= 200 && status < 300)) {
+    return { ok: false, providerId: providerId, error: String(message || String((res && res.text) || "").slice(0, 200) || ("HTTP " + status)) };
   }
-  const message = (json && (json.message || json.error || json.errorMessage)) || (res && res.text ? String(res.text).slice(0, 300) : "") || ("HTTP " + (res && res.status));
-  return { ok: false, providerId: providerId ? String(providerId) : "", error: String(message) };
+  if (json) {
+    const flag = json.status;
+    const flagText = typeof flag === "string" ? flag.trim().toLowerCase() : "";
+    if (flag === false || FAILED_STATUS.indexOf(flagText) >= 0 || json.success === false || (data && data.status === false)) {
+      return { ok: false, providerId: providerId, error: String(message || ("status " + String(flag))) };
+    }
+  }
+  return { ok: true, providerId: providerId, error: "" };
 }
 
-function redactRequest(built) {
-  const headers = Object.assign({}, built.headers);
-  if (headers.apiKey) headers.apiKey = "[redacted]";
-  return { url: built.url, method: built.method, headers: headers, body: built.body };
-}
-
-module.exports = { templateUrl, buildWhatsAppRequest, parseWhatsAppResponse, redactRequest };
+module.exports = { templateUrl, buildWhatsAppRequest, parseWhatsAppResponse };
