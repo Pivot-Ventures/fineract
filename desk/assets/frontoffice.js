@@ -676,11 +676,10 @@
           var result = await api.post(path, body);
           notifyAlert({
             type: isLoan ? "loan_repay" : (isIn ? "deposit" : "withdrawal"),
-            amount: v.amount,
-            currency: "UGX",
-            reference: v.note || "",
-            savingsAccountId: isLoan ? "" : v.acct,
-            loanAccountId: isLoan ? v.acct : ""
+            transactionId: result && result.resourceId,
+            savingsAccountId: isLoan ? "" : ((result && result.savingsId) || v.acct),
+            loanId: isLoan ? ((result && result.loanId) || v.acct) : "",
+            pending: Boolean(result && result.rollbackTransaction)
           });
           return result;
         }

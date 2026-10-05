@@ -1,31 +1,73 @@
 # Template installed by alerts/deploy/install-on-host.sh.
 # Placeholders are replaced on the droplet. This file is not copied into
 # /etc/systemd/system until those placeholders are gone.
+#
+# Layout (see install-on-host.sh):
+#   __DEST__/releases/<id>/   immutable release trees, root-owned, read-only
+#   __DEST__/current          symlink to the live release
+#   __DATA_DIR__              store.json, owned by pivot-alerts, mode 700
+#   __ENV_FILE__              provider keys, root:pivot-alerts mode 640
 
 [Unit]
 Description=Phaneroo SACCO transactional alerts
 After=network-online.target
 Wants=network-online.target
+# Give up after 5 crashes in 5 minutes instead of flapping forever.
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
-User=__SERVICE_USER__
-Group=__SERVICE_GROUP__
-WorkingDirectory=__DEST__
-Environment=PORT=8095
+User=pivot-alerts
+Group=pivot-alerts
+WorkingDirectory=__DEST__/current
 Environment=NODE_ENV=production
-Environment=ALERTS_DATA_FILE=__DEST__/data/store.json
+Environment=PORT=8095
+# Loopback only. The reverse proxy and the member gateway reach it on
+# 127.0.0.1. install-on-host.sh refuses an env file that overrides HOST.
+Environment=HOST=127.0.0.1
+# nginx/Caddy in front set X-Forwarded-For to the real client, so per-IP limits see staff, not the proxy.
+Environment=ALERTS_TRUST_PROXY=true
+Environment=ALERTS_DATA_DIR=__DATA_DIR__
+Environment=ALERTS_DATA_FILE=__DATA_DIR__/store.json
 EnvironmentFile=-__ENV_FILE__
-ExecStart=__NODE_BIN__ server.js
+ExecStart=__NODE_BIN__ __DEST__/current/server.js
 Restart=on-failure
 RestartSec=3
-StartLimitIntervalSec=60
-StartLimitBurst=5
+
+# Data directory. systemd creates it owned by User= with mode 700.
+StateDirectory=pivot-sacco-alerts
+StateDirectoryMode=0700
+ReadWritePaths=__DATA_DIR__
+
+# Sandboxing.
 UMask=0077
 NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
 PrivateTmp=true
+PrivateDevices=true
 ProtectSystem=strict
-ReadWritePaths=__DEST__/data
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+KeyringMode=private
+RemoveIPC=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+# MemoryDenyWriteExecute=true is intentionally NOT set: V8's JIT needs
+# writable+executable memory, and Node aborts at startup under it.
 
 [Install]
 WantedBy=multi-user.target

@@ -86,13 +86,9 @@
         render(res);
         api.toast("Mobile banking updated", "success");
       }
-      /* PIN-lock clear only. Activation codes stay on this screen: Desk tells staff
-         not to send the code by SMS or WhatsApp, so the alerts service must not carry it. */
-      if (suffix === "/unlock" && window.TransactionalAlerts) {
-        try {
-          window.TransactionalAlerts.notify({ type: "pin", memberId: clientId, reference: "pin-unlock" });
-        } catch (e) { /* unlock already succeeded */ }
-      }
+      /* No Desk alert here. A browser must not choose the phone or the text, and
+         activation codes stay on this screen. PIN and block alerts are sent by a
+         server that holds ALERTS_SERVICE_KEY, not by this page. */
     } catch (e) {
       api.toast(e.message, "error");
     } finally {

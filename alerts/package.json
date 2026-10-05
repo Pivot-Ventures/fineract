@@ -7,6 +7,6 @@
     "test": "node --test scripts/adapters.test.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   }
 }
